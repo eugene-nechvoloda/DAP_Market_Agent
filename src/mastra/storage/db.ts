@@ -1,4 +1,6 @@
-import { sharedPostgresStorage } from './index.js';
+import pg from 'pg';
+
+const { Pool } = pg;
 
 export interface ReportHistoryRecord {
   id: number;
@@ -20,10 +22,12 @@ export interface SettingRecord {
 }
 
 export class DatabaseService {
-  private pool: any;
+  private pool: pg.Pool;
 
   constructor() {
-    this.pool = (sharedPostgresStorage as any).pool;
+    this.pool = new Pool({
+      connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/mastra',
+    });
   }
 
   async getLastReport(): Promise<ReportHistoryRecord | null> {
