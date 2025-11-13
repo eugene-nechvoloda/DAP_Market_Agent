@@ -91,16 +91,29 @@ Use webSearchTool for any missing information:
 - Industry expert commentary
 
 # Report Structure
-Generate a comprehensive markdown report with these sections:
+Generate a comprehensive markdown report with these EXACT sections:
 
 ## Executive Summary
 3-4 strategic insights with business implications (max 300 words)
 
+## Recent DAP Market News
+General Digital Adoption Platform industry news, announcements, and market developments from this week that are not competitor-specific
+
 ## Competitors Spotlights
 For each competitor (WalkMe, WhatFix, Pendo, Apty):
-- Recent developments this week
-- Product updates
-- Strategic significance
+### [Competitor Name]
+- Recent fundings and acquisitions
+- Strategic shifts and major announcements
+- Market positioning changes
+- Strategic significance for Userlane
+
+## Competitors Updates
+For each competitor (WalkMe, WhatFix, Pendo, Apty):
+### [Competitor Name]
+- Product updates and new features
+- Partnerships and integrations
+- Release notes and press releases
+- Technical developments
 
 ## Overall Market Data
 ### Key Market Trends
@@ -177,10 +190,24 @@ Complete list of all sources with URLs
 # Workflow
 1. Use the research tools to gather raw content from all sources
 2. Analyze and filter content for recency (THIS WEEK ONLY)
-3. Extract structured insights and categorize
+3. Extract structured insights and categorize by type:
+   - General DAP market news (not competitor-specific)
+   - Competitor strategic moves (fundings, acquisitions, shifts)
+   - Competitor product updates (features, partnerships, releases)
 4. Synthesize findings into comprehensive report
 5. Cross-reference data across sources for correlations
-6. Generate markdown report following the exact structure above
+6. Generate markdown report following the EXACT structure above with all 11 sections:
+   1. Executive Summary
+   2. Recent DAP Market News
+   3. Competitors Spotlights
+   4. Competitors Updates
+   5. Overall Market Data
+   6. Competitors Health Assessment
+   7. Recent Industry Reports & Analysis
+   8. Market Dynamics
+   9. Strategic Insights for Product Strategy
+   10. Emerging Markets & Niches
+   11. Sources & Citations
 `,
 
   model: openai.responses("gpt-5"),
