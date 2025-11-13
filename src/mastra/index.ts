@@ -8,9 +8,9 @@ import { NonRetriableError } from "inngest";
 import { z } from "zod";
 
 import { sharedPostgresStorage } from "./storage";
-import { inngest, inngestServe } from "./inngest";
-import { exampleWorkflow } from "./workflows/exampleWorkflow"; // Replace with your own workflow
-import { exampleAgent } from "./agents/exampleAgent"; // Replace with your own agent
+import { inngest, inngestServe, registerCronWorkflow } from "./inngest";
+import { weeklyMarketResearchWorkflow } from "./workflows/weeklyMarketResearchWorkflow";
+import { dapMarketResearchAgent } from "./agents/dapMarketResearchAgent";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -56,9 +56,13 @@ class ProductionPinoLogger extends MastraLogger {
 export const mastra = new Mastra({
   storage: sharedPostgresStorage,
   // Register your workflows here
-  workflows: {},
+  workflows: {
+    weeklyMarketResearch: weeklyMarketResearchWorkflow,
+  },
   // Register your agents here
-  agents: {},
+  agents: {
+    dapMarketResearch: dapMarketResearchAgent,
+  },
   mcpServers: {
     allTools: new MCPServer({
       name: "allTools",
@@ -221,6 +225,14 @@ export const mastra = new Mastra({
           level: "info",
         }),
 });
+
+// ======================================================================
+// Time-based Cron Trigger
+// ======================================================================
+// Register the weekly market research workflow to run every Monday at 8:00 AM CET
+// Cron expression: "0 7 * * 1" (7:00 AM UTC = 8:00 AM CET in winter, 9:00 AM CEST in summer)
+// The user can adjust the timezone offset if needed
+registerCronWorkflow("0 7 * * 1", weeklyMarketResearchWorkflow);
 
 /*  Sanity check 1: Throw an error if there are more than 1 workflows.  */
 // !!!!!! Do not remove this check. !!!!!!
