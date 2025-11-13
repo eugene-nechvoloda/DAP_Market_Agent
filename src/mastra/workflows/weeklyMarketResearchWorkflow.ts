@@ -16,6 +16,7 @@ const gatherMarketData = createStep({
   outputSchema: z.object({
     dateStart: z.string(),
     dateEnd: z.string(),
+    weekRangeLabel: z.string(),
     competitorData: z.any(),
     industryData: z.any(),
     reviewsData: z.any(),
@@ -32,6 +33,14 @@ const gatherMarketData = createStep({
     
     const dateStartStr = dateStart.toISOString().split('T')[0];
     const dateEndStr = dateEnd.toISOString().split('T')[0];
+    
+    // Format week range label for document title (e.g., "Nov 6-13, 2025")
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const startMonth = monthNames[dateStart.getMonth()];
+    const endMonth = monthNames[dateEnd.getMonth()];
+    const weekRangeLabel = startMonth === endMonth 
+      ? `${startMonth} ${dateStart.getDate()}-${dateEnd.getDate()}, ${dateEnd.getFullYear()}`
+      : `${startMonth} ${dateStart.getDate()}-${endMonth} ${dateEnd.getDate()}, ${dateEnd.getFullYear()}`;
     
     logger?.info('📅 [Step 1] Date range:', { dateStart: dateStartStr, dateEnd: dateEndStr });
     
@@ -62,6 +71,7 @@ const gatherMarketData = createStep({
     return {
       dateStart: dateStartStr,
       dateEnd: dateEndStr,
+      weekRangeLabel,
       competitorData,
       industryData,
       reviewsData,
@@ -76,6 +86,7 @@ const analyzeAndCompileReport = createStep({
   inputSchema: z.object({
     dateStart: z.string(),
     dateEnd: z.string(),
+    weekRangeLabel: z.string(),
     competitorData: z.any(),
     industryData: z.any(),
     reviewsData: z.any(),
@@ -84,6 +95,7 @@ const analyzeAndCompileReport = createStep({
   outputSchema: z.object({
     report: z.string(),
     summary: z.string(),
+    weekRangeLabel: z.string(),
   }),
   
   execute: async ({ inputData, mastra }) => {
@@ -142,6 +154,7 @@ Generate the complete markdown report now.
     return {
       report: reportText,
       summary,
+      weekRangeLabel: inputData.weekRangeLabel,
     };
   },
 });
@@ -153,6 +166,7 @@ const exportToGoogleDocs = createStep({
   inputSchema: z.object({
     report: z.string(),
     summary: z.string(),
+    weekRangeLabel: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
   }),
@@ -168,7 +182,7 @@ const exportToGoogleDocs = createStep({
     const logger = mastra?.getLogger();
     logger?.info('📄 [Step 3] Exporting report to Google Docs...');
     
-    const title = `DAP Market Research Report - Week of ${inputData.dateStart}`;
+    const title = `DAP Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const result = await googleDocsExportTool.execute({
       context: {

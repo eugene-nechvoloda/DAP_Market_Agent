@@ -2,6 +2,57 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { google } from "googleapis";
 
+// Helper function to get Google Docs client with Replit integration
+async function getGoogleDocsClient() {
+  let connectionSettings: any;
+
+  async function getAccessToken() {
+    if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
+      return connectionSettings.settings.access_token;
+    }
+    
+    const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+    const xReplitToken = process.env.REPL_IDENTITY 
+      ? 'repl ' + process.env.REPL_IDENTITY 
+      : process.env.WEB_REPL_RENEWAL 
+      ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+      : null;
+
+    if (!xReplitToken) {
+      throw new Error('Replit authentication not found');
+    }
+
+    connectionSettings = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-docs',
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X_REPLIT_TOKEN': xReplitToken
+        }
+      }
+    ).then(res => res.json()).then(data => data.items?.[0]);
+
+    const accessToken = connectionSettings?.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
+
+    if (!connectionSettings || !accessToken) {
+      throw new Error('Google Docs not connected. Please connect Google Docs in the Replit UI.');
+    }
+    return accessToken;
+  }
+
+  const accessToken = await getAccessToken();
+
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({
+    access_token: accessToken
+  });
+
+  return {
+    docs: google.docs({ version: 'v1', auth: oauth2Client }),
+    drive: google.drive({ version: 'v3', auth: oauth2Client }),
+  };
+}
+
 export const googleDocsExportTool = createTool({
   id: "google-docs-export-tool",
   description:
@@ -24,31 +75,8 @@ export const googleDocsExportTool = createTool({
     logger?.info('📄 [googleDocsExportTool] Starting Google Docs export:', { title: context.title });
     
     try {
-      // Get the Google Docs credentials from environment
-      const credentials = process.env.GOOGLE_DOCS_CREDENTIALS;
-      
-      if (!credentials) {
-        throw new Error('GOOGLE_DOCS_CREDENTIALS environment variable not found');
-      }
-      
-      // Parse credentials
-      const creds = JSON.parse(credentials);
-      
-      // Create OAuth2 client
-      const auth = new google.auth.OAuth2(
-        creds.client_id,
-        creds.client_secret,
-        creds.redirect_uris?.[0]
-      );
-      
-      // Set credentials
-      auth.setCredentials({
-        access_token: creds.access_token,
-        refresh_token: creds.refresh_token,
-      });
-      
-      const docs = google.docs({ version: 'v1', auth });
-      const drive = google.drive({ version: 'v3', auth });
+      // Get authenticated Google Docs client via Replit integration
+      const { docs, drive } = await getGoogleDocsClient();
       
       // Create a new document
       const createResponse = await docs.documents.create({
@@ -94,14 +122,24 @@ export const googleDocsExportTool = createTool({
       
       logger?.info('✅ [googleDocsExportTool] Content inserted into document');
       
-      // Make the document accessible via link
-      await drive.permissions.create({
-        fileId: documentId,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
-      });
+      // Try to make the document accessible via link (optional - requires Drive scope)
+      // If this fails due to missing Drive scope, the document will still be created
+      // but will only be accessible to the authenticated user
+      try {
+        await drive.permissions.create({
+          fileId: documentId,
+          requestBody: {
+            role: 'reader',
+            type: 'anyone',
+          },
+        });
+        logger?.info('✅ [googleDocsExportTool] Document shared publicly');
+      } catch (error) {
+        logger?.warn('⚠️ [googleDocsExportTool] Could not share document publicly (missing Drive scope):', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        logger?.info('📝 [googleDocsExportTool] Document created but only accessible to authenticated user');
+      }
       
       const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
       
