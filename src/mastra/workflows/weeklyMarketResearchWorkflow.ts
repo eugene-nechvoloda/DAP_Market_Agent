@@ -6,6 +6,7 @@ import { industryReportsResearchTool } from "../tools/industryReportsResearchToo
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
 import { googleDocsExportTool } from "../tools/googleDocsExportTool";
 import { slackNotificationTool } from "../tools/slackNotificationTool";
+import { db } from "../storage/db.js";
 
 const gatherMarketData = createStep({
   id: "gather-market-data",
@@ -26,23 +27,33 @@ const gatherMarketData = createStep({
     const logger = mastra?.getLogger();
     logger?.info('🚀 [Step 1] Starting market data gathering...');
     
-    // Calculate date range: last 7 days
+    // Check if this is the first run by looking for previous reports
+    const lastReport = await db.getLastReport();
+    const isFirstRun = !lastReport;
+    
+    // Calculate date range: 90 days for first run, 7 days for subsequent runs
     const dateEnd = new Date();
     const dateStart = new Date();
-    dateStart.setDate(dateStart.getDate() - 7);
+    const daysToLookBack = isFirstRun ? 90 : 7;
+    dateStart.setDate(dateStart.getDate() - daysToLookBack);
     
     const dateStartStr = dateStart.toISOString().split('T')[0];
     const dateEndStr = dateEnd.toISOString().split('T')[0];
     
-    // Format week range label for document title (e.g., "Nov 6-13, 2025")
+    // Format week range label for document title (e.g., "Nov 6-13, 2025" or "Aug 15-Nov 13, 2025" for first run)
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const startMonth = monthNames[dateStart.getMonth()];
     const endMonth = monthNames[dateEnd.getMonth()];
-    const weekRangeLabel = startMonth === endMonth 
+    const weekRangeLabel = startMonth === endMonth && dateStart.getFullYear() === dateEnd.getFullYear()
       ? `${startMonth} ${dateStart.getDate()}-${dateEnd.getDate()}, ${dateEnd.getFullYear()}`
-      : `${startMonth} ${dateStart.getDate()}-${endMonth} ${dateEnd.getDate()}, ${dateEnd.getFullYear()}`;
+      : `${startMonth} ${dateStart.getDate()}, ${dateStart.getFullYear()}-${endMonth} ${dateEnd.getDate()}, ${dateEnd.getFullYear()}`;
     
-    logger?.info('📅 [Step 1] Date range:', { dateStart: dateStartStr, dateEnd: dateEndStr });
+    logger?.info('📅 [Step 1] Date range:', { 
+      dateStart: dateStartStr, 
+      dateEnd: dateEndStr, 
+      daysLookback: daysToLookBack, 
+      isFirstRun 
+    });
     
     // Gather data from all sources
     logger?.info('🏢 [Step 1] Gathering competitor news...');
@@ -176,6 +187,9 @@ const exportToGoogleDocs = createStep({
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
   }),
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
@@ -204,6 +218,63 @@ const exportToGoogleDocs = createStep({
       summary: inputData.summary,
       documentUrl: result.documentUrl,
       exportSuccess: result.success,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      weekRangeLabel: inputData.weekRangeLabel,
+    };
+  },
+});
+
+const saveReportToHistory = createStep({
+  id: "save-report-to-history",
+  description: "Saves the generated report to database history",
+  
+  inputSchema: z.object({
+    report: z.string(),
+    summary: z.string(),
+    documentUrl: z.string().optional(),
+    exportSuccess: z.boolean(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    report: z.string(),
+    summary: z.string(),
+    documentUrl: z.string().optional(),
+    exportSuccess: z.boolean(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    reportId: z.number(),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('💾 [Step 4] Saving report to history...');
+    
+    const title = `DAP Market Research Report - Week of ${inputData.weekRangeLabel}`;
+    
+    const savedReport = await db.saveReport({
+      title,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      googleDocsUrl: inputData.documentUrl || null,
+      slackNotificationSent: false,
+      triggerType: (runtimeContext as any).triggerType || 'scheduled',
+      reportContent: inputData.report,
+    });
+    
+    logger?.info('✅ [Step 4] Report saved to history:', { reportId: savedReport.id });
+    
+    return {
+      report: inputData.report,
+      summary: inputData.summary,
+      documentUrl: inputData.documentUrl,
+      exportSuccess: inputData.exportSuccess,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      reportId: savedReport.id,
     };
   },
 });
@@ -219,6 +290,7 @@ const sendSlackNotification = createStep({
     exportSuccess: z.boolean(),
     dateStart: z.string().optional(),
     dateEnd: z.string().optional(),
+    reportId: z.number().optional(),
   }),
   
   outputSchema: z.object({
@@ -229,9 +301,9 @@ const sendSlackNotification = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💬 [Step 4] Sending Slack notification...');
+    logger?.info('💬 [Step 5] Sending Slack notification...');
     
-    const channelId = "C09SK3N27MH"; // User's Slack channel
+    const channelId = await db.getSetting('slack_channel_id') || "C09SK3N27MH"; // Get from settings or use default
     
     const message = `
 🔔 *Weekly DAP Market Research Report*
@@ -282,5 +354,6 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   .then(gatherMarketData as any)
   .then(analyzeAndCompileReport as any)
   .then(exportToGoogleDocs as any)
+  .then(saveReportToHistory as any)
   .then(sendSlackNotification as any)
   .commit();
