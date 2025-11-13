@@ -11,6 +11,7 @@ import { sharedPostgresStorage } from "./storage";
 import { inngest, inngestServe, registerCronWorkflow } from "./inngest";
 import { weeklyMarketResearchWorkflow } from "./workflows/weeklyMarketResearchWorkflow";
 import { dapMarketResearchAgent } from "./agents/dapMarketResearchAgent";
+import { apiRoutes } from "./api/routes";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -212,6 +213,11 @@ export const mastra = new Mastra({
       // ...registerGithubTrigger({ ... }),
       // ...registerSlackTrigger({ ... }),
       // ...registerStripeWebhook({ ... }),
+      
+      // ======================================================================
+      // Custom API Routes
+      // ======================================================================
+      ...apiRoutes,
     ],
   },
   logger:

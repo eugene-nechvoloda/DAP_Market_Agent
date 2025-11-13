@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DAP Market Research Dashboard</title>
+  <link rel="stylesheet" href="/styles-css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 DAP Market Research Dashboard</h1>
+      <p>Automated competitive intelligence for Digital Adoption Platforms</p>
+    </header>
+
+    <div class="panels">
+      <!-- Settings Panel -->
+      <section class="panel">
+        <h2>⚙️ Settings</h2>
+        <form id="settingsForm">
+          <div class="form-group">
+            <label for="slackChannel">Slack Channel ID:</label>
+            <input type="text" id="slackChannel" placeholder="C09SK3N27MH" required>
+          </div>
+          <div class="form-group">
+            <label for="exportDest">Export Destination:</label>
+            <select id="exportDest" required>
+              <option value="google_docs">Google Docs</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+        <div id="settingsStatus" class="status"></div>
+      </section>
+
+      <!-- Manual Trigger Panel -->
+      <section class="panel">
+        <h2>🚀 Manual Report Generation</h2>
+        <p>Generate a market research report on-demand. The report will be saved to history and exported to Google Docs.</p>
+        <button id="generateBtn" class="btn btn-success">Generate Report Now</button>
+        <div id="triggerStatus" class="status"></div>
+      </section>
+
+      <!-- Report History Panel -->
+      <section class="panel full-width">
+        <h2>📝 Report History</h2>
+        <div id="historyStatus" class="status"></div>
+        <div class="table-container">
+          <table id="historyTable">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Date Range</th>
+                <th>Generated At</th>
+                <th>Trigger Type</th>
+                <th>Google Docs</th>
+                <th>Slack Sent</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr>
+                <td colspan="6" class="loading">Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/app-js"></script>
+</body>
+</html>
