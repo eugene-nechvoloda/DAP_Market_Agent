@@ -12,6 +12,18 @@ This is a **Mastra-based AI agent automation platform** built for Replit, specif
 - ✅ Proper separation of concerns: agent handles research, workflow handles orchestration/export/notification
 
 **Recent Changes (November 14, 2025)**:
+- **Agent Anti-Hallucination Enhancements** (QUALITY IMPROVEMENT):
+  - Added explicit "no fabrication" rules to prevent the agent from inventing competitor activities or market trends
+  - Implemented fallback text for empty sections (e.g., "_No significant DAP market news this week_")
+  - Required citations for all factual claims to ensure verifiability
+  - Configured agent to skip Competitors Health Assessment and Market Dynamics sections until external metrics tools are implemented
+  - **Result**: Reports now contain only verified, factual information with no narrative padding or assumptions
+- **Report Format Improvements** (USER EXPERIENCE):
+  - Fixed heading hierarchy: main sections now use H1 instead of H2
+  - Removed "Weekly DAP Market Research Report" H1 title per user request
+  - Subsections properly use H2/H3/H4 hierarchy
+  - Google Docs export correctly maps headings (H1→HEADING_1, H2→HEADING_2, etc.)
+  - **Result**: Reports have cleaner structure with proper heading levels for readability
 - **Database-backed Source Caching Architecture** (CRITICAL FIX):
   - Created `report_sources` table to cache large curated data per workflow run
   - Step 1 now saves competitor/industry/reviews data (36KB+) to database, returns only lightweight metadata (runId, dates)
