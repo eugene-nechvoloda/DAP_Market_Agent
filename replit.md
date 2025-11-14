@@ -12,15 +12,19 @@ This is a **Mastra-based AI agent automation platform** built for Replit, specif
 - ✅ Proper separation of concerns: agent handles research, workflow handles orchestration/export/notification
 
 **Recent Changes (November 14, 2025)**:
-- Fixed workflow architecture bug where agent prematurely called export/notification tools
-- Removed `googleDocsExportTool` and `slackNotificationTool` from agent's available tools
-- Agent now only has research tools: `webFetchTool`, `webSearchTool`, `competitorNewsResearchTool`, `industryReportsResearchTool`, `userReviewsResearchTool`
-- Export and notification are now handled exclusively by workflow steps (Step 3 and Step 5)
-- Fixed workflow data flow to properly pass `dateStart` and `dateEnd` through all steps
-- Fixed API route to use Inngest client directly instead of accessing from Mastra instance
-- **Implemented Perplexity API rate limiting**: Created rate limiter utility with 3 requests per minute limit and 30-second delays between requests to prevent "Too Many Requests" errors
-- **Reduced agent maxSteps to 3**: Limits total tool calls to prevent excessive API usage during report generation
-- End-to-end testing confirms all 5 workflow steps execute successfully without rate limit errors
+- **Database-backed Source Caching Architecture** (CRITICAL FIX):
+  - Created `report_sources` table to cache large curated data per workflow run
+  - Step 1 now saves competitor/industry/reviews data (36KB+) to database, returns only lightweight metadata (runId, dates)
+  - Step 2 passes runId unchanged, adds trimmed web search results (500 char answers, 3 citations max)
+  - Step 3 loads curated data from database using runId, compiles report, saves to database, returns only reportId
+  - Steps 4-6 load report from database using reportId for export/notification
+  - **Result**: Eliminated all Inngest step output size limit errors while preserving full data fidelity for agent analysis
+- **DatabaseService enhancements**: Added saveReportSources, getReportSources, deleteReportSources methods with proper snake_case to camelCase mapping
+- **Workflow data flow optimizations**: Minimal metadata transfer between steps, full data stored in PostgreSQL
+- **Perplexity API rate limiting**: 3 requests/min with 30-second delays between requests
+- **Agent optimization**: maxSteps=3 to limit total tool calls and respect API rate limits
+- **Web search trimming**: Answers truncated to 500 chars, citations limited to 3 per search
+- **End-to-end testing**: All 6 workflow steps execute successfully without any Inngest, JSON, or prompt size errors
 
 **Known Limitations**:
 - G2 review platform blocks automated access (HTTP 403) - system uses Gartner reviews instead

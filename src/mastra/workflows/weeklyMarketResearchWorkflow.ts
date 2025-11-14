@@ -4,6 +4,7 @@ import { dapMarketResearchAgent } from "../agents/dapMarketResearchAgent";
 import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool";
 import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
+import { webSearchTool } from "../tools/webSearchTool";
 import { googleDocsExportTool } from "../tools/googleDocsExportTool";
 import { slackNotificationTool } from "../tools/slackNotificationTool";
 import { db } from "../storage/db.js";
@@ -15,17 +16,19 @@ const gatherMarketData = createStep({
   inputSchema: z.object({}),
   
   outputSchema: z.object({
+    runId: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    competitorData: z.any(),
-    industryData: z.any(),
-    reviewsData: z.any(),
   }),
   
   execute: async ({ mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
     logger?.info('🚀 [Step 1] Starting market data gathering...');
+    
+    // Generate unique run ID for this workflow execution
+    const runId = runtimeContext.runId || `run-${Date.now()}`;
+    logger?.info('📋 [Step 1] Run ID:', { runId });
     
     // Check if this is the first run by looking for previous reports
     const lastReport = await db.getLastReport();
@@ -79,13 +82,138 @@ const gatherMarketData = createStep({
     
     logger?.info('✅ [Step 1] Market data gathering complete');
     
+    // Save curated data to database to avoid Inngest step output size limits
+    logger?.info('💾 [Step 1] Saving curated data to database:',{
+      competitorDataSize: JSON.stringify(competitorData).length,
+      industryDataSize: JSON.stringify(industryData).length,
+      reviewsDataSize: JSON.stringify(reviewsData).length,
+    });
+    
+    await db.saveReportSources(runId, competitorData, industryData, reviewsData);
+    logger?.info('✅ [Step 1] Curated data saved to database');
+    
+    // Return only lightweight metadata
     return {
+      runId,
       dateStart: dateStartStr,
       dateEnd: dateEndStr,
       weekRangeLabel,
-      competitorData,
-      industryData,
-      reviewsData,
+    };
+  },
+});
+
+const performWebSearches = createStep({
+  id: "perform-web-searches",
+  description: "Performs two web searches for comprehensive market intelligence",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('🔍 [Step 2] Performing web searches for market intelligence...');
+    
+    // Calculate date range for search queries
+    const dateStart = new Date(inputData.dateStart);
+    const dateEnd = new Date(inputData.dateEnd);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const startMonth = monthNames[dateStart.getMonth()];
+    const endMonth = monthNames[dateEnd.getMonth()];
+    const dateRange = `${startMonth} ${dateStart.getDate()}-${endMonth !== startMonth ? endMonth + ' ' : ''}${dateEnd.getDate()} ${dateEnd.getFullYear()}`;
+    
+    // Search 1: Broad weekly market pulse
+    logger?.info('🔍 [Step 2.1] Executing broad weekly market pulse search...');
+    const broadPulseQuery = `Digital adoption platform DAP news ${dateRange}: WalkMe WhatFix Pendo Apty funding acquisitions product launches partnerships industry trends market analysis`;
+    
+    const broadPulseSearch = await webSearchTool.execute({
+      context: {
+        query: broadPulseQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    logger?.info('✅ [Step 2.1] Broad pulse search completed:', {
+      success: broadPulseSearch.success,
+      citationsCount: broadPulseSearch.citations?.length || 0,
+    });
+    
+    // Search 2: Targeted follow-up (market data focus)
+    logger?.info('🔍 [Step 2.2] Executing targeted follow-up search...');
+    const targetedQuery = `Digital adoption platform market size growth rate ${dateEnd.getFullYear()} investment trends CAGR analyst reports Forrester Gartner market forecast`;
+    
+    const targetedFollowUpSearch = await webSearchTool.execute({
+      context: {
+        query: targetedQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    logger?.info('✅ [Step 2.2] Targeted follow-up search completed:', {
+      success: targetedFollowUpSearch.success,
+      citationsCount: targetedFollowUpSearch.citations?.length || 0,
+    });
+    
+    logger?.info('✅ [Step 2] Web searches complete');
+    
+    // Trim web search results to reduce payload size for Inngest step output limits
+    // Keep only essential data: truncated answers + trimmed citations
+    const trimCitations = (citations: any[]) => 
+      citations.slice(0, 3).map(c => ({
+        title: c.title?.substring(0, 100) || '', // Trim title to 100 chars
+        url: c.url || '',
+        // Remove snippet to save space
+      }));
+    
+    const trimmedBroadPulse = {
+      success: broadPulseSearch.success,
+      query: broadPulseSearch.query,
+      answer: broadPulseSearch.answer?.substring(0, 500) || '', // Trim to 500 chars
+      citations: trimCitations(broadPulseSearch.citations || []),
+      error: broadPulseSearch.error,
+    };
+    
+    const trimmedTargetedSearch = {
+      success: targetedFollowUpSearch.success,
+      query: targetedFollowUpSearch.query,
+      answer: targetedFollowUpSearch.answer?.substring(0, 500) || '', // Trim to 500 chars
+      citations: trimCitations(targetedFollowUpSearch.citations || []),
+      error: targetedFollowUpSearch.error,
+    };
+    
+    logger?.info('📦 [Step 2] Trimmed web search payloads for Inngest:', {
+      broadPulseAnswerLength: trimmedBroadPulse.answer.length,
+      targetedAnswerLength: trimmedTargetedSearch.answer.length,
+      totalCitations: (trimmedBroadPulse.citations?.length || 0) + (trimmedTargetedSearch.citations?.length || 0),
+    });
+    
+    return {
+      runId: inputData.runId,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      weekRangeLabel: inputData.weekRangeLabel,
+      webSearchResults: {
+        broadPulseSearch: trimmedBroadPulse,
+        targetedFollowUpSearch: trimmedTargetedSearch,
+      },
     };
   },
 });
@@ -95,16 +223,19 @@ const analyzeAndCompileReport = createStep({
   description: "Agent analyzes gathered data and compiles comprehensive weekly market research report",
   
   inputSchema: z.object({
+    runId: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    competitorData: z.any(),
-    industryData: z.any(),
-    reviewsData: z.any(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
   }),
   
   outputSchema: z.object({
-    report: z.string(),
+    reportId: z.number(),
+    runId: z.string(),
     summary: z.string(),
     weekRangeLabel: z.string(),
     dateStart: z.string(),
@@ -113,37 +244,75 @@ const analyzeAndCompileReport = createStep({
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🤖 [Step 2] Agent analyzing market data and compiling report...');
+    logger?.info('🤖 [Step 3] Agent analyzing market data and compiling report...');
+    
+    // Load curated data from database using runId
+    logger?.info('💾 [Step 3] Loading curated data from database:', { runId: inputData.runId });
+    const sources = await db.getReportSources(inputData.runId);
+    
+    if (!sources) {
+      logger?.error('❌ [Step 3] No curated data found for runId:', { runId: inputData.runId });
+      throw new Error(`Curated data not found for runId: ${inputData.runId}`);
+    }
+    
+    logger?.info('✅ [Step 3] Curated data loaded:', {
+      competitorDataSize: JSON.stringify(sources.competitorData).length,
+      industryDataSize: JSON.stringify(sources.industryData).length,
+      reviewsDataSize: JSON.stringify(sources.reviewsData).length,
+    });
+    
+    // Trim curated data to avoid prompt size limits (prioritize web search results)
+    const trimData = (data: any, maxLength: number = 2000) => {
+      const str = JSON.stringify(data, null, 2);
+      return str.length > maxLength ? str.substring(0, maxLength) + '...[truncated]' : str;
+    };
     
     const prompt = `
 You are conducting the weekly DAP market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
 
-Here is the raw market data gathered from various sources:
+You have been provided with comprehensive market intelligence from BOTH curated sources AND web searches.
 
-## Competitor News Data:
-${JSON.stringify(inputData.competitorData, null, 2)}
+## WEB SEARCH RESULTS (Primary Intelligence):
 
-## Industry Reports Data:
-${JSON.stringify(inputData.industryData, null, 2)}
+### Broad Market Pulse Search:
+**Query**: Digital adoption platform news this week
+**Answer**: ${inputData.webSearchResults.broadPulseSearch.answer || 'No answer available'}
+**Citations**: ${JSON.stringify(inputData.webSearchResults.broadPulseSearch.citations || [], null, 2)}
 
-## User Reviews Data:
-${JSON.stringify(inputData.reviewsData, null, 2)}
+### Targeted Market Data Search:
+**Query**: DAP market size, growth, investment trends
+**Answer**: ${inputData.webSearchResults.targetedFollowUpSearch.answer || 'No answer available'}
+**Citations**: ${JSON.stringify(inputData.webSearchResults.targetedFollowUpSearch.citations || [], null, 2)}
+
+## CURATED SOURCE DATA (Supplementary Intelligence - Trimmed):
+
+### Competitor News Data:
+${trimData(sources.competitorData, 3000)}
+
+### Industry Reports Data:
+${trimData(sources.industryData, 2000)}
+
+### User Reviews Data:
+${trimData(sources.reviewsData, 2000)}
 
 **YOUR TASK:**
-1. Analyze all the raw content provided above
-2. Extract and categorize recent developments (from THIS WEEK ONLY: ${inputData.dateStart} to ${inputData.dateEnd})
-3. Filter out outdated information from 2020-2024 or earlier
-4. Identify temporal clues and focus on "recent", "latest", "new" content
-5. Generate a comprehensive market research report following the exact structure in your instructions
-6. Create a brief 2-3 sentence executive summary highlighting the most important findings
+1. **Prioritize web search results** - they provide the most comprehensive, recent market intelligence
+2. Use curated sources to supplement and validate findings from web searches
+3. Extract and categorize recent developments (from THIS WEEK ONLY: ${inputData.dateStart} to ${inputData.dateEnd})
+4. Filter out outdated information from 2020-2024 or earlier
+5. Identify temporal clues and focus on "recent", "latest", "new" content
+6. Generate a comprehensive market research report following the exact structure in your instructions
+7. Create a brief 2-3 sentence executive summary highlighting the most important findings
 
 **CRITICAL**: 
-- Use the tools available to you if you need additional information
+- The web search results are COMPREHENSIVE - you have sufficient data to generate the full report
+- Additional tool calls are OPTIONAL and only needed for specific gaps (e.g., missing user sentiment)
+- You have a budget of up to 3 tool calls if needed, but the provided data should be sufficient
+- Include ALL citations from web searches in your Sources & Citations section
 - Be intelligent about temporal relevance - exclude outdated content
-- Include proper citations with source URLs
 - Focus on actionable insights for Userlane's product strategy
 
-Generate the complete markdown report now.
+Generate the complete markdown report now using the web search results as your primary source.
 `;
     
     const response = await dapMarketResearchAgent.generateLegacy(
@@ -155,7 +324,7 @@ Generate the complete markdown report now.
       }
     );
     
-    logger?.info('✅ [Step 2] Agent analysis and report compilation complete');
+    logger?.info('✅ [Step 3] Agent analysis and report compilation complete');
     
     // Extract a summary from the report (first paragraph or executive summary)
     const reportText = response.text;
@@ -164,8 +333,30 @@ Generate the complete markdown report now.
       ? summaryMatch[1].trim().substring(0, 500) 
       : reportText.substring(0, 500);
     
+    // Save report to database immediately to avoid Inngest step output size limit
+    logger?.info('💾 [Step 3] Saving report to database...');
+    const title = `DAP Market Research Report - Week of ${inputData.weekRangeLabel}`;
+    
+    const savedReport = await db.saveReport({
+      title,
+      reportContent: reportText,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      googleDocsUrl: null,
+      slackNotificationSent: false,
+      triggerType: 'manual', // Will be updated in later step with actual trigger type
+    });
+    
+    const reportId = savedReport.id;
+    logger?.info('✅ [Step 3] Report saved to database:', { reportId });
+    
+    // Optional: Clean up curated data cache to save space
+    // await db.deleteReportSources(inputData.runId);
+    // logger?.info('🗑️ [Step 3] Curated data cache cleaned up');
+    
     return {
-      report: reportText,
+      reportId,
+      runId: inputData.runId,
       summary,
       weekRangeLabel: inputData.weekRangeLabel,
       dateStart: inputData.dateStart,
@@ -179,7 +370,7 @@ const exportToGoogleDocs = createStep({
   description: "Exports the market research report to Google Docs",
   
   inputSchema: z.object({
-    report: z.string(),
+    reportId: z.number(),
     summary: z.string(),
     weekRangeLabel: z.string(),
     dateStart: z.string(),
@@ -187,7 +378,7 @@ const exportToGoogleDocs = createStep({
   }),
   
   outputSchema: z.object({
-    report: z.string(),
+    reportId: z.number(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
@@ -198,27 +389,43 @@ const exportToGoogleDocs = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('📄 [Step 3] Exporting report to Google Docs...');
+    logger?.info('📄 [Step 4] Exporting report to Google Docs...');
+    
+    // Read report from database to avoid passing large content through Inngest steps
+    const reportRecord = await db.getReportById(inputData.reportId);
+    
+    if (!reportRecord || !reportRecord.reportContent) {
+      logger?.error('❌ [Step 4] Report not found in database:', { reportId: inputData.reportId });
+      return {
+        reportId: inputData.reportId,
+        summary: inputData.summary,
+        documentUrl: undefined,
+        exportSuccess: false,
+        dateStart: inputData.dateStart,
+        dateEnd: inputData.dateEnd,
+        weekRangeLabel: inputData.weekRangeLabel,
+      };
+    }
     
     const title = `DAP Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const result = await googleDocsExportTool.execute({
       context: {
         title,
-        content: inputData.report,
+        content: reportRecord.reportContent,
       },
       runtimeContext,
       mastra,
     });
     
     if (result.success) {
-      logger?.info('✅ [Step 3] Report exported to Google Docs:', { url: result.documentUrl });
+      logger?.info('✅ [Step 4] Report exported to Google Docs:', { url: result.documentUrl });
     } else {
-      logger?.warn('⚠️ [Step 3] Failed to export to Google Docs:', { error: result.error });
+      logger?.warn('⚠️ [Step 4] Failed to export to Google Docs:', { error: result.error });
     }
     
     return {
-      report: inputData.report,
+      reportId: inputData.reportId,
       summary: inputData.summary,
       documentUrl: result.documentUrl,
       exportSuccess: result.success,
@@ -229,12 +436,12 @@ const exportToGoogleDocs = createStep({
   },
 });
 
-const saveReportToHistory = createStep({
-  id: "save-report-to-history",
-  description: "Saves the generated report to database history",
+const updateReportMetadata = createStep({
+  id: "update-report-metadata",
+  description: "Updates report metadata with Google Docs URL and trigger type",
   
   inputSchema: z.object({
-    report: z.string(),
+    reportId: z.number(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
@@ -244,41 +451,33 @@ const saveReportToHistory = createStep({
   }),
   
   outputSchema: z.object({
-    report: z.string(),
+    reportId: z.number(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
     dateStart: z.string(),
     dateEnd: z.string(),
-    reportId: z.number(),
   }),
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💾 [Step 4] Saving report to history...');
+    logger?.info('💾 [Step 5] Updating report metadata...');
     
-    const title = `DAP Market Research Report - Week of ${inputData.weekRangeLabel}`;
-    
-    const savedReport = await db.saveReport({
-      title,
-      dateStart: inputData.dateStart,
-      dateEnd: inputData.dateEnd,
+    // Update existing report with Google Docs URL and trigger type
+    await db.updateReport(inputData.reportId, {
       googleDocsUrl: inputData.documentUrl || null,
-      slackNotificationSent: false,
       triggerType: (runtimeContext as any).triggerType || 'scheduled',
-      reportContent: inputData.report,
     });
     
-    logger?.info('✅ [Step 4] Report saved to history:', { reportId: savedReport.id });
+    logger?.info('✅ [Step 5] Report metadata updated:', { reportId: inputData.reportId });
     
     return {
-      report: inputData.report,
+      reportId: inputData.reportId,
       summary: inputData.summary,
       documentUrl: inputData.documentUrl,
       exportSuccess: inputData.exportSuccess,
       dateStart: inputData.dateStart,
       dateEnd: inputData.dateEnd,
-      reportId: savedReport.id,
     };
   },
 });
@@ -288,13 +487,12 @@ const sendSlackNotification = createStep({
   description: "Sends notification to Slack channel with report summary and Google Docs link",
   
   inputSchema: z.object({
-    report: z.string(),
+    reportId: z.number(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
-    dateStart: z.string().optional(),
-    dateEnd: z.string().optional(),
-    reportId: z.number().optional(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
   }),
   
   outputSchema: z.object({
@@ -356,8 +554,9 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   }),
 })
   .then(gatherMarketData as any)
+  .then(performWebSearches as any)
   .then(analyzeAndCompileReport as any)
   .then(exportToGoogleDocs as any)
-  .then(saveReportToHistory as any)
+  .then(updateReportMetadata as any)
   .then(sendSlackNotification as any)
   .commit();
