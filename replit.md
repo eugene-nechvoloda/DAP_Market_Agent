@@ -12,11 +12,17 @@ This is a **Mastra-based AI agent automation platform** built for Replit, specif
 - ✅ Proper separation of concerns: agent handles research, workflow handles orchestration/export/notification
 
 **Recent Changes (November 14, 2025)**:
+- **Metrics Ingestion Tools Created** (INFRASTRUCTURE):
+  - Implemented three new tools for fetching real competitor data: owlerMetricsTool (revenue, valuation), crunchbaseMetricsTool (funding), semrushMetricsTool (web traffic)
+  - Tools registered with dapMarketResearchAgent and available for workflow integration
+  - Graceful fallback when API keys not configured - tools return `success: false` with helpful error messages
+  - Agent instructions updated to describe future metrics table format and placeholder text until APIs configured
+  - **Next step**: Create workflow steps to fetch metrics and integrate with report generation
 - **Agent Anti-Hallucination Enhancements** (QUALITY IMPROVEMENT):
   - Added explicit "no fabrication" rules to prevent the agent from inventing competitor activities or market trends
   - Implemented fallback text for empty sections (e.g., "_No significant DAP market news this week_")
   - Required citations for all factual claims to ensure verifiability
-  - Configured agent to skip Competitors Health Assessment and Market Dynamics sections until external metrics tools are implemented
+  - Configured agent to display placeholder text for Competitors Health Assessment and Market Dynamics sections until external metrics tools are integrated
   - **Result**: Reports now contain only verified, factual information with no narrative padding or assumptions
 - **Report Format Improvements** (USER EXPERIENCE):
   - Fixed heading hierarchy: main sections now use H1 instead of H2
@@ -42,6 +48,10 @@ This is a **Mastra-based AI agent automation platform** built for Replit, specif
 - G2 review platform blocks automated access (HTTP 403) - system uses Gartner reviews instead
 - Google Docs public sharing requires additional Drive scope (documents created but only accessible to authenticated user)
 - Slack notifications require valid `SLACK_BOT_TOKEN` with `chat:write` scope
+- Metrics ingestion tools created but not yet integrated into workflow - require API keys:
+  - `OWLER_API_KEY` - for revenue and valuation data
+  - `CRUNCHBASE_API_KEY` - for funding and investment data
+  - `SEMRUSH_API_KEY` - for website traffic and SEO metrics
 
 The application showcases advanced agentic patterns including:
 - Multi-step workflow orchestration with durable execution via Inngest

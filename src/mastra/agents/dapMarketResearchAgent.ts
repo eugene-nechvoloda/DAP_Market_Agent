@@ -8,6 +8,9 @@ import { webSearchTool } from "../tools/webSearchTool";
 import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool";
 import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
+import { owlerMetricsTool } from "../tools/owlerMetricsTool";
+import { crunchbaseMetricsTool } from "../tools/crunchbaseMetricsTool";
+import { semrushMetricsTool } from "../tools/semrushMetricsTool";
 
 const anthropic = createAnthropic({
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
@@ -160,9 +163,15 @@ Use subsections only if data exists:
 ## Market Trajectory Analysis
 
 # 💪 Competitors Health Assessment
-**SKIP THIS ENTIRE SECTION** - Real metrics will be fetched from external tools (Owler, Crunchbase, Semrush).
+**IMPORTANT**: This section will display real competitor metrics from external APIs.
 
-Write only: "_Competitor health metrics are fetched from external data sources._"
+For now, write: "_Competitor health metrics (revenue, funding, web traffic) will be available once API integrations are fully configured. Required: OWLER_API_KEY, CRUNCHBASE_API_KEY, SEMRUSH_API_KEY._"
+
+**Future format** (when metrics tools are enabled in workflow):
+Create a markdown table with columns:
+| Competitor | Revenue (Owler) | Funding (Crunchbase) | Organic Traffic (Semrush) | Trend |
+|------------|----------------|---------------------|--------------------------|-------|
+| WalkMe     | $XXM          | $XXXM               | XXX,XXX/mo               | ▲ +X% |
 
 # 📈 Recent Industry Reports & Analysis
 **ONLY include analyst reports/research published THIS WEEK**. If none exist, write: "_No new industry reports this week._"
@@ -173,9 +182,16 @@ DO NOT fill with:
 - Irrelevant content
 
 # 💹 Market Dynamics
-**SKIP THIS SECTION** - Real metrics will be fetched from external data sources and stored in metrics warehouse.
+**IMPORTANT**: This section will display week-over-week market trends based on real data.
 
-Write only: "_Market dynamics metrics are fetched from external data sources._"
+For now, write: "_Market dynamics tracking (growth rates, market share shifts, traffic trends) will be available once the metrics warehouse is implemented._"
+
+**Future format** (when metrics warehouse is enabled):
+Show week-over-week changes for:
+- Overall DAP market traffic growth
+- Competitor market share shifts
+- Funding velocity trends
+- Emerging player activity
 
 # 💡 Strategic Insights for Product Strategy
 Derive insights ONLY from THIS WEEK'S findings. Use subsections only if you have actual insights:
@@ -251,9 +267,9 @@ Every section must have at least one citation.
    2. # 📰 Recent DAP Market News
    3. # 🎯 Competitors Spotlights (with ## WalkMe, ## WhatFix, ## Pendo, ## Apty subsections)
    4. # 📊 Overall Market Data
-   5. # 💪 Competitors Health Assessment (write "_Competitor health metrics are fetched from external data sources._")
+   5. # 💪 Competitors Health Assessment (write placeholder until metrics APIs configured)
    6. # 📈 Recent Industry Reports & Analysis
-   7. # 💹 Market Dynamics (write "_Market dynamics metrics are fetched from external data sources._")
+   7. # 💹 Market Dynamics (write placeholder until metrics warehouse implemented)
    8. # 💡 Strategic Insights for Product Strategy
    9. # 🌟 Emerging Markets & Niches
    10. # 📚 Sources & Citations
@@ -267,6 +283,9 @@ Every section must have at least one citation.
     competitorNewsResearchTool,
     industryReportsResearchTool,
     userReviewsResearchTool,
+    owlerMetricsTool,
+    crunchbaseMetricsTool,
+    semrushMetricsTool,
   },
   
   memory: new Memory({
