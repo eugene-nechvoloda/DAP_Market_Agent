@@ -18,7 +18,9 @@ This is a **Mastra-based AI agent automation platform** built for Replit, specif
 - Export and notification are now handled exclusively by workflow steps (Step 3 and Step 5)
 - Fixed workflow data flow to properly pass `dateStart` and `dateEnd` through all steps
 - Fixed API route to use Inngest client directly instead of accessing from Mastra instance
-- End-to-end testing confirms all 5 workflow steps execute successfully
+- **Implemented Perplexity API rate limiting**: Created rate limiter utility with 3 requests per minute limit and 30-second delays between requests to prevent "Too Many Requests" errors
+- **Reduced agent maxSteps to 3**: Limits total tool calls to prevent excessive API usage during report generation
+- End-to-end testing confirms all 5 workflow steps execute successfully without rate limit errors
 
 **Known Limitations**:
 - G2 review platform blocks automated access (HTTP 403) - system uses Gartner reviews instead
@@ -189,6 +191,10 @@ src/
 
 ## Search & Data
 - **Exa.js** (`exa-js`): AI-powered web search API for research automation
+- **Perplexity API**: AI-powered search with citations (used via webSearchTool)
+  - Rate limited: 3 requests per minute with 30-second delays between requests
+  - Custom rate limiter utility (`rateLimiter.ts`) prevents API rate limit errors
+  - Requires `PERPLEXITY_API_KEY` environment variable
 
 ## Core Framework Dependencies
 - **AI SDK** (`ai` package): Vercel's AI SDK for LLM streaming and tool calling
