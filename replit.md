@@ -9,6 +9,16 @@ This is a **Mastra-based AI agent automation platform** built for Replit, specif
 - ✅ Google Docs export integration (via Replit connector)
 - ✅ Slack notification system (requires valid bot token)
 - ✅ Graceful error handling and extensive logging
+- ✅ Proper separation of concerns: agent handles research, workflow handles orchestration/export/notification
+
+**Recent Changes (November 14, 2025)**:
+- Fixed workflow architecture bug where agent prematurely called export/notification tools
+- Removed `googleDocsExportTool` and `slackNotificationTool` from agent's available tools
+- Agent now only has research tools: `webFetchTool`, `webSearchTool`, `competitorNewsResearchTool`, `industryReportsResearchTool`, `userReviewsResearchTool`
+- Export and notification are now handled exclusively by workflow steps (Step 3 and Step 5)
+- Fixed workflow data flow to properly pass `dateStart` and `dateEnd` through all steps
+- Fixed API route to use Inngest client directly instead of accessing from Mastra instance
+- End-to-end testing confirms all 5 workflow steps execute successfully
 
 **Known Limitations**:
 - G2 review platform blocks automated access (HTTP 403) - system uses Gartner reviews instead
@@ -18,9 +28,10 @@ This is a **Mastra-based AI agent automation platform** built for Replit, specif
 The application showcases advanced agentic patterns including:
 - Multi-step workflow orchestration with durable execution via Inngest
 - AI agent with tool calling for intelligent market research analysis
+- Proper separation of concerns: agent generates content, workflow handles orchestration
 - Time-based automated triggers
 - External API integrations (Google Docs, Slack)
-- Comprehensive error handling and logging
+- Comprehensive error handling and extensive logging
 
 # User Preferences
 
