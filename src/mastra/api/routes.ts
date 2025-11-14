@@ -1,4 +1,4 @@
-import { registerApiRoute as registerApiRouteOriginal } from '@mastra/core/server';
+import { registerApiRoute } from '@mastra/core/server';
 import { db } from '../storage/db.js';
 import { inngest } from '../inngest/client.js';
 import { marked } from 'marked';
@@ -132,7 +132,7 @@ try {
 }
 
 export const apiRoutes = [
-  registerApiRouteOriginal('/history-list', {
+  registerApiRoute('/history-list', {
     method: 'GET',
     handler: async (c) => {
       const mastra = c.get('mastra');
@@ -149,7 +149,7 @@ export const apiRoutes = [
     },
   }),
 
-  registerApiRouteOriginal('/generate-report', {
+  registerApiRoute('/generate-report', {
     method: 'POST',
     handler: async (c) => {
       const mastra = c.get('mastra');
@@ -180,7 +180,7 @@ export const apiRoutes = [
     },
   }),
 
-  registerApiRouteOriginal('/settings-list', {
+  registerApiRoute('/settings-list', {
     method: 'GET',
     handler: async (c) => {
       const mastra = c.get('mastra');
@@ -197,7 +197,7 @@ export const apiRoutes = [
     },
   }),
 
-  registerApiRouteOriginal('/settings-update', {
+  registerApiRoute('/settings-update', {
     method: 'POST',
     handler: async (c) => {
       const mastra = c.get('mastra');
@@ -223,7 +223,7 @@ export const apiRoutes = [
     },
   }),
 
-  registerApiRouteOriginal('/dashboard', {
+  registerApiRoute('/dashboard', {
     method: 'GET',
     handler: async (c) => {
       const mastra = c.get('mastra');
@@ -233,21 +233,21 @@ export const apiRoutes = [
     },
   }),
 
-  registerApiRouteOriginal('/styles-css', {
+  registerApiRoute('/styles-css', {
     method: 'GET',
     handler: async (c) => {
       return c.text(stylesCSS, 200, { 'Content-Type': 'text/css' });
     },
   }),
 
-  registerApiRouteOriginal('/app-js', {
+  registerApiRoute('/app-js', {
     method: 'GET',
     handler: async (c) => {
       return c.text(appJS, 200, { 'Content-Type': 'application/javascript' });
     },
   }),
 
-  registerApiRouteOriginal('/reports/:reportId', {
+  registerApiRoute('/reports/:reportId', {
     method: 'GET',
     handler: async (c) => {
       const mastra = c.get('mastra');
