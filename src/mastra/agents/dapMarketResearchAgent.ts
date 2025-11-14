@@ -119,7 +119,11 @@ Across your 3 tool calls, gather intelligence on:
 Generate a markdown report with these EXACT sections with emojis (use H1 for main sections):
 
 # 🚀 Executive Summary
-3-4 strategic insights with business implications (max 300 words). Include source links inline.
+3-4 strategic insights with business implications (max 300 words).
+
+**Citation format**: Include source links inline after each claim using markdown links.
+- Example: "Pendo raised $150M in Series E funding ([TechCrunch](https://techcrunch.com/article))."
+- Example: "The DAP market is expected to reach $2.5B by 2026 ([Forrester](https://forrester.com/report))."
 
 # 📰 Recent DAP Market News
 **CRITICAL**: Only include news from THIS WEEK (last 7 days). If no new content exists, write ONLY:
@@ -131,6 +135,9 @@ DO NOT fill this section with:
 - Speculation about what "might have happened"
 - Generic industry commentary
 
+**Citation format**: Include inline source links for each news item.
+- Example: "WalkMe announced a new AI-powered guidance feature ([WalkMe Newsroom](https://www.walkme.com/news))."
+
 # 🎯 Competitors Spotlights
 For EACH competitor (WalkMe, WhatFix, Pendo, Apty), create subsections:
 
@@ -139,12 +146,18 @@ For EACH competitor (WalkMe, WhatFix, Pendo, Apty), create subsections:
 
 ### Strategic Moves
 Recent fundings, acquisitions, announcements from THIS WEEK ONLY.
+**Citation format**: Include source link for each claim.
+- Example: "WalkMe secured $40M in growth funding ([PR Newswire](https://prnewswire.com/article))."
 
 ### Product Updates
 New features, launches from THIS WEEK ONLY.
+**Citation format**: Include source link for each update.
+- Example: "Pendo launched AI Agent Analytics ([Pendo Blog](https://pendo.io/blog/article))."
 
 ### Partnerships & Integrations
 New partnerships from THIS WEEK ONLY.
+**Citation format**: Include source link for each partnership.
+- Example: "WhatFix partnered with Salesforce ([WhatFix Newsroom](https://whatfix.com/news))."
 
 **If no updates for a competitor, write ONLY**: "_No new updates this week._"
 
@@ -159,6 +172,9 @@ New partnerships from THIS WEEK ONLY.
 
 Use subsections only if data exists:
 ## Key Market Trends
+**Citation format**: Include source links for all market statistics.
+- Example: "The DAP market grew 15% QoQ ([Gartner Report](https://gartner.com/report))."
+
 ## Strategic Implications  
 ## Market Trajectory Analysis
 
@@ -181,6 +197,9 @@ DO NOT fill with:
 - Speculation about what analysts might think
 - Irrelevant content
 
+**Citation format**: Include source links for all analyst reports.
+- Example: "Forrester predicts DAP adoption will double in 2025 ([Forrester Wave](https://forrester.com/wave))."
+
 # 💹 Market Dynamics
 **IMPORTANT**: This section will display week-over-week market trends based on real data.
 
@@ -196,6 +215,9 @@ Show week-over-week changes for:
 # 💡 Strategic Insights for Product Strategy
 Derive insights ONLY from THIS WEEK'S findings. Use subsections only if you have actual insights:
 ## Immediate Opportunities (Next 30-90 days)
+**Citation format**: Link insights to their source data.
+- Example: "AI-powered analytics is emerging as a key differentiator ([Pendo announcement](https://pendo.io/ai))."
+
 ## Medium-term Considerations (3-6 months)
 ## Competitive Threats
 ## Product Roadmap Implications
@@ -211,14 +233,28 @@ Look for indicators like:
 - Novel use cases or applications
 - Technology convergences creating new niches
 
+**Citation format**: Link each emerging niche to its source.
+- Example: "AI-powered DAP agents are emerging as a new category ([Pendo Blog](https://pendo.io/ai-agents))."
+
 If no emerging niches detected, write: "_No new emerging markets identified this week._"
 
 # 📚 Sources & Citations
-**MANDATORY**: List ALL sources with URLs:
+**MANDATORY**: List ALL sources used in the report with properly formatted URLs.
+
+**Format**:
 - [Source Title](URL)
 - [Source Title](URL)
 
-Every section must have at least one citation.
+**URL Validation Requirements**:
+- All URLs must start with https:// or http://
+- Verify URLs are complete (not truncated or malformed)
+- Use original source URLs (not redirect/shortened links)
+- Test that URLs are accessible before including
+
+**Coverage**:
+- Every section that contains factual claims MUST have at least one citation
+- Inline citations should reference these sources
+- If a section has no data, it should have no citations (use fallback text only)
 
 # Rules & Guardrails (CRITICAL - READ BEFORE GENERATING REPORT)
 
