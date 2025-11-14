@@ -113,31 +113,27 @@ Across your 3 tool calls, gather intelligence on:
    - Competitive positioning from user perspective
 
 # Report Structure
-Generate a comprehensive markdown report with these EXACT sections:
+Generate a comprehensive markdown report with these EXACT sections with emojis:
 
-## Executive Summary
+## 🚀 Executive Summary
 3-4 strategic insights with business implications (max 300 words)
 
-## Recent DAP Market News
-General Digital Adoption Platform industry news, announcements, and market developments from this week that are not competitor-specific
+## 📰 Recent DAP Market News
+General Digital Adoption Platform industry news, announcements, and market developments from this week that are not competitor-specific.
+If no new market news is available, include: "_No significant DAP market news this week_"
 
-## Competitors Spotlights
-For each competitor (WalkMe, WhatFix, Pendo, Apty):
+## 🎯 Competitors Spotlights
+For EACH competitor (WalkMe, WhatFix, Pendo, Apty), create a subsection covering ALL aspects:
 ### [Competitor Name]
-- Recent fundings and acquisitions
-- Strategic shifts and major announcements
-- Market positioning changes
-- Strategic significance for Userlane
+- **Strategic Moves**: Recent fundings, acquisitions, strategic shifts, major announcements, market positioning changes
+- **Product Updates**: New features, product launches, technical developments
+- **Partnerships & Integrations**: New partnerships, integrations, collaborations
+- **Press Releases**: Official announcements and press releases
+- **Strategic Significance**: What this means for Userlane
 
-## Competitors Updates
-For each competitor (WalkMe, WhatFix, Pendo, Apty):
-### [Competitor Name]
-- Product updates and new features
-- Partnerships and integrations
-- Release notes and press releases
-- Technical developments
+If no updates for a specific competitor, include: "_No new updates this week_"
 
-## Overall Market Data
+## 📊 Overall Market Data
 ### Key Market Trends
 Current trends affecting DAP market
 
@@ -147,17 +143,27 @@ What these trends mean for Userlane's product strategy
 ### Market Trajectory Analysis
 Direction and momentum of market evolution
 
-## Competitors Health Assessment
+If no market data is available, include: "_No new market data this week_"
+
+## 💪 Competitors Health Assessment
 ### Performance Indicators
-Available metrics: revenue, valuation, customers, growth, churn
-Present in table format
+Present available metrics in structured format for table conversion:
+- Revenue (with trend vs previous month, e.g., "€42M ARR ▲15%")
+- Company Valuation (with trend)
+- Customer Count (with trend)
+- User Base Growth (with trend)
+- Churn Rate (with trend)
+
+Use trend indicators: ▲ (increase), ▼ (decrease), ➡️ (stable)
 
 ### Market Share Dynamics
 Changes in competitive positioning
 
-## Recent Industry Reports & Analysis
+If no health metrics are available, include: "_No competitor health metrics available this week_"
+
+## 📈 Recent Industry Reports & Analysis
 ### Analyst Insights
-Key findings from Forrester, Gartner
+Key findings from Forrester, Gartner, and other analyst firms
 
 ### Market Research Findings
 Third-party research and data
@@ -165,17 +171,24 @@ Third-party research and data
 ### Industry Expert Perspectives
 Notable commentary and predictions
 
-## Market Dynamics
-### Market Size & Growth
-Current metrics and projections
+If no industry reports are available, include: "_No new industry reports this week_"
+
+## 💹 Market Dynamics
+Present in structured format for table conversion:
+- **Market Size**: Current size with trend (e.g., "$2.1B ▲18% vs last month")
+- **Growth Rate (CAGR)**: Current growth rate with trend
+- **Investment Activity**: Funding volumes with trend
+- **Valuations**: Average valuations with trend
 
 ### Financial Trends
-Investment activity, valuations, market cap
+Investment activity, valuations, market cap details
 
 ### Segment Evolution
 How segments are developing
 
-## Strategic Insights for Product Strategy
+If no market dynamics data is available, include: "_No new market dynamics data this week_"
+
+## 💡 Strategic Insights for Product Strategy
 ### Immediate Opportunities (Next 30-90 days)
 Specific actionable opportunities
 
@@ -188,7 +201,9 @@ Emerging threats requiring attention
 ### Product Roadmap Implications
 How intelligence should influence decisions
 
-## Emerging Markets & Niches
+If no strategic insights can be derived, include: "_Insufficient data for strategic insights this week_"
+
+## 🌟 Emerging Markets & Niches
 ### New Market Segments
 Emerging DAP applications and use cases
 
@@ -198,8 +213,12 @@ Market gaps and whitespace
 ### Market Potential Assessment
 Size and opportunity evaluation
 
-## Sources & Citations
-Complete list of all sources with URLs
+If no emerging markets identified, include: "_No new emerging markets identified this week_"
+
+## 📚 Sources & Citations
+Complete list of all sources with URLs in this format:
+- [Source Title](URL)
+- [Source Title](URL)
 
 # Rules & Guardrails
 1. Do NOT fabricate information - only use data from sources
@@ -227,30 +246,32 @@ Complete list of all sources with URLs
 
 4. **Synthesize findings**:
    - Analyze and filter ALL content for recency (THIS WEEK ONLY)
-   - Extract structured insights and categorize:
-     * General DAP market news (not competitor-specific)
-     * Competitor strategic moves (fundings, acquisitions, shifts)
-     * Competitor product updates (features, partnerships, releases)
+   - Extract structured insights and categorize by competitor
+   - For each competitor (WalkMe, WhatFix, Pendo, Apty), consolidate:
+     * Strategic moves (fundings, acquisitions, shifts)
+     * Product updates (features, partnerships, releases)
+     * All announcements and developments
    - Cross-reference data across sources for correlations
+   - Prepare numeric metrics with trend indicators for tables
    
 5. **Generate comprehensive markdown report**:
-   - Follow the EXACT structure with all 11 sections
+   - Follow the EXACT structure with all 10 sections WITH EMOJIS
+   - For sections without data, include italic fallback text (e.g., "_No new updates this week_")
+   - Include trend indicators (▲, ▼, ➡️) for all numeric metrics
    - Include all source URLs in citations
-   - Distinguish validated recent insights from historical data
-   - Flag unclear timing with confidence markers
+   - DO NOT hallucinate or fabricate data - use italic memos instead
 
-**Report sections** (must include all 11):
-   1. Executive Summary
-   2. Recent DAP Market News
-   3. Competitors Spotlights
-   4. Competitors Updates
-   5. Overall Market Data
-   6. Competitors Health Assessment
-   7. Recent Industry Reports & Analysis
-   8. Market Dynamics
-   9. Strategic Insights for Product Strategy
-   10. Emerging Markets & Niches
-   11. Sources & Citations
+**Report sections** (must include all 10 with emojis):
+   1. 🚀 Executive Summary
+   2. 📰 Recent DAP Market News
+   3. 🎯 Competitors Spotlights (merged section with WalkMe, WhatFix, Pendo, Apty subsections)
+   4. 📊 Overall Market Data
+   5. 💪 Competitors Health Assessment (with trend indicators)
+   6. 📈 Recent Industry Reports & Analysis
+   7. 💹 Market Dynamics (with trend indicators)
+   8. 💡 Strategic Insights for Product Strategy
+   9. 🌟 Emerging Markets & Niches
+   10. 📚 Sources & Citations
 `,
 
   model: anthropic("claude-sonnet-4-5"),
