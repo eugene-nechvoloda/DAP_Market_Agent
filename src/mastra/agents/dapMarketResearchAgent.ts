@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { sharedPostgresStorage } from "../storage";
-import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 
 import { webFetchTool } from "../tools/webFetchTool";
 import { webSearchTool } from "../tools/webSearchTool";
@@ -11,9 +11,9 @@ import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
 import { googleDocsExportTool } from "../tools/googleDocsExportTool";
 import { slackNotificationTool } from "../tools/slackNotificationTool";
 
-const openai = createOpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+const anthropic = createAnthropic({
+  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
 });
 
 export const dapMarketResearchAgent = new Agent({
@@ -89,6 +89,8 @@ Use webSearchTool for any missing information:
 - Emerging digital adoption platforms
 - New market niches
 - Industry expert commentary
+
+Note: webSearchTool returns an AI-synthesized answer with inline citations and an array of source URLs. Extract key facts from the answer and include all citation URLs in your Sources section.
 
 # Report Structure
 Generate a comprehensive markdown report with these EXACT sections:
@@ -210,7 +212,7 @@ Complete list of all sources with URLs
    11. Sources & Citations
 `,
 
-  model: openai.responses("gpt-5"),
+  model: anthropic("claude-sonnet-4-5"),
   
   tools: {
     webFetchTool,
