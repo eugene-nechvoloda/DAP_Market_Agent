@@ -84,3 +84,27 @@ export const marketMetrics = pgTable('market_metrics', {
   success: boolean('success').default(false).notNull(),
   error: text('error'),
 });
+
+// Keyword occurrences table for emerging market trend detection
+export const keywordOccurrences = pgTable('keyword_occurrences', {
+  id: serial('id').primaryKey(),
+  keyword: text('keyword').notNull(), // The term/phrase (normalized to lowercase)
+  reportingWeekStart: date('reporting_week_start').notNull(), // ISO date for Monday of the week
+  recordedAt: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+  
+  // Frequency and context
+  frequency: integer('frequency').notNull().default(1), // How many times it appeared this week
+  contextType: text('context_type').notNull(), // Where it appeared: competitor_news, market_data, industry_reports, etc.
+  
+  // First seen tracking
+  firstSeenAt: date('first_seen_at').notNull(), // When this keyword was first detected across all weeks
+  
+  // Metadata
+  sourceUrls: text('source_urls').array(), // URLs where this keyword appeared
+  rawContext: jsonb('raw_context'), // Full context snippets for debugging
+}, (table) => ({
+  // Unique constraint: one record per keyword per context type per reporting week
+  uniqKeywordContextWeek: uniqueIndex('keyword_context_week_idx').on(table.keyword, table.contextType, table.reportingWeekStart),
+  // Index for efficient queries: get latest keywords and historical comparison
+  keywordWeekIdx: index('idx_keyword_week_desc').on(table.keyword, table.reportingWeekStart.desc()),
+}));

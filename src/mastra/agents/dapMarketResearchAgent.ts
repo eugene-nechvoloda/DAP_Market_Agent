@@ -11,6 +11,7 @@ import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
 import { owlerMetricsTool } from "../tools/owlerMetricsTool";
 import { crunchbaseMetricsTool } from "../tools/crunchbaseMetricsTool";
 import { semrushMetricsTool } from "../tools/semrushMetricsTool";
+import { emergingTrendsAnalysisTool } from "../tools/emergingTrendsAnalysisTool";
 
 const anthropic = createAnthropic({
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
@@ -233,6 +234,12 @@ Look for indicators like:
 - Novel use cases or applications
 - Technology convergences creating new niches
 
+**ENHANCED**: You have access to emergingTrendsAnalysisTool which can help identify emerging trends:
+- This tool analyzes keyword frequency in your research findings
+- It compares current keywords against historical data to identify NEW and RISING keywords
+- Use it AFTER completing your web searches to enhance emerging trend detection
+- Example usage: Pass your combined research text + reporting week date
+
 **Citation format**: Link each emerging niche to its source.
 - Example: "AI-powered DAP agents are emerging as a new category ([Pendo Blog](https://pendo.io/ai-agents))."
 
@@ -322,6 +329,7 @@ If no emerging niches detected, write: "_No new emerging markets identified this
     owlerMetricsTool,
     crunchbaseMetricsTool,
     semrushMetricsTool,
+    emergingTrendsAnalysisTool,
   },
   
   memory: new Memory({
