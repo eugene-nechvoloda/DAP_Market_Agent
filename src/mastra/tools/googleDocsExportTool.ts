@@ -3,13 +3,24 @@ import { z } from "zod";
 import { google } from "googleapis";
 import { marked } from "marked";
 
+// Table metadata for second-phase processing
+interface TableMetadata {
+  placeholder: string;
+  headers: string[];
+  rows: string[][];
+}
+
 // Helper function to convert markdown to Google Docs API requests
-function convertMarkdownToDocsRequests(markdown: string) {
+function convertMarkdownToDocsRequests(markdown: string): {
+  requests: any[];
+  tables: TableMetadata[];
+} {
   const tokens = marked.lexer(markdown);
   const requests: any[] = [];
   let currentIndex = 1; // Google Docs uses 1-based indexing
   const textInsertions: Array<{ text: string; index: number }> = [];
   const styleUpdates: any[] = [];
+  const tables: TableMetadata[] = [];
 
   // Helper to add text and track formatting
   function addText(text: string, formatting?: any) {
@@ -72,29 +83,22 @@ function convertMarkdownToDocsRequests(markdown: string) {
         });
       }
     } else if (token.type === 'table') {
-      // Convert markdown tables to formatted text (simpler than actual table insertion)
+      // Store table metadata for second-phase processing
       const headers = token.header.map((cell: any) => cell.text);
       const rows = token.rows.map((row: any) => row.map((cell: any) => cell.text));
       
-      // Add header row with bold formatting
-      const headerStartIndex = currentIndex;
-      const headerText = headers.join(' | ');
-      addText(headerText + '\n');
-      styleUpdates.push({
-        type: 'bold',
-        startIndex: headerStartIndex,
-        endIndex: currentIndex - 1,
+      // Create unique placeholder that will be replaced with actual table
+      const placeholder = `[TABLE_${tables.length}_PLACEHOLDER]\n`;
+      
+      tables.push({
+        placeholder,
+        headers,
+        rows,
       });
       
-      // Add separator line
-      addText('─'.repeat(headerText.length) + '\n');
-      
-      // Add data rows
-      for (const row of rows) {
-        addText(row.join(' | ') + '\n');
-      }
-      
-      addText('\n'); // Add spacing after table
+      // Add placeholder text that will be found and replaced in phase 2
+      addText(placeholder);
+      addText('\n'); // Extra spacing after placeholder
     } else if (token.type === 'space') {
       addText('\n');
     }
@@ -114,7 +118,7 @@ function convertMarkdownToDocsRequests(markdown: string) {
     });
   }
   
-  // Apply paragraph styles (headings), tables, and text formatting
+  // Apply paragraph styles (headings) and text formatting
   for (const style of styleUpdates) {
     if (style.type === 'paragraph') {
       allRequests.push({
@@ -172,7 +176,10 @@ function convertMarkdownToDocsRequests(markdown: string) {
     },
   });
   
-  return allRequests;
+  return {
+    requests: allRequests,
+    tables,
+  };
 }
 
 // Helper to parse inline formatting (bold, italic, links)
@@ -327,15 +334,16 @@ export const googleDocsExportTool = createTool({
       
       logger?.info('📝 [googleDocsExportTool] Document created:', { documentId });
       
-      // Convert markdown to Google Docs formatting requests
+      // Phase 1: Convert markdown to Google Docs formatting requests (with table placeholders)
       logger?.info('📝 [googleDocsExportTool] Converting markdown to Google Docs formatting...');
-      const formattingRequests = convertMarkdownToDocsRequests(context.content);
+      const { requests: formattingRequests, tables } = convertMarkdownToDocsRequests(context.content);
       
       logger?.info('📝 [googleDocsExportTool] Generated formatting requests:', { 
-        requestCount: formattingRequests.length 
+        requestCount: formattingRequests.length,
+        tableCount: tables.length,
       });
       
-      // Apply formatting to the document
+      // Apply formatting to the document (Phase 1)
       await docs.documents.batchUpdate({
         documentId,
         requestBody: {
@@ -344,6 +352,152 @@ export const googleDocsExportTool = createTool({
       });
       
       logger?.info('✅ [googleDocsExportTool] Content formatted and inserted into document');
+      
+      // Phase 2: Replace table placeholders with actual Google Docs tables
+      if (tables.length > 0) {
+        logger?.info('📊 [googleDocsExportTool] Processing tables (phase 2)...');
+        
+        // Fetch the current document structure to find placeholder locations
+        const docResponse = await docs.documents.get({ documentId });
+        const docContent = docResponse.data.body?.content || [];
+        
+        // Process each table in reverse order (to maintain index stability)
+        for (let i = tables.length - 1; i >= 0; i--) {
+          const table = tables[i];
+          logger?.info(`📊 [googleDocsExportTool] Inserting table ${i + 1}/${tables.length}`);
+          
+          // Find the placeholder paragraph in the document structure
+          let placeholderIndex: number | null = null;
+          for (const element of docContent) {
+            if (element.paragraph) {
+              const paragraphText = element.paragraph.elements
+                ?.map((e: any) => e.textRun?.content || '')
+                .join('');
+              
+              if (paragraphText && paragraphText.includes(table.placeholder)) {
+                placeholderIndex = element.startIndex!;
+                break;
+              }
+            }
+          }
+          
+          if (placeholderIndex === null) {
+            logger?.warn(`⚠️ [googleDocsExportTool] Could not find placeholder for table ${i}`);
+            continue;
+          }
+          
+          // Build requests to replace placeholder with table
+          const tableRequests: any[] = [];
+          
+          // Delete the placeholder paragraph
+          const placeholderEnd = placeholderIndex + table.placeholder.length + 1; // +1 for newline
+          tableRequests.push({
+            deleteContentRange: {
+              range: {
+                startIndex: placeholderIndex,
+                endIndex: placeholderEnd,
+              },
+            },
+          });
+          
+          // Insert the table at the placeholder location
+          const numRows = 1 + table.rows.length; // Header + data rows
+          const numCols = table.headers.length;
+          
+          tableRequests.push({
+            insertTable: {
+              rows: numRows,
+              columns: numCols,
+              location: {
+                index: placeholderIndex,
+              },
+            },
+          });
+          
+          // Apply table requests
+          await docs.documents.batchUpdate({
+            documentId,
+            requestBody: {
+              requests: tableRequests,
+            },
+          });
+          
+          // Fetch updated structure to get table cell locations
+          const updatedDocResponse = await docs.documents.get({ documentId });
+          const updatedContent = updatedDocResponse.data.body?.content || [];
+          
+          // Find the table we just inserted and populate cells
+          for (const element of updatedContent) {
+            if (element.table && element.startIndex === placeholderIndex) {
+              const tableElement = element.table;
+              const cellRequests: any[] = [];
+              
+              // Populate header row (row 0)
+              for (let col = 0; col < table.headers.length; col++) {
+                const cell = tableElement.tableRows?.[0]?.tableCells?.[col];
+                if (cell && cell.content?.[0]?.startIndex != null) {
+                  const cellIndex = cell.content[0].startIndex;
+                  cellRequests.push({
+                    insertText: {
+                      text: table.headers[col],
+                      location: {
+                        index: cellIndex + 1, // +1 to skip the paragraph marker
+                      },
+                    },
+                  });
+                  
+                  // Make header bold
+                  cellRequests.push({
+                    updateTextStyle: {
+                      range: {
+                        startIndex: cellIndex + 1,
+                        endIndex: cellIndex + 1 + table.headers[col].length,
+                      },
+                      textStyle: {
+                        bold: true,
+                      },
+                      fields: 'bold',
+                    },
+                  });
+                }
+              }
+              
+              // Populate data rows
+              for (let rowIdx = 0; rowIdx < table.rows.length; rowIdx++) {
+                const row = table.rows[rowIdx];
+                for (let col = 0; col < row.length; col++) {
+                  const cell = tableElement.tableRows?.[rowIdx + 1]?.tableCells?.[col];
+                  if (cell && cell.content?.[0]?.startIndex != null) {
+                    const cellIndex = cell.content[0].startIndex;
+                    cellRequests.push({
+                      insertText: {
+                        text: row[col],
+                        location: {
+                          index: cellIndex + 1, // +1 to skip the paragraph marker
+                        },
+                      },
+                    });
+                  }
+                }
+              }
+              
+              // Apply cell population requests
+              if (cellRequests.length > 0) {
+                await docs.documents.batchUpdate({
+                  documentId,
+                  requestBody: {
+                    requests: cellRequests,
+                  },
+                });
+              }
+              
+              break;
+            }
+          }
+        }
+        
+        logger?.info('✅ [googleDocsExportTool] All tables inserted and populated');
+      }
       
       // Try to make the document accessible via link (optional - requires Drive scope)
       // If this fails due to missing Drive scope, the document will still be created

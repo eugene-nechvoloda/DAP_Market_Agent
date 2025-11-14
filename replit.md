@@ -1,65 +1,8 @@
 # Overview
 
-This is a **Mastra-based AI agent automation platform** built for Replit, specifically designed for **DAP (Digital Adoption Platform) Market Research**. The system automatically runs every Monday at 8:00 AM CET to research competitors (WalkMe, WhatFix, Pendo, Apty), analyze industry trends, aggregate user reviews, generate comprehensive weekly reports, export them to Google Docs, and send notifications to Slack.
+This project is a Mastra-based AI agent automation platform for **DAP (Digital Adoption Platform) Market Research**. It automatically researches competitors (WalkMe, WhatFix, Pendo, Apty), analyzes industry trends, aggregates user reviews, generates comprehensive weekly reports, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
 
-**Current Implementation Status**: ✅ **Production Ready**
-- ✅ Time-based cron trigger configured (Monday 8:00 AM CET = "0 7 * * 1" UTC)
-- ✅ Data gathering from competitor newsrooms, industry reports (Forrester, TechCrunch, eLearning Industry), and user reviews (Gartner)
-- ✅ AI agent analyzes data and compiles comprehensive weekly reports
-- ✅ Google Docs export integration (via Replit connector)
-- ✅ Slack notification system (requires valid bot token)
-- ✅ Graceful error handling and extensive logging
-- ✅ Proper separation of concerns: agent handles research, workflow handles orchestration/export/notification
-
-**Recent Changes (November 14, 2025)**:
-- **Metrics Ingestion Tools Created** (INFRASTRUCTURE):
-  - Implemented three new tools for fetching real competitor data: owlerMetricsTool (revenue, valuation), crunchbaseMetricsTool (funding), semrushMetricsTool (web traffic)
-  - Tools registered with dapMarketResearchAgent and available for workflow integration
-  - Graceful fallback when API keys not configured - tools return `success: false` with helpful error messages
-  - Agent instructions updated to describe future metrics table format and placeholder text until APIs configured
-  - **Next step**: Create workflow steps to fetch metrics and integrate with report generation
-- **Agent Anti-Hallucination Enhancements** (QUALITY IMPROVEMENT):
-  - Added explicit "no fabrication" rules to prevent the agent from inventing competitor activities or market trends
-  - Implemented fallback text for empty sections (e.g., "_No significant DAP market news this week_")
-  - Required citations for all factual claims to ensure verifiability
-  - Configured agent to display placeholder text for Competitors Health Assessment and Market Dynamics sections until external metrics tools are integrated
-  - **Result**: Reports now contain only verified, factual information with no narrative padding or assumptions
-- **Report Format Improvements** (USER EXPERIENCE):
-  - Fixed heading hierarchy: main sections now use H1 instead of H2
-  - Removed "Weekly DAP Market Research Report" H1 title per user request
-  - Subsections properly use H2/H3/H4 hierarchy
-  - Google Docs export correctly maps headings (H1→HEADING_1, H2→HEADING_2, etc.)
-  - **Result**: Reports have cleaner structure with proper heading levels for readability
-- **Database-backed Source Caching Architecture** (CRITICAL FIX):
-  - Created `report_sources` table to cache large curated data per workflow run
-  - Step 1 now saves competitor/industry/reviews data (36KB+) to database, returns only lightweight metadata (runId, dates)
-  - Step 2 passes runId unchanged, adds trimmed web search results (500 char answers, 3 citations max)
-  - Step 3 loads curated data from database using runId, compiles report, saves to database, returns only reportId
-  - Steps 4-6 load report from database using reportId for export/notification
-  - **Result**: Eliminated all Inngest step output size limit errors while preserving full data fidelity for agent analysis
-- **DatabaseService enhancements**: Added saveReportSources, getReportSources, deleteReportSources methods with proper snake_case to camelCase mapping
-- **Workflow data flow optimizations**: Minimal metadata transfer between steps, full data stored in PostgreSQL
-- **Perplexity API rate limiting**: 3 requests/min with 30-second delays between requests
-- **Agent optimization**: maxSteps=3 to limit total tool calls and respect API rate limits
-- **Web search trimming**: Answers truncated to 500 chars, citations limited to 3 per search
-- **End-to-end testing**: All 6 workflow steps execute successfully without any Inngest, JSON, or prompt size errors
-
-**Known Limitations**:
-- G2 review platform blocks automated access (HTTP 403) - system uses Gartner reviews instead
-- Google Docs public sharing requires additional Drive scope (documents created but only accessible to authenticated user)
-- Slack notifications require valid `SLACK_BOT_TOKEN` with `chat:write` scope
-- Metrics ingestion tools created but not yet integrated into workflow - require API keys:
-  - `OWLER_API_KEY` - for revenue and valuation data
-  - `CRUNCHBASE_API_KEY` - for funding and investment data
-  - `SEMRUSH_API_KEY` - for website traffic and SEO metrics
-
-The application showcases advanced agentic patterns including:
-- Multi-step workflow orchestration with durable execution via Inngest
-- AI agent with tool calling for intelligent market research analysis
-- Proper separation of concerns: agent generates content, workflow handles orchestration
-- Time-based automated triggers
-- External API integrations (Google Docs, Slack)
-- Comprehensive error handling and extensive logging
+The platform is designed to provide automated, in-depth market analysis for the DAP industry, leveraging AI agents for data gathering and report generation, and integrating with external services for output and notifications. It aims to deliver verifiable, factual market insights to users regularly.
 
 # User Preferences
 
@@ -69,167 +12,55 @@ Preferred communication style: Simple, everyday language.
 
 ## Core Framework: Mastra
 
-The application is built on **Mastra v0.20.0**, an opinionated TypeScript framework for AI applications that provides:
-- **Agent system**: LLM-powered autonomous agents with tool usage and reasoning capabilities
-- **Workflow engine**: Graph-based orchestration with explicit step control, branching, and parallel execution
-- **Memory management**: Working memory, conversation history, and semantic recall (RAG-based)
-- **Tool system**: Type-safe functions that extend agent capabilities
-
-**Key architectural choice**: Mastra over pure AI SDK or LangChain because it provides batteries-included infrastructure for production AI applications with built-in durability, observability, and state management.
+The application is built on **Mastra v0.20.0**, an opinionated TypeScript framework for AI applications, providing an agent system, workflow engine, memory management, and a type-safe tool system. It was chosen for its batteries-included infrastructure for durable, observable, and state-managed production AI applications.
 
 ## Agent Architecture
 
-**Primary pattern**: Agent networks with routing delegation
-- Top-level routing agent analyzes tasks and delegates to specialized agents, workflows, or tools
-- Agents use `generateLegacy()` for backward compatibility with Replit Playground UI (required constraint)
-- Each agent configured with specific instructions, model selection, and tool access
-- Memory enabled per-agent with configurable scope (thread-level or resource-level)
-
-**Example agent**: `dapMarketResearchAgent` orchestrates research across competitor news, industry reports, user reviews, and generates consolidated reports.
+The system uses **agent networks with routing delegation**. A top-level routing agent analyzes tasks and delegates to specialized agents or tools. Agents utilize `generateLegacy()` for compatibility with the Replit Playground UI and are configured with specific instructions, model selection, and tool access. Each agent has memory enabled with configurable scope (thread-level or resource-level). The `dapMarketResearchAgent` orchestrates research and report generation.
 
 ## Workflow Architecture
 
-**Pattern**: Step-based composition with explicit data flow
-- Steps defined with `createStep()` including input/output schemas (Zod validation)
-- Workflows composed using `.then()`, `.parallel()`, `.map()` for control flow
-- Support for suspend/resume enables human-in-the-loop interactions
-- Snapshots persist execution state for resumability
-
-**Key workflow**: `weeklyMarketResearchWorkflow` demonstrates multi-step research automation with agent coordination.
+Workflows are built using **step-based composition** with explicit data flow, defined via `createStep()` with Zod validation for input/output schemas. Workflows are composed using `.then()`, `.parallel()`, and `.map()` for control flow, supporting suspend/resume for human-in-the-loop interactions. The `weeklyMarketResearchWorkflow` demonstrates multi-step research automation and agent coordination.
 
 ## Durability Layer: Inngest Integration
 
-**Critical infrastructure decision**: Inngest provides durable execution
-- Workflows converted to Inngest functions via `@mastra/inngest` adapter
-- Step memoization ensures completed steps aren't re-executed on retry
-- Real-time monitoring through Inngest dashboard
-- Suspend/resume implemented via Inngest's event system
-
-**Implementation location**: `src/mastra/inngest/` contains custom durability code
-- Must preserve Inngest setup in `src/mastra/index.ts` for production deployment
-- Inngest CLI (`inngest-cli`) enables local development server
-
-**Rationale**: Without Inngest, workflows would lose state on failure. Inngest provides free retry logic, observability, and resume capability for production reliability.
+Inngest provides **durable execution** for workflows, converting them into Inngest functions via the `@mastra/inngest` adapter. This ensures step memoization, retry logic, real-time monitoring, and suspend/resume capabilities, critical for production reliability.
 
 ## Memory & State Management
 
-**Storage abstraction**: Multiple backend support via adapters
-- LibSQL (default for local development): `@mastra/libsql` with file or in-memory storage
-- PostgreSQL (production): `@mastra/pg` with pgvector extension for semantic search
-- Upstash (serverless): `@mastra/upstash` for Redis + Vector
-
-**Memory types implemented**:
-1. **Conversation history**: Last N messages (default 10, configurable)
-2. **Semantic recall**: RAG-based retrieval of relevant past messages using vector embeddings
-3. **Working memory**: Persistent scratchpad for user preferences/context (Markdown or Zod schema)
-
-**Thread & Resource scoping**:
-- `thread`: Unique conversation identifier
-- `resource`: User/entity owner (enables cross-thread memory persistence)
-
-**Current setup**: SharedPostgresStorage configured in `src/mastra/storage.ts` (inferred from imports)
+The system uses a storage abstraction supporting multiple backends: PostgreSQL (production with pgvector for semantic search) and LibSQL (local development). Memory types include conversation history, semantic recall (RAG-based retrieval), and working memory (persistent scratchpad). Memory is scoped by `thread` (conversation) and `resource` (user/entity owner).
 
 ## Model Integration
 
-**Model router pattern**: Provider-agnostic abstraction via AI SDK
-- Supports 600+ models through standardized interface
-- Primary providers: OpenAI (`@ai-sdk/openai`), Anthropic, OpenRouter (`@openrouter/ai-sdk-provider`)
-- Model selection per-agent: `openai("gpt-4o-mini")` notation
-- Environment variable auto-detection: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
-
-**Streaming architecture**: Dual APIs for backward compatibility
-- `.stream()`: AI SDK v5 (`LanguageModelV2`) - modern approach
-- `.streamLegacy()`: AI SDK v4 (`LanguageModelV1`) - **required for Replit Playground UI**
-
-**Constraint**: Replit Playground requires `generateLegacy()` and `streamLegacy()` methods for UI compatibility.
+A provider-agnostic **model router pattern** is implemented via the AI SDK, supporting OpenAI (GPT-4o, GPT-4o-mini) and OpenRouter. Model selection is per-agent. The Replit Playground UI requires `generateLegacy()` and `streamLegacy()` methods for compatibility.
 
 ## Trigger System
 
-**Two trigger types**:
-1. **Time-based (cron)**: Scheduled workflows via Inngest
-2. **Webhook**: HTTP endpoints for external service integration
-
-**Webhook implementation pattern** (see `src/triggers/`):
-- Registration function creates API routes via `registerApiRoute()`
-- Handler receives payload, extracts relevant data, invokes workflow/agent
-- Examples: Slack, Telegram, WhatsApp integrations
-- Generic pattern documented in `docs/triggers/README.md` and `exampleConnectorTrigger.ts`
-
-## Project Structure
-
-```
-src/
-├── mastra/
-│   ├── index.ts              # Main Mastra instance, agent registration
-│   ├── inngest/              # Inngest durability customization
-│   ├── agents/               # Agent definitions
-│   ├── workflows/            # Workflow definitions
-│   ├── tools/                # Tool implementations
-│   └── storage.ts            # Storage adapter configuration
-├── triggers/                 # Webhook trigger handlers
-└── global.d.ts               # Type declarations
-```
-
-**Key files**:
-- `src/mastra/index.ts`: Mastra initialization, logger setup, agent/workflow registration
-- `package.json`: Scripts include `mastra dev`, `mastra build` for CLI operations
+The system supports **time-based (cron) triggers** for scheduled workflows via Inngest and **webhook triggers** for external service integrations (e.g., Slack, Telegram, WhatsApp).
 
 ## Logging & Observability
 
-**Logger implementation**: Custom PinoLogger extending MastraLogger
-- Production logger in `src/mastra/index.ts` with ISO timestamps
-- JSON-formatted structured logging
-- Configurable log levels (DEBUG, INFO, WARN, ERROR)
-
-**Observability**: Inngest dashboard provides workflow execution visibility
-
-## Development Tooling
-
-**TypeScript configuration**: ES2022 modules with bundler resolution
-- Strict mode enabled
-- No emit (runtime handled by tsx/mastra CLI)
-
-**CLI commands**:
-- `mastra dev`: Local development with hot reload
-- `mastra build`: Production build
-- Prettier for code formatting
-
-**Node requirement**: >= 20.9.0 (specified in engines)
+A custom PinoLogger provides **JSON-formatted structured logging** with configurable log levels. Inngest dashboard offers workflow execution visibility.
 
 # External Dependencies
 
 ## AI/LLM Services
-- **OpenAI API**: Primary LLM provider (GPT-4o, GPT-4o-mini models)
-- **Anthropic API**: Alternative LLM provider support
-- **OpenRouter**: Multi-provider AI access
+- **OpenAI API**: Primary LLM provider.
+- **OpenRouter**: Multi-provider AI access.
 
 ## Infrastructure Services
-- **Inngest**: Durable workflow execution, event orchestration, retry logic
-- **PostgreSQL with pgvector**: Production database for memory storage and vector search (via `@mastra/pg`)
-- **LibSQL**: Local/development database (via `@mastra/libsql`)
-- **Upstash**: Serverless Redis + Vector database option (via `@mastra/upstash`)
+- **Inngest**: Durable workflow execution and event orchestration.
+- **PostgreSQL with pgvector**: Production database for memory storage and vector search.
+- **LibSQL**: Local development database.
 
 ## Communication Platforms
-- **Slack Web API** (`@slack/web-api`): Webhook triggers, message handling
-- **Telegram Bot API**: Webhook integration for bot interactions
-- **WhatsApp Business API**: Message sending, webhook handling
-- **Google APIs** (`googleapis`): Gmail, Calendar, Drive integrations
+- **Slack Web API**: For notifications and webhook triggers.
+- **Google APIs**: For Google Docs export (specifically Drive integration).
 
 ## Search & Data
-- **Exa.js** (`exa-js`): AI-powered web search API for research automation
-- **Perplexity API**: AI-powered search with citations (used via webSearchTool)
-  - Rate limited: 3 requests per minute with 30-second delays between requests
-  - Custom rate limiter utility (`rateLimiter.ts`) prevents API rate limit errors
-  - Requires `PERPLEXITY_API_KEY` environment variable
+- **Exa.js**: AI-powered web search API.
+- **Perplexity API**: AI-powered search with citations, used via `webSearchTool` (rate-limited to 3 requests/min, requires `PERPLEXITY_API_KEY`).
 
 ## Core Framework Dependencies
-- **AI SDK** (`ai` package): Vercel's AI SDK for LLM streaming and tool calling
-- **Zod**: Schema validation for inputs/outputs, working memory structure
-- **Pino**: High-performance JSON logging
-
-## Development Dependencies
-- **Mastra CLI** (`mastra`): Code generation, local development server
-- **Inngest CLI** (`inngest-cli`): Local Inngest dev server
-- **tsx**: TypeScript execution for Node.js
-- **Prettier**: Code formatting
-- **TypeScript**: Type checking and compilation
+- **AI SDK**: For LLM streaming and tool calling.
+- **Zod**: Schema validation.
