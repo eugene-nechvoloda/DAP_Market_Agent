@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, integer, boolean, numeric, jsonb, date, varchar, uniqueIndex, index } from 'drizzle-orm/pg-core';
 
 // Report history table to track all generated reports
 export const reportHistory = pgTable('report_history', {
@@ -20,4 +20,67 @@ export const settings = pgTable('settings', {
   key: text('key').notNull().unique(),
   value: text('value').notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Competitor metrics table for time-series tracking
+export const competitorMetrics = pgTable('competitor_metrics', {
+  id: serial('id').primaryKey(),
+  competitorSlug: varchar('competitor_slug', { length: 50 }).notNull(), // walkme, whatfix, pendo, apty
+  reportingWeekStart: date('reporting_week_start').notNull(), // ISO date for Monday of the week
+  recordedAt: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+  
+  // Owler metrics (revenue, valuation, employees)
+  revenueUsd: numeric('revenue_usd', { precision: 18, scale: 2 }),
+  valuationUsd: numeric('valuation_usd', { precision: 18, scale: 2 }),
+  employeeCount: integer('employee_count'),
+  revenueRange: text('revenue_range'),
+  owlerRawPayload: jsonb('owler_raw_payload'),
+  owlerSuccess: boolean('owler_success').default(false).notNull(),
+  
+  // Crunchbase metrics (funding, investments)
+  fundingTotalUsd: numeric('funding_total_usd', { precision: 18, scale: 2 }),
+  lastRoundAmountUsd: numeric('last_round_amount_usd', { precision: 18, scale: 2 }),
+  lastRoundType: text('last_round_type'),
+  lastRoundDate: date('last_round_date'),
+  investorCount: integer('investor_count'),
+  fundingRounds: jsonb('funding_rounds'), // Array of funding round objects
+  crunchbaseRawPayload: jsonb('crunchbase_raw_payload'),
+  crunchbaseSuccess: boolean('crunchbase_success').default(false).notNull(),
+  
+  // Semrush metrics (web traffic, SEO)
+  organicTraffic: integer('organic_traffic'),
+  organicKeywords: integer('organic_keywords'),
+  semrushRank: integer('semrush_rank'),
+  semrushDatabase: varchar('semrush_database', { length: 10 }), // us, uk, etc.
+  semrushRawPayload: jsonb('semrush_raw_payload'),
+  semrushSuccess: boolean('semrush_success').default(false).notNull(),
+  
+  // Metadata
+  dataSourceVersion: text('data_source_version'), // Version of tools used
+  missingSources: text('missing_sources').array(), // List of failed sources
+  error: text('error'), // Overall error message if any
+}, (table) => ({
+  // Unique constraint: one record per competitor per reporting week
+  uniqCompetitorWeek: uniqueIndex('competitor_metrics_slug_week_idx').on(table.competitorSlug, table.reportingWeekStart),
+  // Index for efficient queries: get latest metrics per competitor
+  competitorWeekIdx: index('idx_competitor_week_desc').on(table.competitorSlug, table.reportingWeekStart.desc()),
+}));
+
+// Market metrics table for aggregate DAP market data
+export const marketMetrics = pgTable('market_metrics', {
+  id: serial('id').primaryKey(),
+  reportingWeekStart: date('reporting_week_start').notNull().unique(), // ISO date for Monday of the week
+  recordedAt: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+  
+  // Market-level metrics
+  marketSizeUsd: numeric('market_size_usd', { precision: 18, scale: 2 }),
+  yoyGrowthPct: numeric('yoy_growth_pct', { precision: 6, scale: 2 }), // Year-over-year growth %
+  totalSearchVolume: integer('total_search_volume'), // Aggregate search interest
+  aggregateFundingUsd: numeric('aggregate_funding_usd', { precision: 18, scale: 2 }),
+  
+  // Metadata
+  dataSources: text('data_sources').array(), // List of sources used
+  rawPayload: jsonb('raw_payload'), // Full raw data for debugging
+  success: boolean('success').default(false).notNull(),
+  error: text('error'),
 });
