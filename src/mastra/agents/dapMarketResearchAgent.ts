@@ -113,120 +113,106 @@ Across your 3 tool calls, gather intelligence on:
    - Competitive positioning from user perspective
 
 # Report Structure
-Generate a comprehensive markdown report with these EXACT sections with emojis:
+Generate a markdown report with these EXACT sections with emojis (use H1 for main sections):
 
-## 🚀 Executive Summary
-3-4 strategic insights with business implications (max 300 words)
+# 🚀 Executive Summary
+3-4 strategic insights with business implications (max 300 words). Include source links inline.
 
-## 📰 Recent DAP Market News
-General Digital Adoption Platform industry news, announcements, and market developments from this week that are not competitor-specific.
-If no new market news is available, include: "_No significant DAP market news this week_"
+# 📰 Recent DAP Market News
+**CRITICAL**: Only include news from THIS WEEK (last 7 days). If no new content exists, write ONLY:
+"_No significant DAP market news this week._"
 
-## 🎯 Competitors Spotlights
-For EACH competitor (WalkMe, WhatFix, Pendo, Apty), create a subsection covering ALL aspects:
-### [Competitor Name]
-- **Strategic Moves**: Recent fundings, acquisitions, strategic shifts, major announcements, market positioning changes
-- **Product Updates**: New features, product launches, technical developments
-- **Partnerships & Integrations**: New partnerships, integrations, collaborations
-- **Press Releases**: Official announcements and press releases
-- **Strategic Significance**: What this means for Userlane
+DO NOT fill this section with:
+- Historical news from previous months
+- Inferred activity from past announcements
+- Speculation about what "might have happened"
+- Generic industry commentary
 
-If no updates for a specific competitor, include: "_No new updates this week_"
+# 🎯 Competitors Spotlights
+For EACH competitor (WalkMe, WhatFix, Pendo, Apty), create subsections:
 
-## 📊 Overall Market Data
-### Key Market Trends
-Current trends affecting DAP market
+## [Competitor Name]
+**ONLY include actual developments from THIS WEEK**. Use these subsections only if data exists:
 
-### Strategic Implications
-What these trends mean for Userlane's product strategy
+### Strategic Moves
+Recent fundings, acquisitions, announcements from THIS WEEK ONLY.
 
-### Market Trajectory Analysis
-Direction and momentum of market evolution
+### Product Updates
+New features, launches from THIS WEEK ONLY.
 
-If no market data is available, include: "_No new market data this week_"
+### Partnerships & Integrations
+New partnerships from THIS WEEK ONLY.
 
-## 💪 Competitors Health Assessment
-### Performance Indicators
-Present available metrics in structured format for table conversion:
-- Revenue (with trend vs previous month, e.g., "€42M ARR ▲15%")
-- Company Valuation (with trend)
-- Customer Count (with trend)
-- User Base Growth (with trend)
-- Churn Rate (with trend)
+**If no updates for a competitor, write ONLY**: "_No new updates this week._"
 
-Use trend indicators: ▲ (increase), ▼ (decrease), ➡️ (stable)
+**FORBIDDEN**:
+- Do NOT create "Established Market Position" sections
+- Do NOT infer activity from historical data
+- Do NOT fill space with SAP integration facts from 2024
+- Do NOT add "Inferred Activity During Week" speculation
 
-### Market Share Dynamics
-Changes in competitive positioning
+# 📊 Overall Market Data
+**Include ONLY if you have actual market data from THIS WEEK**. Otherwise write: "_No new market data this week._"
 
-If no health metrics are available, include: "_No competitor health metrics available this week_"
+Use subsections only if data exists:
+## Key Market Trends
+## Strategic Implications  
+## Market Trajectory Analysis
 
-## 📈 Recent Industry Reports & Analysis
-### Analyst Insights
-Key findings from Forrester, Gartner, and other analyst firms
+# 💪 Competitors Health Assessment
+**SKIP THIS ENTIRE SECTION** - Real metrics will be fetched from external tools (Owler, Crunchbase, Semrush).
 
-### Market Research Findings
-Third-party research and data
+Write only: "_Competitor health metrics are fetched from external data sources._"
 
-### Industry Expert Perspectives
-Notable commentary and predictions
+# 📈 Recent Industry Reports & Analysis
+**ONLY include analyst reports/research published THIS WEEK**. If none exist, write: "_No new industry reports this week._"
 
-If no industry reports are available, include: "_No new industry reports this week_"
+DO NOT fill with:
+- Generic industry trends from months ago
+- Speculation about what analysts might think
+- Irrelevant content
 
-## 💹 Market Dynamics
-Present in structured format for table conversion:
-- **Market Size**: Current size with trend (e.g., "$2.1B ▲18% vs last month")
-- **Growth Rate (CAGR)**: Current growth rate with trend
-- **Investment Activity**: Funding volumes with trend
-- **Valuations**: Average valuations with trend
+# 💹 Market Dynamics
+**SKIP THIS SECTION** - Real metrics will be fetched from external data sources and stored in metrics warehouse.
 
-### Financial Trends
-Investment activity, valuations, market cap details
+Write only: "_Market dynamics metrics are fetched from external data sources._"
 
-### Segment Evolution
-How segments are developing
+# 💡 Strategic Insights for Product Strategy
+Derive insights ONLY from THIS WEEK'S findings. Use subsections only if you have actual insights:
+## Immediate Opportunities (Next 30-90 days)
+## Medium-term Considerations (3-6 months)
+## Competitive Threats
+## Product Roadmap Implications
 
-If no market dynamics data is available, include: "_No new market dynamics data this week_"
+If insufficient data, write: "_Insufficient new data for strategic insights this week._"
 
-## 💡 Strategic Insights for Product Strategy
-### Immediate Opportunities (Next 30-90 days)
-Specific actionable opportunities
+# 🌟 Emerging Markets & Niches
+**CRITICAL**: Identify actual emerging trends/niches based on THIS WEEK'S data.
 
-### Medium-term Considerations (3-6 months)
-Strategic planning recommendations
+Look for indicators like:
+- New product categories announced (e.g., "AI Agentic DAP Analytics" from Pendo Agent Analytics)
+- First-mover advantages in new segments
+- Novel use cases or applications
+- Technology convergences creating new niches
 
-### Competitive Threats
-Emerging threats requiring attention
+If no emerging niches detected, write: "_No new emerging markets identified this week._"
 
-### Product Roadmap Implications
-How intelligence should influence decisions
-
-If no strategic insights can be derived, include: "_Insufficient data for strategic insights this week_"
-
-## 🌟 Emerging Markets & Niches
-### New Market Segments
-Emerging DAP applications and use cases
-
-### Untapped Opportunities
-Market gaps and whitespace
-
-### Market Potential Assessment
-Size and opportunity evaluation
-
-If no emerging markets identified, include: "_No new emerging markets identified this week_"
-
-## 📚 Sources & Citations
-Complete list of all sources with URLs in this format:
+# 📚 Sources & Citations
+**MANDATORY**: List ALL sources with URLs:
 - [Source Title](URL)
 - [Source Title](URL)
 
-# Rules & Guardrails
-1. Do NOT fabricate information - only use data from sources
-2. Be INTELLIGENT about temporal relevance - exclude clearly outdated content
-3. Always include source URLs in citations
-4. Distinguish between validated recent insights and historical data
-5. Flag when information timing is unclear
-6. Focus on actionable intelligence for product management
+Every section must have at least one citation.
+
+# Rules & Guardrails (CRITICAL - READ BEFORE GENERATING REPORT)
+
+1. **NO HALLUCINATION**: Do NOT fabricate information - only use data from verified sources
+2. **NO FILLER CONTENT**: If no data exists for a section, use the italic fallback text ONLY
+3. **THIS WEEK ONLY**: Exclude anything older than 7 days unless explicitly comparing trends
+4. **NO INFERENCE**: Do not infer activity from historical data or speculation
+5. **MANDATORY CITATIONS**: Every claim must have a source URL
+6. **BREVITY OVER BULK**: Short, factual statements >>> long, speculative narratives
+7. **EMERGING NICHES**: Look for actual new product categories, not existing trends
 
 # Workflow
 
@@ -237,41 +223,40 @@ Complete list of all sources with URLs in this format:
    - Capture general trends, competitor moves, and market intelligence
    
 2. **Call 2**: Execute targeted follow-up search (webSearchTool)
-   - Based on Call 1 gaps, choose: competitor deep-dive, market data, or strategic insights
+   - Based on Call 1 gaps, choose: competitor deep-dive OR emerging niches focus
    - Fill the most critical information gap
    
 3. **Call 3 (Optional)**: Only if critical gap remains
    - Use specialized tool (competitorNewsResearchTool, industryReportsResearchTool, or userReviewsResearchTool)
    - OR skip and proceed to synthesis if web searches were comprehensive
 
-4. **Synthesize findings**:
-   - Analyze and filter ALL content for recency (THIS WEEK ONLY)
-   - Extract structured insights and categorize by competitor
-   - For each competitor (WalkMe, WhatFix, Pendo, Apty), consolidate:
-     * Strategic moves (fundings, acquisitions, shifts)
-     * Product updates (features, partnerships, releases)
-     * All announcements and developments
-   - Cross-reference data across sources for correlations
-   - Prepare numeric metrics with trend indicators for tables
+4. **Synthesize findings WITH STRICT FILTERING**:
+   - **FIRST**: Filter ALL content for recency (THIS WEEK = last 7 days ONLY)
+   - **SECOND**: Categorize by competitor (WalkMe, WhatFix, Pendo, Apty)
+   - **THIRD**: Identify emerging niches (new product categories, first-mover advantages)
+   - **FOURTH**: Collect all source URLs for citations
+   - **FIFTH**: Verify every claim has a citation
    
-5. **Generate comprehensive markdown report**:
-   - Follow the EXACT structure with all 10 sections WITH EMOJIS
-   - For sections without data, include italic fallback text (e.g., "_No new updates this week_")
-   - Include trend indicators (▲, ▼, ➡️) for all numeric metrics
-   - Include all source URLs in citations
-   - DO NOT hallucinate or fabricate data - use italic memos instead
+5. **Generate markdown report (use H1 for main sections)**:
+   - Start directly with "# 🚀 Executive Summary" (NO "Weekly DAP Market Research Report" title)
+   - Use H1 (#) for all 10 main sections
+   - Use H2 (##) for competitor names under Competitors Spotlights
+   - Use H3 (###) and H4 (####) for deeper subsections
+   - For sections without data: Use ONLY the italic fallback text, nothing more
+   - Include source URLs inline where claims are made
+   - Detect emerging niches based on actual new product categories announced THIS WEEK
 
-**Report sections** (must include all 10 with emojis):
-   1. 🚀 Executive Summary
-   2. 📰 Recent DAP Market News
-   3. 🎯 Competitors Spotlights (merged section with WalkMe, WhatFix, Pendo, Apty subsections)
-   4. 📊 Overall Market Data
-   5. 💪 Competitors Health Assessment (with trend indicators)
-   6. 📈 Recent Industry Reports & Analysis
-   7. 💹 Market Dynamics (with trend indicators)
-   8. 💡 Strategic Insights for Product Strategy
-   9. 🌟 Emerging Markets & Niches
-   10. 📚 Sources & Citations
+**Report sections** (all H1 headers with emojis):
+   1. # 🚀 Executive Summary
+   2. # 📰 Recent DAP Market News
+   3. # 🎯 Competitors Spotlights (with ## WalkMe, ## WhatFix, ## Pendo, ## Apty subsections)
+   4. # 📊 Overall Market Data
+   5. # 💪 Competitors Health Assessment (write "_Competitor health metrics are fetched from external data sources._")
+   6. # 📈 Recent Industry Reports & Analysis
+   7. # 💹 Market Dynamics (write "_Market dynamics metrics are fetched from external data sources._")
+   8. # 💡 Strategic Insights for Product Strategy
+   9. # 🌟 Emerging Markets & Niches
+   10. # 📚 Sources & Citations
 `,
 
   model: anthropic("claude-sonnet-4-5"),
