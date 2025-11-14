@@ -151,7 +151,7 @@ Generate the complete markdown report now.
       {
         resourceId: "weekly-research",
         threadId: `weekly-research-${inputData.dateEnd}`,
-        maxSteps: 10, // Allow multiple tool calls for additional research
+        maxSteps: 3, // Limited to 3 steps to respect Perplexity API rate limits (3 requests/min)
       }
     );
     

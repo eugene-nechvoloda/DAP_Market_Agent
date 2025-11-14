@@ -1,10 +1,11 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
+import { perplexityRateLimiter } from "./rateLimiter";
 
 export const webSearchTool = createTool({
   id: "web-search-tool",
   description:
-    "Performs AI-powered web search using Perplexity Sonar to find recent, relevant articles, news, and information about DAP market topics. Returns comprehensive search results with real-time data.",
+    "Performs AI-powered web search using Perplexity Sonar to find recent, relevant articles, news, and information about DAP market topics. Returns comprehensive search results with real-time data. Rate limited to 3 requests per minute with 30 second delays between requests to prevent API rate limit errors.",
   
   inputSchema: z.object({
     query: z.string().describe("The search query"),
@@ -34,6 +35,13 @@ export const webSearchTool = createTool({
       if (!apiKey) {
         throw new Error('PERPLEXITY_API_KEY not configured');
       }
+
+      // Wait for rate limiter before making request
+      const rateLimitStatus = perplexityRateLimiter.getStatus();
+      logger?.info('⏱️ [webSearchTool] Rate limiter status:', rateLimitStatus);
+      
+      await perplexityRateLimiter.throttle();
+      logger?.info('✓ [webSearchTool] Rate limit check passed, making API request');
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
