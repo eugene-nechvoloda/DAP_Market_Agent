@@ -8,8 +8,6 @@ import { webSearchTool } from "../tools/webSearchTool";
 import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool";
 import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
-import { googleDocsExportTool } from "../tools/googleDocsExportTool";
-import { slackNotificationTool } from "../tools/slackNotificationTool";
 
 const anthropic = createAnthropic({
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
@@ -220,8 +218,6 @@ Complete list of all sources with URLs
     competitorNewsResearchTool,
     industryReportsResearchTool,
     userReviewsResearchTool,
-    googleDocsExportTool,
-    slackNotificationTool,
   },
   
   memory: new Memory({
