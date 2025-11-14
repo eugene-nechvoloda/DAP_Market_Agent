@@ -1,4 +1,8 @@
 import pg from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { competitorMetrics, marketMetrics } from '../../../shared/schema';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { eq, and } from 'drizzle-orm';
 
 const { Pool } = pg;
 
@@ -31,13 +35,64 @@ export interface ReportSourcesRecord {
   createdAt: Date;
 }
 
+export interface CompetitorMetricsInput {
+  competitorSlug: string;
+  reportingWeekStart: Date;
+  
+  // Owler metrics
+  revenueUsd?: number | null;
+  valuationUsd?: number | null;
+  employeeCount?: number | null;
+  revenueRange?: string | null;
+  owlerRawPayload?: any;
+  owlerSuccess: boolean;
+  
+  // Crunchbase metrics
+  fundingTotalUsd?: number | null;
+  lastRoundAmountUsd?: number | null;
+  lastRoundType?: string | null;
+  lastRoundDate?: Date | null;
+  investorCount?: number | null;
+  fundingRounds?: any;
+  crunchbaseRawPayload?: any;
+  crunchbaseSuccess: boolean;
+  
+  // Semrush metrics
+  organicTraffic?: number | null;
+  organicKeywords?: number | null;
+  semrushRank?: number | null;
+  semrushDatabase?: string | null;
+  semrushRawPayload?: any;
+  semrushSuccess: boolean;
+  
+  // Metadata
+  dataSourceVersion?: string | null;
+  missingSources?: string[];
+  error?: string | null;
+}
+
+export interface MarketMetricsInput {
+  reportingWeekStart: Date;
+  marketSizeUsd?: number | null;
+  yoyGrowthPct?: number | null;
+  totalSearchVolume?: number | null;
+  aggregateFundingUsd?: number | null;
+  dataSources?: string[];
+  rawPayload?: any;
+  success: boolean;
+  error?: string | null;
+}
+
 export class DatabaseService {
   private pool: pg.Pool;
+  private orm: ReturnType<typeof drizzle>;
 
   constructor() {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/mastra',
     });
+    // Initialize Drizzle ORM for metrics queries
+    this.orm = drizzle(this.pool);
   }
 
   async getLastReport(): Promise<ReportHistoryRecord | null> {
@@ -245,6 +300,184 @@ export class DatabaseService {
         values
       );
     }
+  }
+
+  /**
+   * Save or update competitor metrics for a given week
+   * Uses upsert to handle the unique constraint on (competitor_slug, reporting_week_start)
+   */
+  async saveCompetitorMetrics(data: CompetitorMetricsInput): Promise<void> {
+    console.log(`📊 [DatabaseService] Upserting competitor metrics for ${data.competitorSlug}, week ${data.reportingWeekStart.toISOString().split('T')[0]}`);
+    
+    try {
+      await this.orm
+        .insert(competitorMetrics)
+        .values({
+          competitorSlug: data.competitorSlug,
+          reportingWeekStart: data.reportingWeekStart,
+          revenueUsd: data.revenueUsd ?? null,
+          valuationUsd: data.valuationUsd ?? null,
+          employeeCount: data.employeeCount ?? null,
+          revenueRange: data.revenueRange ?? null,
+          owlerRawPayload: data.owlerRawPayload ?? null,
+          owlerSuccess: data.owlerSuccess,
+          fundingTotalUsd: data.fundingTotalUsd ?? null,
+          lastRoundAmountUsd: data.lastRoundAmountUsd ?? null,
+          lastRoundType: data.lastRoundType ?? null,
+          lastRoundDate: data.lastRoundDate ?? null,
+          investorCount: data.investorCount ?? null,
+          fundingRounds: data.fundingRounds ?? null,
+          crunchbaseRawPayload: data.crunchbaseRawPayload ?? null,
+          crunchbaseSuccess: data.crunchbaseSuccess,
+          organicTraffic: data.organicTraffic ?? null,
+          organicKeywords: data.organicKeywords ?? null,
+          semrushRank: data.semrushRank ?? null,
+          semrushDatabase: data.semrushDatabase ?? null,
+          semrushRawPayload: data.semrushRawPayload ?? null,
+          semrushSuccess: data.semrushSuccess,
+          dataSourceVersion: data.dataSourceVersion ?? null,
+          missingSources: data.missingSources ?? [],
+          error: data.error ?? null,
+        })
+        .onConflictDoUpdate({
+          target: [competitorMetrics.competitorSlug, competitorMetrics.reportingWeekStart],
+          set: {
+            revenueUsd: data.revenueUsd ?? null,
+            valuationUsd: data.valuationUsd ?? null,
+            employeeCount: data.employeeCount ?? null,
+            revenueRange: data.revenueRange ?? null,
+            owlerRawPayload: data.owlerRawPayload ?? null,
+            owlerSuccess: data.owlerSuccess,
+            fundingTotalUsd: data.fundingTotalUsd ?? null,
+            lastRoundAmountUsd: data.lastRoundAmountUsd ?? null,
+            lastRoundType: data.lastRoundType ?? null,
+            lastRoundDate: data.lastRoundDate ?? null,
+            investorCount: data.investorCount ?? null,
+            fundingRounds: data.fundingRounds ?? null,
+            crunchbaseRawPayload: data.crunchbaseRawPayload ?? null,
+            crunchbaseSuccess: data.crunchbaseSuccess,
+            organicTraffic: data.organicTraffic ?? null,
+            organicKeywords: data.organicKeywords ?? null,
+            semrushRank: data.semrushRank ?? null,
+            semrushDatabase: data.semrushDatabase ?? null,
+            semrushRawPayload: data.semrushRawPayload ?? null,
+            semrushSuccess: data.semrushSuccess,
+            dataSourceVersion: data.dataSourceVersion ?? null,
+            missingSources: data.missingSources ?? [],
+            error: data.error ?? null,
+            recordedAt: new Date(),
+          },
+        });
+      
+      console.log(`✅ [DatabaseService] Successfully saved competitor metrics for ${data.competitorSlug}`);
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error saving competitor metrics:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get competitor metrics for a specific week
+   */
+  async getCompetitorMetrics(
+    competitorSlug: string,
+    reportingWeekStart: Date
+  ): Promise<typeof competitorMetrics.$inferSelect | null> {
+    console.log(`🔍 [DatabaseService] Fetching competitor metrics for ${competitorSlug}, week ${reportingWeekStart.toISOString().split('T')[0]}`);
+    
+    try {
+      const result = await this.orm
+        .select()
+        .from(competitorMetrics)
+        .where(
+          and(
+            eq(competitorMetrics.competitorSlug, competitorSlug),
+            eq(competitorMetrics.reportingWeekStart, reportingWeekStart)
+          )
+        )
+        .limit(1);
+      
+      const metrics = result[0] || null;
+      console.log(`${metrics ? '✅' : '⚠️'} [DatabaseService] ${metrics ? 'Found' : 'No'} metrics for ${competitorSlug}`);
+      return metrics;
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error fetching competitor metrics:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save or update market-level metrics for a given week
+   */
+  async saveMarketMetrics(data: MarketMetricsInput): Promise<void> {
+    console.log(`📊 [DatabaseService] Upserting market metrics for week ${data.reportingWeekStart.toISOString().split('T')[0]}`);
+    
+    try {
+      await this.orm
+        .insert(marketMetrics)
+        .values({
+          reportingWeekStart: data.reportingWeekStart,
+          marketSizeUsd: data.marketSizeUsd ?? null,
+          yoyGrowthPct: data.yoyGrowthPct ?? null,
+          totalSearchVolume: data.totalSearchVolume ?? null,
+          aggregateFundingUsd: data.aggregateFundingUsd ?? null,
+          dataSources: data.dataSources ?? [],
+          rawPayload: data.rawPayload ?? null,
+          success: data.success,
+          error: data.error ?? null,
+        })
+        .onConflictDoUpdate({
+          target: [marketMetrics.reportingWeekStart],
+          set: {
+            marketSizeUsd: data.marketSizeUsd ?? null,
+            yoyGrowthPct: data.yoyGrowthPct ?? null,
+            totalSearchVolume: data.totalSearchVolume ?? null,
+            aggregateFundingUsd: data.aggregateFundingUsd ?? null,
+            dataSources: data.dataSources ?? [],
+            rawPayload: data.rawPayload ?? null,
+            success: data.success,
+            error: data.error ?? null,
+            recordedAt: new Date(),
+          },
+        });
+      
+      console.log(`✅ [DatabaseService] Successfully saved market metrics`);
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error saving market metrics:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get market metrics for a specific week
+   */
+  async getMarketMetrics(
+    reportingWeekStart: Date
+  ): Promise<typeof marketMetrics.$inferSelect | null> {
+    console.log(`🔍 [DatabaseService] Fetching market metrics for week ${reportingWeekStart.toISOString().split('T')[0]}`);
+    
+    try {
+      const result = await this.orm
+        .select()
+        .from(marketMetrics)
+        .where(eq(marketMetrics.reportingWeekStart, reportingWeekStart))
+        .limit(1);
+      
+      const metrics = result[0] || null;
+      console.log(`${metrics ? '✅' : '⚠️'} [DatabaseService] ${metrics ? 'Found' : 'No'} market metrics`);
+      return metrics;
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error fetching market metrics:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the Drizzle ORM instance for advanced queries
+   * (e.g., used by trendCalculation utility)
+   */
+  getOrm() {
+    return this.orm;
   }
 }
 
