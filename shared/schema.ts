@@ -10,7 +10,8 @@ export const reportHistory = pgTable('report_history', {
   slackNotificationSent: boolean('slack_notification_sent').default(false),
   generatedAt: timestamp('generated_at').defaultNow().notNull(),
   triggerType: text('trigger_type').notNull(), // 'scheduled' or 'manual'
-  reportContent: text('report_content'), // Full report text for history
+  reportContent: text('report_content'), // Full markdown report text for history
+  reportContentHtml: text('report_content_html'), // Full HTML report for web version
 });
 
 // Settings table to store user configuration

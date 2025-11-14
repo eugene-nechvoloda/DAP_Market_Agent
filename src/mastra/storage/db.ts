@@ -12,6 +12,7 @@ export interface ReportHistoryRecord {
   generatedAt: Date;
   triggerType: 'scheduled' | 'manual';
   reportContent: string | null;
+  reportContentHtml: string | null;
 }
 
 export interface SettingRecord {
@@ -43,14 +44,29 @@ export class DatabaseService {
     const result = await this.pool.query(
       'SELECT * FROM report_history ORDER BY generated_at DESC LIMIT 1'
     );
-    return result.rows[0] || null;
+    const row = result.rows[0];
+    if (!row) return null;
+    
+    // Map snake_case column names to camelCase
+    return {
+      id: row.id,
+      title: row.title,
+      dateStart: row.date_start,
+      dateEnd: row.date_end,
+      googleDocsUrl: row.google_docs_url,
+      slackNotificationSent: row.slack_notification_sent,
+      generatedAt: row.generated_at,
+      triggerType: row.trigger_type,
+      reportContent: row.report_content,
+      reportContentHtml: row.report_content_html,
+    };
   }
 
   async saveReport(report: Omit<ReportHistoryRecord, 'id' | 'generatedAt'>): Promise<ReportHistoryRecord> {
     const result = await this.pool.query(
       `INSERT INTO report_history 
-       (title, date_start, date_end, google_docs_url, slack_notification_sent, trigger_type, report_content) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       (title, date_start, date_end, google_docs_url, slack_notification_sent, trigger_type, report_content, report_content_html) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
       [
         report.title,
@@ -60,16 +76,42 @@ export class DatabaseService {
         report.slackNotificationSent,
         report.triggerType,
         report.reportContent,
+        report.reportContentHtml,
       ]
     );
-    return result.rows[0];
+    const row = result.rows[0];
+    // Map snake_case column names to camelCase
+    return {
+      id: row.id,
+      title: row.title,
+      dateStart: row.date_start,
+      dateEnd: row.date_end,
+      googleDocsUrl: row.google_docs_url,
+      slackNotificationSent: row.slack_notification_sent,
+      generatedAt: row.generated_at,
+      triggerType: row.trigger_type,
+      reportContent: row.report_content,
+      reportContentHtml: row.report_content_html,
+    };
   }
 
   async getAllReports(): Promise<ReportHistoryRecord[]> {
     const result = await this.pool.query(
       'SELECT * FROM report_history ORDER BY generated_at DESC'
     );
-    return result.rows;
+    // Map each row from snake_case to camelCase
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      dateStart: row.date_start,
+      dateEnd: row.date_end,
+      googleDocsUrl: row.google_docs_url,
+      slackNotificationSent: row.slack_notification_sent,
+      generatedAt: row.generated_at,
+      triggerType: row.trigger_type,
+      reportContent: row.report_content,
+      reportContentHtml: row.report_content_html,
+    }));
   }
 
   async getSetting(key: string): Promise<string | null> {
@@ -117,6 +159,7 @@ export class DatabaseService {
       generatedAt: row.generated_at,
       triggerType: row.trigger_type,
       reportContent: row.report_content,
+      reportContentHtml: row.report_content_html,
     };
   }
 
@@ -162,6 +205,18 @@ export class DatabaseService {
     const values: any[] = [];
     let paramIndex = 1;
 
+    if (updates.title !== undefined) {
+      setClauses.push(`title = $${paramIndex++}`);
+      values.push(updates.title);
+    }
+    if (updates.dateStart !== undefined) {
+      setClauses.push(`date_start = $${paramIndex++}`);
+      values.push(updates.dateStart);
+    }
+    if (updates.dateEnd !== undefined) {
+      setClauses.push(`date_end = $${paramIndex++}`);
+      values.push(updates.dateEnd);
+    }
     if (updates.googleDocsUrl !== undefined) {
       setClauses.push(`google_docs_url = $${paramIndex++}`);
       values.push(updates.googleDocsUrl);
@@ -173,6 +228,14 @@ export class DatabaseService {
     if (updates.slackNotificationSent !== undefined) {
       setClauses.push(`slack_notification_sent = $${paramIndex++}`);
       values.push(updates.slackNotificationSent);
+    }
+    if (updates.reportContent !== undefined) {
+      setClauses.push(`report_content = $${paramIndex++}`);
+      values.push(updates.reportContent);
+    }
+    if (updates.reportContentHtml !== undefined) {
+      setClauses.push(`report_content_html = $${paramIndex++}`);
+      values.push(updates.reportContentHtml);
     }
 
     if (setClauses.length > 0) {

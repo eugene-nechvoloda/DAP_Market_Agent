@@ -1,11 +1,113 @@
 import { registerApiRoute as registerApiRouteOriginal } from '@mastra/core/server';
 import { db } from '../storage/db.js';
 import { inngest } from '../inngest/client.js';
+import { marked } from 'marked';
 
 // Embedded UI assets - loaded at module initialization to avoid runtime file system access
 // This approach ensures assets work regardless of bundling/deployment environment
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
+
+// Helper function to convert markdown to styled HTML
+function convertMarkdownToHTML(markdown: string, title: string): string {
+  const htmlContent = marked.parse(markdown);
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 { 
+      font-size: 2.5em;
+      color: #2c3e50;
+      margin-bottom: 0.5em;
+      border-bottom: 3px solid #3498db;
+      padding-bottom: 0.3em;
+    }
+    h2 { 
+      font-size: 2em;
+      color: #34495e;
+      margin-top: 1.5em;
+      margin-bottom: 0.75em;
+      border-bottom: 2px solid #ecf0f1;
+      padding-bottom: 0.3em;
+    }
+    h3 { 
+      font-size: 1.5em;
+      color: #7f8c8d;
+      margin-top: 1.2em;
+      margin-bottom: 0.6em;
+    }
+    p { margin-bottom: 1em; }
+    ul, ol { 
+      margin-left: 2em;
+      margin-bottom: 1em;
+    }
+    li { margin-bottom: 0.5em; }
+    strong { color: #2c3e50; font-weight: 700; }
+    em { font-style: italic; color: #7f8c8d; }
+    a { color: #3498db; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5em 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    th {
+      background: #3498db;
+      color: white;
+      font-weight: 700;
+      padding: 12px;
+      text-align: left;
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #ecf0f1;
+    }
+    tr:hover { background: #f8f9fa; }
+    blockquote {
+      border-left: 4px solid #3498db;
+      padding-left: 1em;
+      margin: 1.5em 0;
+      color: #7f8c8d;
+      font-style: italic;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    ${htmlContent}
+  </div>
+</body>
+</html>`;
+}
 
 let dashboardHTML: string;
 let stylesCSS: string;
@@ -142,6 +244,50 @@ export const apiRoutes = [
     method: 'GET',
     handler: async (c) => {
       return c.text(appJS, 200, { 'Content-Type': 'application/javascript' });
+    },
+  }),
+
+  registerApiRouteOriginal('/reports/:reportId', {
+    method: 'GET',
+    handler: async (c) => {
+      const mastra = c.get('mastra');
+      const logger = mastra?.getLogger();
+      const reportId = c.req.param('reportId');
+      
+      logger?.info('📄 [API] Fetching HTML report:', { reportId });
+      
+      try {
+        const report = await db.getReportById(parseInt(reportId));
+        
+        if (!report) {
+          logger?.warn('⚠️ [API] Report not found:', { reportId });
+          return c.html('<html><body><h1>Report not found</h1></body></html>', 404);
+        }
+        
+        // Use stored HTML if available, otherwise convert markdown to HTML
+        let htmlContent: string;
+        if (report.reportContentHtml) {
+          logger?.info('📝 [API] Using stored HTML');
+          htmlContent = report.reportContentHtml;
+        } else if (report.reportContent) {
+          logger?.info('🔄 [API] Converting markdown to HTML');
+          htmlContent = convertMarkdownToHTML(report.reportContent, report.title);
+          
+          // Store the HTML asynchronously for future requests (non-blocking)
+          db.updateReport(report.id, { reportContentHtml: htmlContent })
+            .then(() => logger?.info('💾 [API] Stored generated HTML for future requests'))
+            .catch((err) => logger?.warn('⚠️ [API] Failed to store HTML:', err));
+        } else {
+          logger?.error('❌ [API] Report has no content');
+          return c.html('<html><body><h1>Report content not available</h1></body></html>', 404);
+        }
+        
+        logger?.info('✅ [API] Serving HTML report');
+        return c.html(htmlContent);
+      } catch (error: any) {
+        logger?.error('❌ [API] Failed to fetch report:', error);
+        return c.html(`<html><body><h1>Error loading report</h1><p>${error.message}</p></body></html>`, 500);
+      }
     },
   }),
 ];
