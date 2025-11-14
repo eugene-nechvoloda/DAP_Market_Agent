@@ -1,11 +1,12 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { perplexityRateLimiter } from "./rateLimiter";
+import { getJson } from "serpapi";
 
 export const webSearchTool = createTool({
   id: "web-search-tool",
   description:
-    "Performs AI-powered web search using Perplexity Sonar to find recent, relevant articles, news, and information about DAP market topics. Returns comprehensive search results with real-time data. Rate limited to 3 requests per minute with 30 second delays between requests to prevent API rate limit errors.",
+    "Performs AI-powered web search using Perplexity Sonar (primary) or SerpAPI (fallback) to find recent, relevant articles, news, and information about DAP market topics. Returns comprehensive search results with real-time data. Automatically falls back to SerpAPI if Perplexity rate limits are reached.",
   
   inputSchema: z.object({
     query: z.string().describe("The search query"),
@@ -28,20 +29,23 @@ export const webSearchTool = createTool({
   
   execute: async ({ context, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🔍 [webSearchTool] Perplexity Sonar search for:', { query: context.query });
+    logger?.info('🔍 [webSearchTool] Starting web search for:', { query: context.query });
     
+    // Try Perplexity first
     try {
       const apiKey = process.env.PERPLEXITY_API_KEY;
       if (!apiKey) {
         throw new Error('PERPLEXITY_API_KEY not configured');
       }
 
+      logger?.info('🔍 [webSearchTool] Attempting Perplexity Sonar search...');
+      
       // Wait for rate limiter before making request
       const rateLimitStatus = perplexityRateLimiter.getStatus();
       logger?.info('⏱️ [webSearchTool] Rate limiter status:', rateLimitStatus);
       
       await perplexityRateLimiter.throttle();
-      logger?.info('✓ [webSearchTool] Rate limit check passed, making API request');
+      logger?.info('✓ [webSearchTool] Rate limit check passed, making Perplexity API request');
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -94,19 +98,73 @@ export const webSearchTool = createTool({
         citations,
         success: true,
       };
-    } catch (error) {
-      logger?.error('❌ [webSearchTool] Perplexity search error:', {
+    } catch (perplexityError) {
+      logger?.warn('⚠️ [webSearchTool] Perplexity search failed, falling back to SerpAPI:', {
         query: context.query,
-        error: error instanceof Error ? error.message : String(error),
+        error: perplexityError instanceof Error ? perplexityError.message : String(perplexityError),
       });
       
-      return {
-        query: context.query,
-        answer: '',
-        citations: [],
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      // Fallback to SerpAPI
+      try {
+        const serpApiKey = process.env.SERPAPI_API_KEY;
+        if (!serpApiKey) {
+          throw new Error('SERPAPI_API_KEY not configured - cannot use fallback');
+        }
+
+        logger?.info('🔍 [webSearchTool] Attempting SerpAPI search...');
+        
+        const serpResults = await getJson({
+          engine: "google",
+          api_key: serpApiKey,
+          q: context.query,
+          num: context.maxResults || 5,
+        });
+
+        // Extract organic results
+        const organicResults = serpResults.organic_results || [];
+        
+        // Create citations from organic results
+        const citations = organicResults.slice(0, context.maxResults || 5).map((result: any) => ({
+          title: result.title || 'No title',
+          url: result.link || '',
+          snippet: result.snippet || 'Google search result via SerpAPI',
+        }));
+
+        // Create a synthesized answer from the results
+        const answer = organicResults.length > 0
+          ? `Based on Google search results:\n\n${organicResults
+              .slice(0, 3)
+              .map((r: any, i: number) => `${i + 1}. ${r.title}: ${r.snippet}`)
+              .join('\n\n')}`
+          : 'No search results found';
+
+        logger?.info('✅ [webSearchTool] SerpAPI search completed:', {
+          query: context.query,
+          citationsCount: citations.length,
+          answerLength: answer.length,
+        });
+        
+        return {
+          query: context.query,
+          answer,
+          citations,
+          success: true,
+        };
+      } catch (serpError) {
+        logger?.error('❌ [webSearchTool] Both Perplexity and SerpAPI failed:', {
+          query: context.query,
+          perplexityError: perplexityError instanceof Error ? perplexityError.message : String(perplexityError),
+          serpError: serpError instanceof Error ? serpError.message : String(serpError),
+        });
+        
+        return {
+          query: context.query,
+          answer: '',
+          citations: [],
+          success: false,
+          error: `Both search providers failed. Perplexity: ${perplexityError instanceof Error ? perplexityError.message : String(perplexityError)}, SerpAPI: ${serpError instanceof Error ? serpError.message : String(serpError)}`,
+        };
+      }
     }
   },
 });
