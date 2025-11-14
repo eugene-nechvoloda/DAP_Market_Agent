@@ -1,5 +1,6 @@
 import { registerApiRoute as registerApiRouteOriginal } from '@mastra/core/server';
 import { db } from '../storage/db.js';
+import { inngest } from '../inngest/client.js';
 
 // Embedded UI assets - loaded at module initialization to avoid runtime file system access
 // This approach ensures assets work regardless of bundling/deployment environment
@@ -54,11 +55,6 @@ export const apiRoutes = [
       logger?.info('🚀 [API] Manual report generation requested');
       
       try {
-        const inngest = (mastra as any).inngestClient;
-        if (!inngest) {
-          throw new Error('Inngest client not initialized');
-        }
-
         const result = await inngest.send({
           name: 'workflow.weekly-market-research',
           data: {

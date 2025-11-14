@@ -107,6 +107,8 @@ const analyzeAndCompileReport = createStep({
     report: z.string(),
     summary: z.string(),
     weekRangeLabel: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
   }),
   
   execute: async ({ inputData, mastra }) => {
@@ -166,6 +168,8 @@ Generate the complete markdown report now.
       report: reportText,
       summary,
       weekRangeLabel: inputData.weekRangeLabel,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
     };
   },
 });
