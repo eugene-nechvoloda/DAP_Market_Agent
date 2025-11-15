@@ -114,7 +114,7 @@ function renderHistory(reports) {
   const tbody = document.getElementById('historyBody');
   
   if (!reports || reports.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No reports generated yet. Click "Generate Report Now" to create your first report!</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No reports generated yet. Click "Generate Report Now" to create your first report!</td></tr>';
     return;
   }
   
@@ -124,6 +124,7 @@ function renderHistory(reports) {
       <td>${escapeHtml(report.date_start)} to ${escapeHtml(report.date_end)}</td>
       <td>${new Date(report.generated_at).toLocaleString()}</td>
       <td><span class="badge ${report.trigger_type}">${report.trigger_type}</span></td>
+      <td><a href="/reports/${report.id}" target="_blank">View Report</a></td>
       <td>${report.google_docs_url ? `<a href="${escapeHtml(report.google_docs_url)}" target="_blank">View Doc</a>` : 'N/A'}</td>
       <td><span class="badge ${report.slack_notification_sent ? 'yes' : 'no'}">${report.slack_notification_sent ? 'Yes' : 'No'}</span></td>
     </tr>
