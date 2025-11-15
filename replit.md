@@ -4,6 +4,38 @@ This project is a Mastra-based AI agent automation platform for **DAP (Digital A
 
 The platform is designed to provide automated, in-depth market analysis for the DAP industry, leveraging AI agents for data gathering and report generation, and integrating with external services for output and notifications. It aims to deliver verifiable, factual market insights to users regularly.
 
+# Recent Changes
+
+## November 15, 2025
+
+### Web Version Links (Task 10)
+- **Dashboard**: Added "Web Version" column to report history table with links to `/reports/:reportId` for easy browser-based viewing
+- **Slack Notifications**: Updated to include both web version (🌐) and Google Docs (📄) links with proper database persistence of `slack_notification_sent` status
+- **Google Docs Footer**: Added automated footer insertion with web version link, styled with italic gray text for visual separation
+
+### Keyword Analysis System (Task 9)
+- **Database Schema**: Fixed date handling using SQL casting (`sql\`${date}::date\``) to ensure proper PostgreSQL DATE type storage
+- **Keyword Detection**: Implemented rising keyword detection with historical comparison (50% growth threshold) using proper date comparisons
+- **Source URLs**: Added URL extraction and persistence for citation-ready emerging trend insights
+
+### Citation & URL Validation (Task 8)
+- **Inline Citations**: Added mandatory citation requirements with URL validation (https://, complete URLs, no redirects) to all report sections
+- **Format Examples**: Provided specific citation formats for each section type to guide agent output
+
+### Google Docs Native Tables (Task 7)
+- **Two-Phase Export Pipeline**: Implemented placeholder → structure fetch → insertTable → cell population approach to avoid index calculation fragility
+- **Native Tables**: Market Dynamics section now uses Google Docs insertTable API instead of text-based pipe-separated tables
+
+### Metrics Warehouse & Trend Calculation (Tasks 4-6)
+- **External APIs**: Integrated Owler (revenue/valuation), Crunchbase (funding), and Semrush (web traffic) with defensive parsing and graceful fallbacks
+- **Database Schema**: Created `market_metrics` and `competitor_metrics` tables with proper indexes for time-series trend analysis
+- **Trend Formatting**: Implemented `formatTrend()` with proper zero baseline handling and directional messaging (▲ +15%, ▼ -10%, → No change)
+
+### Report Quality Improvements (Tasks 1-3)
+- **Anti-Hallucination**: Added explicit "no data" responses, removed narrative padding, required citations for all claims
+- **Heading Hierarchy**: Fixed heading structure (H1 for main sections, H2/H3 for subsections) in both markdown and Google Docs export
+- **Agent Instructions**: Updated with strict anti-hallucination rules and proper heading depth mapping
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
