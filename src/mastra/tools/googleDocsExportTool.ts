@@ -302,6 +302,7 @@ export const googleDocsExportTool = createTool({
   inputSchema: z.object({
     title: z.string().describe("The title of the Google Doc"),
     content: z.string().describe("The markdown content to export (will be converted to formatted text)"),
+    reportId: z.number().optional().describe("The database ID of the report for web version link"),
   }),
   
   outputSchema: z.object({
@@ -497,6 +498,61 @@ export const googleDocsExportTool = createTool({
         }
         
         logger?.info('✅ [googleDocsExportTool] All tables inserted and populated');
+      }
+      
+      // Add footer with web version link if reportId is provided
+      if (context.reportId) {
+        logger?.info('📝 [googleDocsExportTool] Adding web version footer...');
+        
+        // Construct web version URL
+        const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${context.reportId}`;
+        
+        // Get current document length to append at the end
+        const docResponse = await docs.documents.get({ documentId });
+        const endIndex = docResponse.data.body?.content?.[docResponse.data.body.content.length - 1]?.endIndex || 1;
+        
+        const footerText = `\n\n---\n\n📊 View this report in your browser: ${webVersionUrl}`;
+        
+        // Insert footer text
+        await docs.documents.batchUpdate({
+          documentId,
+          requestBody: {
+            requests: [
+              {
+                insertText: {
+                  text: footerText,
+                  location: {
+                    index: endIndex - 1, // Insert before the final newline
+                  },
+                },
+              },
+              // Make footer text italic and gray
+              {
+                updateTextStyle: {
+                  range: {
+                    startIndex: endIndex - 1,
+                    endIndex: endIndex - 1 + footerText.length,
+                  },
+                  textStyle: {
+                    italic: true,
+                    foregroundColor: {
+                      color: {
+                        rgbColor: {
+                          red: 0.5,
+                          green: 0.5,
+                          blue: 0.5,
+                        },
+                      },
+                    },
+                  },
+                  fields: 'italic,foregroundColor',
+                },
+              },
+            ],
+          },
+        });
+        
+        logger?.info('✅ [googleDocsExportTool] Web version footer added');
       }
       
       // Try to make the document accessible via link (optional - requires Drive scope)

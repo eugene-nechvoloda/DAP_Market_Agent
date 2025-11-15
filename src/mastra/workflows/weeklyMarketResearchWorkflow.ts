@@ -413,6 +413,7 @@ const exportToGoogleDocs = createStep({
       context: {
         title,
         content: reportRecord.reportContent,
+        reportId: inputData.reportId,
       },
       runtimeContext,
       mastra,
@@ -484,7 +485,7 @@ const updateReportMetadata = createStep({
 
 const sendSlackNotification = createStep({
   id: "send-slack-notification",
-  description: "Sends notification to Slack channel with report summary and Google Docs link",
+  description: "Sends notification to Slack channel with report summary and web/Google Docs links",
   
   inputSchema: z.object({
     reportId: z.number(),
@@ -507,18 +508,22 @@ const sendSlackNotification = createStep({
     
     const channelId = await db.getSetting('slack_channel_id') || "C09SK3N27MH"; // Get from settings or use default
     
+    // Construct web version URL (assumes standard Replit deployment URL structure)
+    const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${inputData.reportId}`;
+    
     const message = `
 🔔 *Weekly DAP Market Research Report*
 
 ${inputData.summary}
 
-${inputData.exportSuccess ? '📄 Full report available in Google Docs (link below)' : '⚠️ Note: Google Docs export failed, but report is available in app'}
+📊 View the full report in your browser or Google Docs (links below)
 `;
     
     const result = await slackNotificationTool.execute({
       context: {
         channelId,
         message,
+        webVersionUrl,
         documentUrl: inputData.documentUrl,
       },
       runtimeContext,
@@ -526,9 +531,12 @@ ${inputData.exportSuccess ? '📄 Full report available in Google Docs (link bel
     });
     
     if (result.success) {
-      logger?.info('✅ [Step 4] Slack notification sent successfully');
+      logger?.info('✅ [Step 5] Slack notification sent successfully');
+      
+      // Mark Slack notification as sent in database
+      await db.updateReport(inputData.reportId, { slack_notification_sent: true });
     } else {
-      logger?.warn('⚠️ [Step 4] Failed to send Slack notification:', { error: result.error });
+      logger?.warn('⚠️ [Step 5] Failed to send Slack notification:', { error: result.error });
     }
     
     logger?.info('🎉 [Workflow Complete] Weekly market research workflow finished successfully');

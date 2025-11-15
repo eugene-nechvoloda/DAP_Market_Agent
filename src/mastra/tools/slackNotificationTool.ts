@@ -10,6 +10,7 @@ export const slackNotificationTool = createTool({
   inputSchema: z.object({
     channelId: z.string().describe("The Slack channel ID (e.g., C09SK3N27MH)"),
     message: z.string().describe("The message to send"),
+    webVersionUrl: z.string().optional().describe("Optional web version URL (HTML report)"),
     documentUrl: z.string().optional().describe("Optional Google Docs URL to include in the message"),
   }),
   
@@ -58,10 +59,13 @@ export const slackNotificationTool = createTool({
         throw new Error(`Slack authentication failed: ${authError instanceof Error ? authError.message : String(authError)}`);
       }
       
-      // Format the message with the document URL if provided
+      // Format the message with the web version and document URLs if provided
       let fullMessage = context.message;
+      if (context.webVersionUrl) {
+        fullMessage += `\n\n🌐 *Web Version:* ${context.webVersionUrl}`;
+      }
       if (context.documentUrl) {
-        fullMessage += `\n\n📄 *View Full Report:* ${context.documentUrl}`;
+        fullMessage += `\n📄 *Google Docs:* ${context.documentUrl}`;
       }
       
       logger?.info('📤 [slackNotificationTool] Sending message to channel:', {
