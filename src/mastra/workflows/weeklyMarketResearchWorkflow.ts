@@ -8,6 +8,7 @@ import { webSearchTool } from "../tools/webSearchTool";
 import { googleDocsExportTool } from "../tools/googleDocsExportTool";
 import { slackNotificationTool } from "../tools/slackNotificationTool";
 import { db } from "../storage/db.js";
+import { extractMetricsFromText, getAllCompetitorNames, getCompetitorSlug } from "../../utils/metricExtraction";
 
 const gatherMarketData = createStep({
   id: "gather-market-data",
@@ -218,6 +219,162 @@ const performWebSearches = createStep({
   },
 });
 
+const gatherCompetitorMetrics = createStep({
+  id: "gather-competitor-metrics",
+  description: "Gathers competitor financial metrics from public sources using batched web searches",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    metricsGathered: z.boolean(),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('💰 [Step 2.5] Gathering competitor metrics from public sources...');
+    
+    // Calculate reporting week start (Monday of the current week)
+    const dateEnd = new Date(inputData.dateEnd);
+    const dayOfWeek = dateEnd.getDay();
+    const daysToMonday = (dayOfWeek + 6) % 7; // Days back to Monday
+    const reportingWeekStart = new Date(dateEnd);
+    reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
+    reportingWeekStart.setHours(0, 0, 0, 0); // Normalize to midnight
+    
+    logger?.info('📅 [Step 2.5] Reporting week start:', { 
+      reportingWeekStart: reportingWeekStart.toISOString().split('T')[0] 
+    });
+    
+    const competitorNames = getAllCompetitorNames();
+    const allMetrics: any[] = [];
+    
+    // Batched Search 1: Funding & Financials
+    logger?.info('💸 [Step 2.5.1] Searching for funding and financial data...');
+    const fundingQuery = `${competitorNames.join(' ')} carbon accounting funding rounds Series A B C valuation revenue 2024 2025 TechCrunch Crunchbase investment`;
+    
+    const fundingSearch = await webSearchTool.execute({
+      context: {
+        query: fundingQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    if (fundingSearch.success && fundingSearch.answer) {
+      const fundingMetrics = await extractMetricsFromText(
+        fundingSearch.answer + '\n\n' + JSON.stringify(fundingSearch.citations || []),
+        competitorNames,
+        logger
+      );
+      allMetrics.push(...fundingMetrics);
+    }
+    
+    // Delay to respect rate limits (3 req/min = ~20 seconds between calls)
+    logger?.info('⏳ [Step 2.5] Waiting 25 seconds to respect Perplexity rate limit...');
+    await new Promise(resolve => setTimeout(resolve, 25000));
+    
+    // Batched Search 2: Revenue & Employee Data
+    logger?.info('📊 [Step 2.5.2] Searching for revenue and employee data...');
+    const revenueQuery = `${competitorNames.join(' ')} carbon accounting software revenue ARR employees headcount company size 2024 2025`;
+    
+    const revenueSearch = await webSearchTool.execute({
+      context: {
+        query: revenueQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    if (revenueSearch.success && revenueSearch.answer) {
+      const revenueMetrics = await extractMetricsFromText(
+        revenueSearch.answer + '\n\n' + JSON.stringify(revenueSearch.citations || []),
+        competitorNames,
+        logger
+      );
+      
+      // Merge with existing metrics
+      for (const metric of revenueMetrics) {
+        const existing = allMetrics.find(m => m.competitorSlug === metric.competitorSlug);
+        if (existing) {
+          Object.assign(existing, metric);
+        } else {
+          allMetrics.push(metric);
+        }
+      }
+    }
+    
+    logger?.info(`✅ [Step 2.5] Extracted metrics for ${allMetrics.length} competitors`);
+    
+    // Store metrics in database
+    logger?.info('💾 [Step 2.5] Storing metrics in database...');
+    let storedCount = 0;
+    
+    for (const metrics of allMetrics) {
+      try {
+        await db.saveCompetitorMetrics({
+          competitorSlug: metrics.competitorSlug,
+          reportingWeekStart,
+          revenueUsd: metrics.revenueUsd,
+          revenueRange: metrics.revenueRange,
+          valuationUsd: metrics.valuationUsd,
+          employeeCount: metrics.employeeCount,
+          owlerRawPayload: null,
+          owlerSuccess: false, // Not using Owler API
+          fundingTotalUsd: metrics.fundingTotalUsd,
+          lastRoundAmountUsd: metrics.lastRoundAmountUsd,
+          lastRoundType: metrics.lastRoundType,
+          lastRoundDate: metrics.lastRoundDate ? new Date(metrics.lastRoundDate) : null,
+          investorCount: null,
+          fundingRounds: null,
+          crunchbaseRawPayload: { 
+            sourceUrls: metrics.sourceUrls,
+            rawContext: metrics.rawContext 
+          },
+          crunchbaseSuccess: true, // Using public sources instead
+          organicTraffic: null,
+          organicKeywords: null,
+          semrushRank: null,
+          semrushDatabase: null,
+          semrushRawPayload: null,
+          semrushSuccess: false, // Not using Semrush API
+          dataSourceVersion: 'public-web-search-v1',
+          missingSources: [],
+          error: null,
+        });
+        storedCount++;
+      } catch (error) {
+        logger?.error(`❌ [Step 2.5] Failed to store metrics for ${metrics.competitorSlug}:`, error);
+      }
+    }
+    
+    logger?.info(`✅ [Step 2.5] Stored metrics for ${storedCount}/${allMetrics.length} competitors`);
+    
+    return {
+      ...inputData,
+      metricsGathered: storedCount > 0,
+    };
+  },
+});
+
 const analyzeAndCompileReport = createStep({
   id: "analyze-and-compile-report",
   description: "Agent analyzes gathered data and compiles comprehensive weekly market research report",
@@ -231,6 +388,7 @@ const analyzeAndCompileReport = createStep({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
     }),
+    metricsGathered: z.boolean(),
   }),
   
   outputSchema: z.object({
@@ -260,6 +418,23 @@ const analyzeAndCompileReport = createStep({
       industryDataSize: JSON.stringify(sources.industryData).length,
       reviewsDataSize: JSON.stringify(sources.reviewsData).length,
     });
+    
+    // Load competitor metrics from database
+    logger?.info('💰 [Step 3] Loading competitor metrics from database...');
+    const dateEnd = new Date(inputData.dateEnd);
+    const dayOfWeek = dateEnd.getDay();
+    const daysToMonday = (dayOfWeek + 6) % 7;
+    const reportingWeekStart = new Date(dateEnd);
+    reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
+    reportingWeekStart.setHours(0, 0, 0, 0);
+    
+    const allMetrics = await db.getAllLatestCompetitorMetrics(reportingWeekStart);
+    logger?.info(`✅ [Step 3] Loaded metrics for ${allMetrics.length} competitors`);
+    
+    // Format metrics for prompt
+    const metricsText = allMetrics.length > 0 
+      ? allMetrics.map(m => `${m.competitorSlug}: ${m.revenueUsd ? `$${(m.revenueUsd / 1000000).toFixed(1)}M revenue, ` : ''}${m.fundingTotalUsd ? `$${(m.fundingTotalUsd / 1000000).toFixed(1)}M funding, ` : ''}${m.lastRoundAmountUsd ? `last round $${(m.lastRoundAmountUsd / 1000000).toFixed(1)}M (${m.lastRoundType}), ` : ''}${m.employeeCount ? `${m.employeeCount} employees` : ''}`).join('\n')
+      : 'No competitor metrics available (will be populated after first run)';
     
     // Trim curated data to avoid prompt size limits (prioritize web search results)
     const trimData = (data: any, maxLength: number = 2000) => {
@@ -294,6 +469,10 @@ ${trimData(sources.industryData, 2000)}
 
 ### User Reviews Data:
 ${trimData(sources.reviewsData, 2000)}
+
+## COMPETITOR METRICS (From Database):
+
+${metricsText}
 
 **YOUR TASK:**
 1. **Prioritize web search results** - they provide the most comprehensive, recent market intelligence
@@ -563,6 +742,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
 })
   .then(gatherMarketData as any)
   .then(performWebSearches as any)
+  .then(gatherCompetitorMetrics as any)
   .then(analyzeAndCompileReport as any)
   .then(exportToGoogleDocs as any)
   .then(updateReportMetadata as any)
