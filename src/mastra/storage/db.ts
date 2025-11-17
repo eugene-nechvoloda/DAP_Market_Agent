@@ -479,6 +479,49 @@ export class DatabaseService {
   getOrm() {
     return this.orm;
   }
+
+  /**
+   * Get latest metrics for a competitor with previous week's data for trend calculation
+   */
+  async getCompetitorMetricsWithTrend(
+    competitorSlug: string,
+    currentWeekStart: Date
+  ): Promise<{
+    current: typeof competitorMetrics.$inferSelect | null;
+    previous: typeof competitorMetrics.$inferSelect | null;
+  }> {
+    const current = await this.getCompetitorMetrics(competitorSlug, currentWeekStart);
+    
+    // Get previous week (7 days earlier)
+    const previousWeekStart = new Date(currentWeekStart);
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+    
+    const previous = await this.getCompetitorMetrics(competitorSlug, previousWeekStart);
+    
+    return { current, previous };
+  }
+
+  /**
+   * Get all latest competitor metrics for current week
+   */
+  async getAllLatestCompetitorMetrics(
+    reportingWeekStart: Date
+  ): Promise<Array<typeof competitorMetrics.$inferSelect>> {
+    console.log(`🔍 [DatabaseService] Fetching all competitor metrics for week ${reportingWeekStart.toISOString().split('T')[0]}`);
+    
+    try {
+      const result = await this.orm
+        .select()
+        .from(competitorMetrics)
+        .where(eq(competitorMetrics.reportingWeekStart, reportingWeekStart));
+      
+      console.log(`✅ [DatabaseService] Found ${result.length} competitor metrics records`);
+      return result;
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error fetching all competitor metrics:`, error);
+      throw error;
+    }
+  }
 }
 
 export const db = new DatabaseService();
