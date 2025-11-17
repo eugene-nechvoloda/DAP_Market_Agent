@@ -8,10 +8,6 @@ import { webSearchTool } from "../tools/webSearchTool";
 import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool";
 import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
-import { owlerMetricsTool } from "../tools/owlerMetricsTool";
-import { crunchbaseMetricsTool } from "../tools/crunchbaseMetricsTool";
-import { semrushMetricsTool } from "../tools/semrushMetricsTool";
-import { emergingTrendsAnalysisTool } from "../tools/emergingTrendsAnalysisTool";
 
 const anthropic = createAnthropic({
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
@@ -84,9 +80,9 @@ AI-powered web search using Perplexity Sonar (primary) with SerpAPI fallback. Re
 - Use ONLY if web searches missed critical first-party announcements
 - Provides unfiltered newsroom content but limited to what's on their websites
 
-**industryReportsResearchTool**: Fetches content from Forrester, TechCrunch, eLearning Industry
+**industryReportsResearchTool**: Fetches content from Forrester, TechCrunch Climate, VentureBeat Climate Tech, GreenBiz, Climate Tech VC, Carbon Credits
 - Use ONLY if market sizing/analyst data is completely missing
-- Provides industry publication content but may have paywalls
+- Provides climate tech and sustainability industry publication content
 
 **userReviewsResearchTool**: Fetches reviews from Gartner (G2 blocks automated access)
 - Use ONLY if user sentiment is mandatory for report completeness
@@ -180,15 +176,12 @@ Use subsections only if data exists:
 ## Market Trajectory Analysis
 
 # 💪 Competitors Health Assessment
-**IMPORTANT**: This section will display real competitor metrics from external APIs.
+**Current Status**: Due to the 3-call tool budget limit (for Perplexity rate limiting), metrics fetching is not feasible during report generation.
 
-For now, write: "_Competitor health metrics (revenue, funding, web traffic) will be available once API integrations are fully configured. Required: OWLER_API_KEY, CRUNCHBASE_API_KEY, SEMRUSH_API_KEY._"
+**Write this placeholder**:
+"_Competitor health metrics (revenue, funding, web traffic) will be available once a dedicated metrics collection workflow step is added. This will fetch data from Owler, Crunchbase, and Semrush before report generation, enabling automatic tables with month-over-month trends._"
 
-**Future format** (when metrics tools are enabled in workflow):
-Create a markdown table with columns:
-| Competitor | Revenue (Owler) | Funding (Crunchbase) | Organic Traffic (Semrush) | Trend |
-|------------|----------------|---------------------|--------------------------|-------|
-| Greenly    | $XXM          | $XXXM               | XXX,XXX/mo               | ▲ +X% |
+**Note**: Do NOT attempt to call owlerMetricsTool, crunchbaseMetricsTool, or semrushMetricsTool - they would exceed your tool budget. Focus your 3 calls on comprehensive market intelligence via webSearchTool.
 
 # 📈 Recent Industry Reports & Analysis
 **ONLY include analyst reports/research published THIS WEEK**. If none exist, write: "_No new industry reports this week._"
@@ -202,16 +195,12 @@ DO NOT fill with:
 - Example: "Forrester predicts Carbon Accounting Software adoption will triple in 2026 ([Forrester Wave](https://forrester.com/wave))."
 
 # 💹 Market Dynamics
-**IMPORTANT**: This section will display week-over-week market trends based on real data.
+**Current Status**: Quantitative market dynamics analysis requires the metrics data from the Competitors Health Assessment section above.
 
-For now, write: "_Market dynamics tracking (growth rates, market share shifts, traffic trends) will be available once the metrics warehouse is implemented._"
+**Write this placeholder**:
+"_Market dynamics tracking (growth rates, market share shifts, traffic trends) will be available once the metrics collection workflow is implemented. This will enable week-over-week and month-over-month trend analysis showing which competitors are gaining or losing momentum._"
 
-**Future format** (when metrics warehouse is enabled):
-Show week-over-week changes for:
-- Overall Carbon Accounting Software market traffic growth
-- Competitor market share shifts
-- Funding velocity trends
-- Emerging player activity
+**Note**: Do NOT attempt to create a market dynamics analysis based on competitor metrics, as those metrics are not being fetched in the current workflow. Focus your analysis on qualitative insights from web search results in other sections.
 
 # 💡 Strategic Insights for Product Strategy
 Derive insights ONLY from THIS WEEK'S findings. Use subsections only if you have actual insights:
@@ -234,11 +223,7 @@ Look for indicators like:
 - Novel use cases or applications
 - Technology convergences creating new niches
 
-**ENHANCED**: You have access to emergingTrendsAnalysisTool which can help identify emerging trends:
-- This tool analyzes keyword frequency in your research findings
-- It compares current keywords against historical data to identify NEW and RISING keywords
-- Use it AFTER completing your web searches to enhance emerging trend detection
-- Example usage: Pass your combined research text + reporting week date
+**Manual Detection**: Manually identify emerging trends from your web search results based on the indicators listed above. (Note: emergingTrendsAnalysisTool is not available in this workflow due to the 3-call tool budget constraint.)
 
 **Citation format**: Link each emerging niche to its source.
 - Example: "AI-powered supply chain carbon tracking is emerging as a new category ([Greenly Blog](https://greenly.io/ai-supply-chain))."
@@ -265,13 +250,31 @@ If no emerging niches detected, write: "_No new emerging markets identified this
 
 # Rules & Guardrails (CRITICAL - READ BEFORE GENERATING REPORT)
 
-1. **NO HALLUCINATION**: Do NOT fabricate information - only use data from verified sources
-2. **NO FILLER CONTENT**: If no data exists for a section, use the italic fallback text ONLY
-3. **THIS WEEK ONLY**: Exclude anything older than 7 days unless explicitly comparing trends
-4. **NO INFERENCE**: Do not infer activity from historical data or speculation
-5. **MANDATORY CITATIONS**: Every claim must have a source URL
-6. **BREVITY OVER BULK**: Short, factual statements >>> long, speculative narratives
-7. **EMERGING NICHES**: Look for actual new product categories, not existing trends
+**ABSOLUTE PROHIBITIONS** (Violating these rules = FAILED REPORT):
+
+1. **NO HALLUCINATION**: Do NOT fabricate ANY information - only use data from verified sources within the timeframe
+2. **NO HISTORICAL BACKFILLING**: Do NOT use data from previous weeks, months, or years to fill empty sections
+   - If no data exists from THIS WEEK (last 7 days), you MUST use the italic placeholder
+   - NEVER write "Based on previous announcements..." or "Continuing from last month..."
+   - NEVER infer current activity from historical patterns
+3. **STRICT PLACEHOLDER RULE**: If no data found for a section/subsection within the 7-day timeframe:
+   - Write ONLY the one-sentence italic fallback text (e.g., "_No new updates this week._")
+   - Do NOT add explanatory paragraphs, context, or speculation
+   - Do NOT create content "just to fill space"
+4. **FORBIDDEN SUBSECTIONS**: Do NOT create subsections that are not explicitly listed in the report structure
+   - ONLY use the exact H2/H3/H4 subsections specified in the instructions
+   - Do NOT add "Market Overview", "Historical Context", "Background", or similar unlisted sections
+5. **MANDATORY CITATIONS**: Every factual claim MUST have a source URL from THIS WEEK
+   - No citation = remove the claim entirely
+6. **EXTREME BREVITY**: Keep paragraphs short (2-4 sentences max)
+   - Remove ALL filler words, transition phrases, and "water" content
+   - Get straight to the facts and data
+   - NO introductory phrases like "It's worth noting...", "Interestingly...", "As we can see..."
+7. **THIS WEEK ONLY**: Content MUST be from the current reporting week (last 7 days)
+   - Verify dates before including ANY information
+   - If date is unclear or older than 7 days, EXCLUDE it
+8. **EMERGING NICHES**: Report ONLY actual new product categories announced THIS WEEK
+   - Not existing trends or general market directions
 
 # Workflow
 
@@ -326,10 +329,6 @@ If no emerging niches detected, write: "_No new emerging markets identified this
     competitorNewsResearchTool,
     industryReportsResearchTool,
     userReviewsResearchTool,
-    owlerMetricsTool,
-    crunchbaseMetricsTool,
-    semrushMetricsTool,
-    emergingTrendsAnalysisTool,
   },
   
   memory: new Memory({

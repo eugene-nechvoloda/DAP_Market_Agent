@@ -4,22 +4,32 @@ import { z } from "zod";
 const INDUSTRY_SOURCES = [
   {
     source: "Forrester",
-    url: "https://www.forrester.com/allSearch?query=digital%20adoption%20platform&activeTab=blogs&sortOrder=desc&publishedSinceInDays=30&sortType=relevance&accessOnly=false&isFuzzyNeeded=true",
+    url: "https://www.forrester.com/allSearch?query=carbon%20accounting&activeTab=blogs&sortOrder=desc&publishedSinceInDays=30&sortType=relevance&accessOnly=false&isFuzzyNeeded=true",
     type: "industry_report",
   },
   {
-    source: "TechCrunch",
-    url: "https://techcrunch.com/?s=digital+adoption+platforms",
+    source: "TechCrunch Climate",
+    url: "https://techcrunch.com/category/climate/",
     type: "industry_report",
   },
   {
-    source: "VentureBeat",
-    url: "https://venturebeat.com/search/digital%20adoption%20platform",
+    source: "VentureBeat Climate Tech",
+    url: "https://venturebeat.com/category/ai/climate-tech/",
     type: "industry_report",
   },
   {
-    source: "eLearning Industry",
-    url: "https://elearningindustry.com/mastering-learning-in-the-flow-of-work-with-digital-adoption-platforms",
+    source: "GreenBiz",
+    url: "https://www.greenbiz.com/collections/carbon-management",
+    type: "industry_report",
+  },
+  {
+    source: "Climate Tech VC",
+    url: "https://climatetechvc.substack.com/",
+    type: "industry_report",
+  },
+  {
+    source: "Carbon Credits",
+    url: "https://carbon-pulse.com/category/international/",
     type: "industry_report",
   },
 ];
@@ -27,7 +37,7 @@ const INDUSTRY_SOURCES = [
 export const industryReportsResearchTool = createTool({
   id: "industry-reports-research-tool",
   description:
-    "Analyzes industry reports and analyst content from Forrester, TechCrunch, VentureBeat, and eLearning Industry to identify current DAP market trends, growth data, investment activity, and emerging opportunities.",
+    "Analyzes industry reports and analyst content from Forrester, TechCrunch Climate, VentureBeat Climate Tech, GreenBiz, Climate Tech VC, and Carbon Credits to identify current Carbon Accounting Software market trends, growth data, investment activity, and emerging opportunities in climate tech and sustainability.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reports (YYYY-MM-DD format)"),
@@ -76,7 +86,7 @@ export const industryReportsResearchTool = createTool({
         
         const response = await fetch(industrySource.url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; DAPMarketResearch/1.0)',
+            'User-Agent': 'Mozilla/5.0 (compatible; CarbonAccountingMarketResearch/1.0)',
           },
         });
         
@@ -99,7 +109,7 @@ export const industryReportsResearchTool = createTool({
         // The agent will extract market trends, investment activity, and filter by date
         reports.push({
           source: industrySource.source,
-          title: `${industrySource.source} - DAP Market Analysis`,
+          title: `${industrySource.source} - Carbon Accounting Market Analysis`,
           summary: cleanText.substring(0, 5000), // First 5000 chars for agent analysis
           keyInsights: [], // Agent will populate this
           url: industrySource.url,
