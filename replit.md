@@ -1,40 +1,49 @@
 # Overview
 
-This project is a Mastra-based AI agent automation platform for **DAP (Digital Adoption Platform) Market Research**. It automatically researches competitors (WalkMe, WhatFix, Pendo, Apty), analyzes industry trends, aggregates user reviews, generates comprehensive weekly reports, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
+This project is a Mastra-based AI agent automation platform for **Carbon Accounting Software Market Research**. It automatically researches competitors (Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu), analyzes industry trends, aggregates user reviews, generates comprehensive weekly reports, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
 
-The platform is designed to provide automated, in-depth market analysis for the DAP industry, leveraging AI agents for data gathering and report generation, and integrating with external services for output and notifications. It aims to deliver verifiable, factual market insights to users regularly.
+The platform is designed to provide automated, in-depth market analysis for the Carbon Accounting Software industry (also known as Carbon Accounting and Management Software), leveraging AI agents for data gathering and report generation, and integrating with external services for output and notifications. It aims to deliver verifiable, factual market insights for Climatiq.io regularly.
 
 # Recent Changes
+
+## November 17, 2025
+
+### Market Adaptation
+- **Market Focus Changed**: Adapted system from DAP (Digital Adoption Platform) market to Carbon Accounting Software market
+- **Competitors Updated**: Changed from WalkMe, WhatFix, Pendo, Apty to Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu
+- **Company Context**: Now serving Climatiq.io (carbon accounting and management platform company)
+- **Agent Instructions**: Updated all market terminology to "Carbon Accounting Software" and "Carbon Accounting and Management Software"
+- **Workflow Queries**: Updated search queries and competitor references throughout the system
 
 ## November 15, 2025
 
 ### Web Version Links (Task 10)
 - **Dashboard**: Added "Web Version" column to report history table with links to `/reports/:reportId` for easy browser-based viewing
-- **Slack Notifications**: Updated to include both web version (🌐) and Google Docs (📄) links with proper database persistence of `slack_notification_sent` status
+- **Slack Notifications**: Updated to include both web version (🌐) and Google Docs (📄) links with proper database persistence
 - **Google Docs Footer**: Added automated footer insertion with web version link, styled with italic gray text for visual separation
 
 ### Keyword Analysis System (Task 9)
-- **Database Schema**: Fixed date handling using SQL casting (`sql\`${date}::date\``) to ensure proper PostgreSQL DATE type storage
-- **Keyword Detection**: Implemented rising keyword detection with historical comparison (50% growth threshold) using proper date comparisons
+- **Database Schema**: Fixed date handling using SQL casting to ensure proper PostgreSQL DATE type storage
+- **Keyword Detection**: Implemented rising keyword detection with historical comparison (50% growth threshold)
 - **Source URLs**: Added URL extraction and persistence for citation-ready emerging trend insights
 
 ### Citation & URL Validation (Task 8)
-- **Inline Citations**: Added mandatory citation requirements with URL validation (https://, complete URLs, no redirects) to all report sections
+- **Inline Citations**: Added mandatory citation requirements with URL validation to all report sections
 - **Format Examples**: Provided specific citation formats for each section type to guide agent output
 
 ### Google Docs Native Tables (Task 7)
-- **Two-Phase Export Pipeline**: Implemented placeholder → structure fetch → insertTable → cell population approach to avoid index calculation fragility
-- **Native Tables**: Market Dynamics section now uses Google Docs insertTable API instead of text-based pipe-separated tables
+- **Two-Phase Export Pipeline**: Implemented placeholder → structure fetch → insertTable → cell population approach
+- **Native Tables**: Market Dynamics section now uses Google Docs insertTable API
 
 ### Metrics Warehouse & Trend Calculation (Tasks 4-6)
-- **External APIs**: Integrated Owler (revenue/valuation), Crunchbase (funding), and Semrush (web traffic) with defensive parsing and graceful fallbacks
-- **Database Schema**: Created `market_metrics` and `competitor_metrics` tables with proper indexes for time-series trend analysis
-- **Trend Formatting**: Implemented `formatTrend()` with proper zero baseline handling and directional messaging (▲ +15%, ▼ -10%, → No change)
+- **External APIs**: Integrated Owler (revenue/valuation), Crunchbase (funding), and Semrush (web traffic)
+- **Database Schema**: Created `market_metrics` and `competitor_metrics` tables for time-series trend analysis
+- **Trend Formatting**: Implemented `formatTrend()` with proper zero baseline handling
 
 ### Report Quality Improvements (Tasks 1-3)
-- **Anti-Hallucination**: Added explicit "no data" responses, removed narrative padding, required citations for all claims
-- **Heading Hierarchy**: Fixed heading structure (H1 for main sections, H2/H3 for subsections) in both markdown and Google Docs export
-- **Agent Instructions**: Updated with strict anti-hallucination rules and proper heading depth mapping
+- **Anti-Hallucination**: Added explicit "no data" responses, removed narrative padding, required citations
+- **Heading Hierarchy**: Fixed heading structure in both markdown and Google Docs export
+- **Agent Instructions**: Updated with strict anti-hallucination rules
 
 # User Preferences
 
@@ -48,7 +57,7 @@ The application is built on **Mastra v0.20.0**, an opinionated TypeScript framew
 
 ## Agent Architecture
 
-The system uses **agent networks with routing delegation**. A top-level routing agent analyzes tasks and delegates to specialized agents or tools. Agents utilize `generateLegacy()` for compatibility with the Replit Playground UI and are configured with specific instructions, model selection, and tool access. Each agent has memory enabled with configurable scope (thread-level or resource-level). The `dapMarketResearchAgent` orchestrates research and report generation.
+The system uses **agent networks with routing delegation**. A top-level routing agent analyzes tasks and delegates to specialized agents or tools. Agents utilize `generateLegacy()` for compatibility with the Replit Playground UI and are configured with specific instructions, model selection, and tool access. Each agent has memory enabled with configurable scope (thread-level or resource-level). The `dapMarketResearchAgent` (Carbon Accounting Market Research Agent) orchestrates research and report generation.
 
 ## Workflow Architecture
 

@@ -138,7 +138,7 @@ const performWebSearches = createStep({
     
     // Search 1: Broad weekly market pulse
     logger?.info('🔍 [Step 2.1] Executing broad weekly market pulse search...');
-    const broadPulseQuery = `Digital adoption platform DAP news ${dateRange}: WalkMe WhatFix Pendo Apty funding acquisitions product launches partnerships industry trends market analysis`;
+    const broadPulseQuery = `Carbon accounting software news ${dateRange}: Greenly Workiva osapiens carbmee StepChange Trace coolset "Google Carbon Footprint" Persefoni Carbonze vaayu funding acquisitions product launches partnerships industry trends market analysis`;
     
     const broadPulseSearch = await webSearchTool.execute({
       context: {
@@ -156,7 +156,7 @@ const performWebSearches = createStep({
     
     // Search 2: Targeted follow-up (market data focus)
     logger?.info('🔍 [Step 2.2] Executing targeted follow-up search...');
-    const targetedQuery = `Digital adoption platform market size growth rate ${dateEnd.getFullYear()} investment trends CAGR analyst reports Forrester Gartner market forecast`;
+    const targetedQuery = `Carbon accounting software market size growth rate ${dateEnd.getFullYear()} investment trends CAGR analyst reports Forrester Gartner climate tech sustainability ESG market forecast`;
     
     const targetedFollowUpSearch = await webSearchTool.execute({
       context: {
@@ -268,19 +268,19 @@ const analyzeAndCompileReport = createStep({
     };
     
     const prompt = `
-You are conducting the weekly DAP market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
+You are conducting the weekly Carbon Accounting Software market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
 
 You have been provided with comprehensive market intelligence from BOTH curated sources AND web searches.
 
 ## WEB SEARCH RESULTS (Primary Intelligence):
 
 ### Broad Market Pulse Search:
-**Query**: Digital adoption platform news this week
+**Query**: Carbon accounting software news this week
 **Answer**: ${inputData.webSearchResults.broadPulseSearch.answer || 'No answer available'}
 **Citations**: ${JSON.stringify(inputData.webSearchResults.broadPulseSearch.citations || [], null, 2)}
 
 ### Targeted Market Data Search:
-**Query**: DAP market size, growth, investment trends
+**Query**: Carbon accounting software market size, growth, investment trends
 **Answer**: ${inputData.webSearchResults.targetedFollowUpSearch.answer || 'No answer available'}
 **Citations**: ${JSON.stringify(inputData.webSearchResults.targetedFollowUpSearch.citations || [], null, 2)}
 
@@ -310,7 +310,7 @@ ${trimData(sources.reviewsData, 2000)}
 - You have a budget of up to 3 tool calls if needed, but the provided data should be sufficient
 - Include ALL citations from web searches in your Sources & Citations section
 - Be intelligent about temporal relevance - exclude outdated content
-- Focus on actionable insights for Userlane's product strategy
+- Focus on actionable insights for Climatiq.io's product strategy
 
 Generate the complete markdown report now using the web search results as your primary source.
 `;
@@ -335,7 +335,7 @@ Generate the complete markdown report now using the web search results as your p
     
     // Save report to database immediately to avoid Inngest step output size limit
     logger?.info('💾 [Step 3] Saving report to database...');
-    const title = `DAP Market Research Report - Week of ${inputData.weekRangeLabel}`;
+    const title = `Carbon Accounting Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const savedReport = await db.saveReport({
       title,
@@ -407,7 +407,7 @@ const exportToGoogleDocs = createStep({
       };
     }
     
-    const title = `DAP Market Research Report - Week of ${inputData.weekRangeLabel}`;
+    const title = `Carbon Accounting Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const result = await googleDocsExportTool.execute({
       context: {
@@ -512,7 +512,7 @@ const sendSlackNotification = createStep({
     const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${inputData.reportId}`;
     
     const message = `
-🔔 *Weekly DAP Market Research Report*
+🔔 *Weekly Carbon Accounting Market Research Report*
 
 ${inputData.summary}
 
@@ -534,7 +534,7 @@ ${inputData.summary}
       logger?.info('✅ [Step 5] Slack notification sent successfully');
       
       // Mark Slack notification as sent in database
-      await db.updateReport(inputData.reportId, { slack_notification_sent: true });
+      await db.updateReport(inputData.reportId, { slackNotificationSent: true });
     } else {
       logger?.warn('⚠️ [Step 5] Failed to send Slack notification:', { error: result.error });
     }

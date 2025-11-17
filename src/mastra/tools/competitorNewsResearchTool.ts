@@ -2,19 +2,23 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 const COMPETITOR_SOURCES = [
-  { company: "WhatFix", url: "https://whatfix.com/newsroom/press-releases/", type: "newsroom" },
-  { company: "Apty", url: "https://apty.ai/newsroom/", type: "newsroom" },
-  { company: "WhatFix", url: "https://whatfix.com/newsroom/announcements/", type: "newsroom" },
-  { company: "WhatFix", url: "https://whatfix.com/newsroom/news/", type: "newsroom" },
-  { company: "WhatFix", url: "https://whatfix.com/resources/analyst-reports/", type: "newsroom" },
-  { company: "Walkme", url: "https://walkme.com/news/", type: "newsroom" },
-  { company: "Pendo", url: "https://www.pendo.io/new/", type: "newsroom" },
+  { company: "Greenly", url: "https://greenly.earth/en-us/blog", type: "newsroom" },
+  { company: "Workiva", url: "https://www.workiva.com/newsroom", type: "newsroom" },
+  { company: "osapiens", url: "https://www.osapiens.com/news", type: "newsroom" },
+  { company: "carbmee", url: "https://www.carbmee.com/newsroom", type: "newsroom" },
+  { company: "StepChange", url: "https://www.stepchange.ai/news", type: "newsroom" },
+  { company: "Trace", url: "https://trace.eco/blog", type: "newsroom" },
+  { company: "coolset", url: "https://www.coolset.com/blog", type: "newsroom" },
+  { company: "Google Carbon Footprint", url: "https://cloud.google.com/blog/topics/sustainability", type: "newsroom" },
+  { company: "Persefoni", url: "https://www.persefoni.com/blog", type: "newsroom" },
+  { company: "Carbonze", url: "https://carbonze.com/news", type: "newsroom" },
+  { company: "vaayu", url: "https://www.vaayu.tech/blog", type: "newsroom" },
 ];
 
 export const competitorNewsResearchTool = createTool({
   id: "competitor-news-research-tool",
   description:
-    "Analyzes competitor newsrooms (WalkMe, WhatFix, Pendo, Apty) to extract recent product updates, announcements, and company news. Filters for developments from the past 7 days and excludes outdated information from 2020-2024.",
+    "Analyzes competitor newsrooms (Greenly, Workiva, osapiens, carbmee, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu) to extract recent product updates, announcements, and company news from the Carbon Accounting Software market. Filters for developments from the past 7 days and excludes outdated information.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering news (YYYY-MM-DD format)"),
@@ -87,7 +91,7 @@ export const competitorNewsResearchTool = createTool({
           
           const response = await fetch(source.url, {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; DAPMarketResearch/1.0)',
+              'User-Agent': 'Mozilla/5.0 (compatible; CarbonAccountingMarketResearch/1.0)',
             },
           });
           
