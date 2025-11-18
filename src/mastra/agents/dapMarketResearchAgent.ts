@@ -156,6 +156,14 @@ New partnerships from THIS WEEK ONLY.
 **Citation format**: Include source link for each partnership.
 - Example: "Trace partnered with Microsoft Sustainability ([Trace Newsroom](https://trace.com/news))."
 
+### User Feedback
+**Include recent user reviews/feedback** from the "User Reviews Data" section of your prompt.
+- Summarize 2-3 key themes from recent reviews (pros, cons, feature requests)
+- Focus on actionable insights (e.g., "Users praise intuitive dashboard but request better API documentation")
+- If no review data available for this competitor, write: "_No recent user feedback available._"
+**Citation format**: Include review platform source if available.
+- Example: "Users on G2 praise the intuitive carbon tracking dashboard ([G2 Reviews](https://g2.com/products/greenly))."
+
 **If no updates for a competitor, write ONLY**: "_No new updates this week._"
 
 **FORBIDDEN**:
@@ -176,12 +184,20 @@ Use subsections only if data exists:
 ## Market Trajectory Analysis
 
 # 💪 Competitors Health Assessment
-**Current Status**: Due to the 3-call tool budget limit (for Perplexity rate limiting), metrics fetching is not feasible during report generation.
+**You have been provided with competitor metrics data from the database** in the "COMPETITOR METRICS (From Database)" section of your prompt.
 
-**Write this placeholder**:
-"_Competitor health metrics (revenue, funding, web traffic) will be available once a dedicated metrics collection workflow step is added. This will fetch data from Owler, Crunchbase, and Semrush before report generation, enabling automatic tables with month-over-month trends._"
+**If metrics data is available**, create a markdown table with this format:
 
-**Note**: Do NOT attempt to call owlerMetricsTool, crunchbaseMetricsTool, or semrushMetricsTool - they would exceed your tool budget. Focus your 3 calls on comprehensive market intelligence via webSearchTool.
+| Competitor | Revenue | Funding | Employees |
+|------------|---------|---------|-----------|
+| greenly | $45M | $150M total | 200 |
+| workiva | Data not available | $320M total | 1,500 |
+
+**Rules**:
+- Use the metrics data provided in your prompt (do NOT call any metrics tools)
+- If a competitor has no data, write "Data not available" in that row
+- Keep revenue/funding in $M format (e.g., "$45M")
+- If NO metrics data is provided at all, write: "_Competitor health metrics will be populated after the first workflow run collects data from public sources._"
 
 # 📈 Recent Industry Reports & Analysis
 **ONLY include analyst reports/research published THIS WEEK**. If none exist, write: "_No new industry reports this week._"
@@ -195,12 +211,20 @@ DO NOT fill with:
 - Example: "Forrester predicts Carbon Accounting Software adoption will triple in 2026 ([Forrester Wave](https://forrester.com/wave))."
 
 # 💹 Market Dynamics
-**Current Status**: Quantitative market dynamics analysis requires the metrics data from the Competitors Health Assessment section above.
+**Use the competitor metrics data provided** to create a brief market dynamics summary.
 
-**Write this placeholder**:
-"_Market dynamics tracking (growth rates, market share shifts, traffic trends) will be available once the metrics collection workflow is implemented. This will enable week-over-week and month-over-month trend analysis showing which competitors are gaining or losing momentum._"
+**If metrics data is available**, write 2-3 bullet points analyzing:
+- Which competitors have the most funding or highest valuations
+- Any notable patterns in employee counts (growth indicators)
+- Market positioning based on available financial data
 
-**Note**: Do NOT attempt to create a market dynamics analysis based on competitor metrics, as those metrics are not being fetched in the current workflow. Focus your analysis on qualitative insights from web search results in other sections.
+**Format** (2-4 sentences total):
+
+Based on current metrics:
+- **Funding leaders**: [Competitor names] with $XXM+ raised  
+- **Market observation**: [One insight about competitive positioning based on the data]
+
+**If NO metrics data is provided**, write: "_Market dynamics analysis will be available after the first workflow run collects competitor financial data._"
 
 # 💡 Strategic Insights for Product Strategy
 Derive insights ONLY from THIS WEEK'S findings. Use subsections only if you have actual insights:

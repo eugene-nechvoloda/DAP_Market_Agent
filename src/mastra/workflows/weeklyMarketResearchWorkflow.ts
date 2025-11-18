@@ -5,10 +5,11 @@ import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool"
 import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
 import { webSearchTool } from "../tools/webSearchTool";
+import { webFetchTool } from "../tools/webFetchTool";
 import { googleDocsExportTool } from "../tools/googleDocsExportTool";
 import { slackNotificationTool } from "../tools/slackNotificationTool";
 import { db } from "../storage/db.js";
-import { extractMetricsFromText, getAllCompetitorNames, getCompetitorSlug } from "../../utils/metricExtraction";
+import { extractMetricsFromText, getAllCompetitorNames } from "../../utils/metricExtraction";
 
 const gatherMarketData = createStep({
   id: "gather-market-data",
@@ -27,8 +28,8 @@ const gatherMarketData = createStep({
     const logger = mastra?.getLogger();
     logger?.info('🚀 [Step 1] Starting market data gathering...');
     
-    // Generate unique run ID for this workflow execution
-    const runId = runtimeContext.runId || `run-${Date.now()}`;
+    // Generate unique run ID for this workflow execution  
+    const runId = `run-${Date.now()}`;
     logger?.info('📋 [Step 1] Run ID:', { runId });
     
     // Check if this is the first run by looking for previous reports
@@ -279,11 +280,33 @@ const gatherCompetitorMetrics = createStep({
     });
     
     if (fundingSearch.success && fundingSearch.answer) {
-      const fundingMetrics = await extractMetricsFromText(
-        fundingSearch.answer + '\n\n' + JSON.stringify(fundingSearch.citations || []),
-        competitorNames,
-        logger
-      );
+      // Fetch full article content from citations to get actual financial data
+      logger?.info('📄 [Step 2.5.1] Fetching full article content from citations...');
+      const citationTexts: string[] = [fundingSearch.answer];
+      
+      // Fetch top 3 citations for more detailed content
+      const citationsToFetch = (fundingSearch.citations || []).slice(0, 3);
+      for (const citation of citationsToFetch) {
+        if (citation.url) {
+          try {
+            const fetchResult = await webFetchTool.execute({
+              context: { url: citation.url },
+              runtimeContext,
+              mastra,
+            });
+            if (fetchResult.success && fetchResult.content) {
+              citationTexts.push(fetchResult.content.substring(0, 5000)); // First 5000 chars
+            }
+          } catch (error) {
+            logger?.warn(`⚠️ [Step 2.5.1] Failed to fetch ${citation.url}:`, error);
+          }
+        }
+      }
+      
+      const fullText = citationTexts.join('\n\n');
+      logger?.info(`📝 [Step 2.5.1] Collected ${fullText.length} characters for extraction`);
+      
+      const fundingMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
       allMetrics.push(...fundingMetrics);
     }
     
@@ -305,11 +328,33 @@ const gatherCompetitorMetrics = createStep({
     });
     
     if (revenueSearch.success && revenueSearch.answer) {
-      const revenueMetrics = await extractMetricsFromText(
-        revenueSearch.answer + '\n\n' + JSON.stringify(revenueSearch.citations || []),
-        competitorNames,
-        logger
-      );
+      // Fetch full article content from citations to get actual financial data
+      logger?.info('📄 [Step 2.5.2] Fetching full article content from citations...');
+      const citationTexts: string[] = [revenueSearch.answer];
+      
+      // Fetch top 3 citations for more detailed content
+      const citationsToFetch = (revenueSearch.citations || []).slice(0, 3);
+      for (const citation of citationsToFetch) {
+        if (citation.url) {
+          try {
+            const fetchResult = await webFetchTool.execute({
+              context: { url: citation.url },
+              runtimeContext,
+              mastra,
+            });
+            if (fetchResult.success && fetchResult.content) {
+              citationTexts.push(fetchResult.content.substring(0, 5000)); // First 5000 chars
+            }
+          } catch (error) {
+            logger?.warn(`⚠️ [Step 2.5.2] Failed to fetch ${citation.url}:`, error);
+          }
+        }
+      }
+      
+      const fullText = citationTexts.join('\n\n');
+      logger?.info(`📝 [Step 2.5.2] Collected ${fullText.length} characters for extraction`);
+      
+      const revenueMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
       
       // Merge with existing metrics
       for (const metric of revenueMetrics) {
@@ -433,7 +478,7 @@ const analyzeAndCompileReport = createStep({
     
     // Format metrics for prompt
     const metricsText = allMetrics.length > 0 
-      ? allMetrics.map(m => `${m.competitorSlug}: ${m.revenueUsd ? `$${(m.revenueUsd / 1000000).toFixed(1)}M revenue, ` : ''}${m.fundingTotalUsd ? `$${(m.fundingTotalUsd / 1000000).toFixed(1)}M funding, ` : ''}${m.lastRoundAmountUsd ? `last round $${(m.lastRoundAmountUsd / 1000000).toFixed(1)}M (${m.lastRoundType}), ` : ''}${m.employeeCount ? `${m.employeeCount} employees` : ''}`).join('\n')
+      ? allMetrics.map(m => `${m.competitorSlug}: ${m.revenueUsd ? `$${(Number(m.revenueUsd) / 1000000).toFixed(1)}M revenue, ` : ''}${m.fundingTotalUsd ? `$${(Number(m.fundingTotalUsd) / 1000000).toFixed(1)}M funding, ` : ''}${m.lastRoundAmountUsd ? `last round $${(Number(m.lastRoundAmountUsd) / 1000000).toFixed(1)}M (${m.lastRoundType}), ` : ''}${m.employeeCount ? `${m.employeeCount} employees` : ''}`).join('\n')
       : 'No competitor metrics available (will be populated after first run)';
     
     // Trim curated data to avoid prompt size limits (prioritize web search results)
@@ -519,6 +564,7 @@ Generate the complete markdown report now using the web search results as your p
     const savedReport = await db.saveReport({
       title,
       reportContent: reportText,
+      reportContentHtml: null, // HTML version will be generated later if needed
       dateStart: inputData.dateStart,
       dateEnd: inputData.dateEnd,
       googleDocsUrl: null,
