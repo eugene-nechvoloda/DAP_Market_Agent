@@ -220,9 +220,10 @@ const performWebSearches = createStep({
   },
 });
 
-const gatherCompetitorMetrics = createStep({
-  id: "gather-competitor-metrics",
-  description: "Gathers competitor financial metrics from public sources using batched web searches",
+// Step 2.5.1: Search for funding metrics
+const searchFundingMetrics = createStep({
+  id: "search-funding-metrics",
+  description: "Search for competitor funding and valuation data",
   
   inputSchema: z.object({
     runId: z.string(),
@@ -244,30 +245,27 @@ const gatherCompetitorMetrics = createStep({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
     }),
-    metricsGathered: z.boolean(),
+    fundingMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
   }),
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💰 [Step 2.5] Gathering competitor metrics from public sources...');
+    logger?.info('💸 [Step 2.5.1] Searching for funding and financial data...');
     
     // Calculate reporting week start (Monday of the current week)
     const dateEnd = new Date(inputData.dateEnd);
     const dayOfWeek = dateEnd.getDay();
-    const daysToMonday = (dayOfWeek + 6) % 7; // Days back to Monday
+    const daysToMonday = (dayOfWeek + 6) % 7;
     const reportingWeekStart = new Date(dateEnd);
     reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
-    reportingWeekStart.setHours(0, 0, 0, 0); // Normalize to midnight
+    reportingWeekStart.setHours(0, 0, 0, 0);
     
-    logger?.info('📅 [Step 2.5] Reporting week start:', { 
+    logger?.info('📅 [Step 2.5.1] Reporting week start:', { 
       reportingWeekStart: reportingWeekStart.toISOString().split('T')[0] 
     });
     
     const competitorNames = getAllCompetitorNames();
-    const allMetrics: any[] = [];
-    
-    // Batched Search 1: Funding & Financials
-    logger?.info('💸 [Step 2.5.1] Searching for funding and financial data...');
     const fundingQuery = `${competitorNames.join(' ')} carbon accounting funding rounds Series A B C valuation revenue 2024 2025 TechCrunch Crunchbase investment`;
     
     const fundingSearch = await webSearchTool.execute({
@@ -279,12 +277,12 @@ const gatherCompetitorMetrics = createStep({
       mastra,
     });
     
+    let fundingMetrics: any[] = [];
+    
     if (fundingSearch.success && fundingSearch.answer) {
-      // Fetch full article content from citations to get actual financial data
       logger?.info('📄 [Step 2.5.1] Fetching full article content from citations...');
       const citationTexts: string[] = [fundingSearch.answer];
       
-      // Fetch top 3 citations for more detailed content
       const citationsToFetch = (fundingSearch.citations || []).slice(0, 3);
       for (const citation of citationsToFetch) {
         if (citation.url) {
@@ -295,7 +293,7 @@ const gatherCompetitorMetrics = createStep({
               mastra,
             });
             if (fetchResult.success && fetchResult.content) {
-              citationTexts.push(fetchResult.content.substring(0, 5000)); // First 5000 chars
+              citationTexts.push(fetchResult.content.substring(0, 5000));
             }
           } catch (error) {
             logger?.warn(`⚠️ [Step 2.5.1] Failed to fetch ${citation.url}:`, error);
@@ -306,16 +304,56 @@ const gatherCompetitorMetrics = createStep({
       const fullText = citationTexts.join('\n\n');
       logger?.info(`📝 [Step 2.5.1] Collected ${fullText.length} characters for extraction`);
       
-      const fundingMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
-      allMetrics.push(...fundingMetrics);
+      fundingMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
     }
     
-    // Delay to respect rate limits (3 req/min = ~20 seconds between calls)
-    logger?.info('⏳ [Step 2.5] Waiting 25 seconds to respect Perplexity rate limit...');
-    await new Promise(resolve => setTimeout(resolve, 25000));
+    logger?.info(`✅ [Step 2.5.1] Extracted metrics for ${fundingMetrics.length} competitors`);
     
-    // Batched Search 2: Revenue & Employee Data
+    return {
+      ...inputData,
+      fundingMetrics,
+      reportingWeekStart: reportingWeekStart.toISOString().split('T')[0],
+    };
+  },
+});
+
+// Step 2.5.2: Search for revenue and employee metrics
+const searchRevenueMetrics = createStep({
+  id: "search-revenue-metrics",
+  description: "Search for competitor revenue and employee data",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
     logger?.info('📊 [Step 2.5.2] Searching for revenue and employee data...');
+    
+    const competitorNames = getAllCompetitorNames();
     const revenueQuery = `${competitorNames.join(' ')} carbon accounting software revenue ARR employees headcount company size 2024 2025`;
     
     const revenueSearch = await webSearchTool.execute({
@@ -327,12 +365,12 @@ const gatherCompetitorMetrics = createStep({
       mastra,
     });
     
+    let revenueMetrics: any[] = [];
+    
     if (revenueSearch.success && revenueSearch.answer) {
-      // Fetch full article content from citations to get actual financial data
       logger?.info('📄 [Step 2.5.2] Fetching full article content from citations...');
       const citationTexts: string[] = [revenueSearch.answer];
       
-      // Fetch top 3 citations for more detailed content
       const citationsToFetch = (revenueSearch.citations || []).slice(0, 3);
       for (const citation of citationsToFetch) {
         if (citation.url) {
@@ -343,7 +381,7 @@ const gatherCompetitorMetrics = createStep({
               mastra,
             });
             if (fetchResult.success && fetchResult.content) {
-              citationTexts.push(fetchResult.content.substring(0, 5000)); // First 5000 chars
+              citationTexts.push(fetchResult.content.substring(0, 5000));
             }
           } catch (error) {
             logger?.warn(`⚠️ [Step 2.5.2] Failed to fetch ${citation.url}:`, error);
@@ -354,25 +392,57 @@ const gatherCompetitorMetrics = createStep({
       const fullText = citationTexts.join('\n\n');
       logger?.info(`📝 [Step 2.5.2] Collected ${fullText.length} characters for extraction`);
       
-      const revenueMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
-      
-      // Merge with existing metrics
-      for (const metric of revenueMetrics) {
-        const existing = allMetrics.find(m => m.competitorSlug === metric.competitorSlug);
-        if (existing) {
-          Object.assign(existing, metric);
-        } else {
-          allMetrics.push(metric);
-        }
-      }
+      revenueMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
     }
     
-    // Delay to respect rate limits (3 req/min = ~20 seconds between calls)
-    logger?.info('⏳ [Step 2.5] Waiting 25 seconds to respect Perplexity rate limit...');
-    await new Promise(resolve => setTimeout(resolve, 25000));
+    logger?.info(`✅ [Step 2.5.2] Extracted metrics for ${revenueMetrics.length} competitors`);
     
-    // Batched Search 3: Customer Base & Churn Data
+    return {
+      ...inputData,
+      revenueMetrics,
+    };
+  },
+});
+
+// Step 2.5.3: Search for customer health metrics
+const searchCustomerMetrics = createStep({
+  id: "search-customer-metrics",
+  description: "Search for competitor customer count, churn, and retention data",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
     logger?.info('👥 [Step 2.5.3] Searching for customer base and churn data...');
+    
+    const competitorNames = getAllCompetitorNames();
     const customerQuery = `${competitorNames.join(' ')} carbon accounting customers client count user base churn rate retention 2024 2025`;
     
     const customerSearch = await webSearchTool.execute({
@@ -384,12 +454,12 @@ const gatherCompetitorMetrics = createStep({
       mastra,
     });
     
+    let customerMetrics: any[] = [];
+    
     if (customerSearch.success && customerSearch.answer) {
-      // Fetch full article content from citations to get actual customer data
       logger?.info('📄 [Step 2.5.3] Fetching full article content from citations...');
       const citationTexts: string[] = [customerSearch.answer];
       
-      // Fetch top 3 citations for more detailed content
       const citationsToFetch = (customerSearch.citations || []).slice(0, 3);
       for (const citation of citationsToFetch) {
         if (citation.url) {
@@ -400,7 +470,7 @@ const gatherCompetitorMetrics = createStep({
               mastra,
             });
             if (fetchResult.success && fetchResult.content) {
-              citationTexts.push(fetchResult.content.substring(0, 5000)); // First 5000 chars
+              citationTexts.push(fetchResult.content.substring(0, 5000));
             }
           } catch (error) {
             logger?.warn(`⚠️ [Step 2.5.3] Failed to fetch ${citation.url}:`, error);
@@ -411,23 +481,90 @@ const gatherCompetitorMetrics = createStep({
       const fullText = citationTexts.join('\n\n');
       logger?.info(`📝 [Step 2.5.3] Collected ${fullText.length} characters for extraction`);
       
-      const customerMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
-      
-      // Merge with existing metrics
-      for (const metric of customerMetrics) {
-        const existing = allMetrics.find(m => m.competitorSlug === metric.competitorSlug);
-        if (existing) {
-          Object.assign(existing, metric);
-        } else {
-          allMetrics.push(metric);
-        }
+      customerMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
+    }
+    
+    logger?.info(`✅ [Step 2.5.3] Extracted metrics for ${customerMetrics.length} competitors`);
+    
+    return {
+      ...inputData,
+      customerMetrics,
+    };
+  },
+});
+
+// Step 2.5.4: Persist all metrics to database
+const persistCompetitorMetrics = createStep({
+  id: "persist-competitor-metrics",
+  description: "Merge and persist all competitor metrics to database",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    metricsGathered: z.boolean(),
+  }),
+  
+  execute: async ({ inputData, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('💾 [Step 2.5.4] Merging and persisting competitor metrics...');
+    
+    // Merge all metrics by competitor slug
+    const allMetrics: any[] = [];
+    const metricsMap = new Map<string, any>();
+    
+    // Add funding metrics
+    for (const metric of inputData.fundingMetrics) {
+      metricsMap.set(metric.competitorSlug, { ...metric });
+    }
+    
+    // Merge revenue metrics
+    for (const metric of inputData.revenueMetrics) {
+      const existing = metricsMap.get(metric.competitorSlug);
+      if (existing) {
+        Object.assign(existing, metric);
+      } else {
+        metricsMap.set(metric.competitorSlug, { ...metric });
       }
     }
     
-    logger?.info(`✅ [Step 2.5] Extracted metrics for ${allMetrics.length} competitors`);
+    // Merge customer metrics
+    for (const metric of inputData.customerMetrics) {
+      const existing = metricsMap.get(metric.competitorSlug);
+      if (existing) {
+        Object.assign(existing, metric);
+      } else {
+        metricsMap.set(metric.competitorSlug, { ...metric });
+      }
+    }
+    
+    // Convert map to array
+    metricsMap.forEach(metric => allMetrics.push(metric));
+    
+    logger?.info(`📊 [Step 2.5.4] Merged metrics for ${allMetrics.length} competitors`);
     
     // Store metrics in database
-    logger?.info('💾 [Step 2.5] Storing metrics in database...');
+    const reportingWeekStart = new Date(inputData.reportingWeekStart);
     let storedCount = 0;
     
     for (const metrics of allMetrics) {
@@ -440,7 +577,7 @@ const gatherCompetitorMetrics = createStep({
           valuationUsd: metrics.valuationUsd,
           employeeCount: metrics.employeeCount,
           owlerRawPayload: null,
-          owlerSuccess: false, // Not using Owler API
+          owlerSuccess: false,
           fundingTotalUsd: metrics.fundingTotalUsd,
           lastRoundAmountUsd: metrics.lastRoundAmountUsd,
           lastRoundType: metrics.lastRoundType,
@@ -451,13 +588,13 @@ const gatherCompetitorMetrics = createStep({
             sourceUrls: metrics.sourceUrls,
             rawContext: metrics.rawContext 
           },
-          crunchbaseSuccess: true, // Using public sources instead
+          crunchbaseSuccess: true,
           organicTraffic: null,
           organicKeywords: null,
           semrushRank: null,
           semrushDatabase: null,
           semrushRawPayload: null,
-          semrushSuccess: false, // Not using Semrush API
+          semrushSuccess: false,
           customerCount: metrics.customerCount,
           churnRate: metrics.churnRate,
           retentionRate: metrics.retentionRate,
@@ -467,14 +604,18 @@ const gatherCompetitorMetrics = createStep({
         });
         storedCount++;
       } catch (error) {
-        logger?.error(`❌ [Step 2.5] Failed to store metrics for ${metrics.competitorSlug}:`, error);
+        logger?.error(`❌ [Step 2.5.4] Failed to store metrics for ${metrics.competitorSlug}:`, error);
       }
     }
     
-    logger?.info(`✅ [Step 2.5] Stored metrics for ${storedCount}/${allMetrics.length} competitors`);
+    logger?.info(`✅ [Step 2.5.4] Stored metrics for ${storedCount}/${allMetrics.length} competitors`);
     
     return {
-      ...inputData,
+      runId: inputData.runId,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      weekRangeLabel: inputData.weekRangeLabel,
+      webSearchResults: inputData.webSearchResults,
       metricsGathered: storedCount > 0,
     };
   },
@@ -848,7 +989,10 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
 })
   .then(gatherMarketData as any)
   .then(performWebSearches as any)
-  .then(gatherCompetitorMetrics as any)
+  .then(searchFundingMetrics as any)
+  .then(searchRevenueMetrics as any)
+  .then(searchCustomerMetrics as any)
+  .then(persistCompetitorMetrics as any)
   .then(analyzeAndCompileReport as any)
   .then(exportToGoogleDocs as any)
   .then(updateReportMetadata as any)
