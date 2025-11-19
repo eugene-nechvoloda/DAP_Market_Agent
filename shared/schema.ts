@@ -55,6 +55,11 @@ export const competitorMetrics = pgTable('competitor_metrics', {
   semrushRawPayload: jsonb('semrush_raw_payload'),
   semrushSuccess: boolean('semrush_success').default(false).notNull(),
   
+  // Customer health metrics
+  customerCount: integer('customer_count'),
+  churnRate: numeric('churn_rate', { precision: 6, scale: 2 }), // Percentage
+  retentionRate: numeric('retention_rate', { precision: 6, scale: 2 }), // Percentage
+  
   // Metadata
   dataSourceVersion: text('data_source_version'), // Version of tools used
   missingSources: text('missing_sources').array(), // List of failed sources

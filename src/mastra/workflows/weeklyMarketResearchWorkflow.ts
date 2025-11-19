@@ -140,7 +140,7 @@ const performWebSearches = createStep({
     
     // Search 1: Broad weekly market pulse
     logger?.info('🔍 [Step 2.1] Executing broad weekly market pulse search...');
-    const broadPulseQuery = `Carbon accounting software news ${dateRange}: Greenly Workiva osapiens carbmee StepChange Trace coolset "Google Carbon Footprint" Persefoni Carbonze vaayu funding acquisitions product launches partnerships industry trends market analysis`;
+    const broadPulseQuery = `Carbon accounting software news ${dateRange}: Watershed Persefoni Greenly carbmee osapiens Sweep Normative funding acquisitions product launches partnerships industry trends market analysis`;
     
     const broadPulseSearch = await webSearchTool.execute({
       context: {
@@ -367,6 +367,63 @@ const gatherCompetitorMetrics = createStep({
       }
     }
     
+    // Delay to respect rate limits (3 req/min = ~20 seconds between calls)
+    logger?.info('⏳ [Step 2.5] Waiting 25 seconds to respect Perplexity rate limit...');
+    await new Promise(resolve => setTimeout(resolve, 25000));
+    
+    // Batched Search 3: Customer Base & Churn Data
+    logger?.info('👥 [Step 2.5.3] Searching for customer base and churn data...');
+    const customerQuery = `${competitorNames.join(' ')} carbon accounting customers client count user base churn rate retention 2024 2025`;
+    
+    const customerSearch = await webSearchTool.execute({
+      context: {
+        query: customerQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    if (customerSearch.success && customerSearch.answer) {
+      // Fetch full article content from citations to get actual customer data
+      logger?.info('📄 [Step 2.5.3] Fetching full article content from citations...');
+      const citationTexts: string[] = [customerSearch.answer];
+      
+      // Fetch top 3 citations for more detailed content
+      const citationsToFetch = (customerSearch.citations || []).slice(0, 3);
+      for (const citation of citationsToFetch) {
+        if (citation.url) {
+          try {
+            const fetchResult = await webFetchTool.execute({
+              context: { url: citation.url },
+              runtimeContext,
+              mastra,
+            });
+            if (fetchResult.success && fetchResult.content) {
+              citationTexts.push(fetchResult.content.substring(0, 5000)); // First 5000 chars
+            }
+          } catch (error) {
+            logger?.warn(`⚠️ [Step 2.5.3] Failed to fetch ${citation.url}:`, error);
+          }
+        }
+      }
+      
+      const fullText = citationTexts.join('\n\n');
+      logger?.info(`📝 [Step 2.5.3] Collected ${fullText.length} characters for extraction`);
+      
+      const customerMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
+      
+      // Merge with existing metrics
+      for (const metric of customerMetrics) {
+        const existing = allMetrics.find(m => m.competitorSlug === metric.competitorSlug);
+        if (existing) {
+          Object.assign(existing, metric);
+        } else {
+          allMetrics.push(metric);
+        }
+      }
+    }
+    
     logger?.info(`✅ [Step 2.5] Extracted metrics for ${allMetrics.length} competitors`);
     
     // Store metrics in database
@@ -401,6 +458,9 @@ const gatherCompetitorMetrics = createStep({
           semrushDatabase: null,
           semrushRawPayload: null,
           semrushSuccess: false, // Not using Semrush API
+          customerCount: metrics.customerCount,
+          churnRate: metrics.churnRate,
+          retentionRate: metrics.retentionRate,
           dataSourceVersion: 'public-web-search-v1',
           missingSources: [],
           error: null,
@@ -478,7 +538,7 @@ const analyzeAndCompileReport = createStep({
     
     // Format metrics for prompt
     const metricsText = allMetrics.length > 0 
-      ? allMetrics.map(m => `${m.competitorSlug}: ${m.revenueUsd ? `$${(Number(m.revenueUsd) / 1000000).toFixed(1)}M revenue, ` : ''}${m.fundingTotalUsd ? `$${(Number(m.fundingTotalUsd) / 1000000).toFixed(1)}M funding, ` : ''}${m.lastRoundAmountUsd ? `last round $${(Number(m.lastRoundAmountUsd) / 1000000).toFixed(1)}M (${m.lastRoundType}), ` : ''}${m.employeeCount ? `${m.employeeCount} employees` : ''}`).join('\n')
+      ? allMetrics.map(m => `${m.competitorSlug}: ${m.revenueUsd ? `$${(Number(m.revenueUsd) / 1000000).toFixed(1)}M revenue, ` : ''}${m.fundingTotalUsd ? `$${(Number(m.fundingTotalUsd) / 1000000).toFixed(1)}M funding, ` : ''}${m.lastRoundAmountUsd ? `last round $${(Number(m.lastRoundAmountUsd) / 1000000).toFixed(1)}M (${m.lastRoundType}), ` : ''}${m.employeeCount ? `${m.employeeCount} employees, ` : ''}${m.customerCount ? `${m.customerCount} customers, ` : ''}${m.churnRate ? `${Number(m.churnRate)}% churn, ` : ''}${m.retentionRate ? `${Number(m.retentionRate)}% retention` : ''}`).join('\n')
       : 'No competitor metrics available (will be populated after first run)';
     
     // Trim curated data to avoid prompt size limits (prioritize web search results)
