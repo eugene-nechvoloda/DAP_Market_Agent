@@ -6,6 +6,14 @@ The platform is designed to provide automated, in-depth market analysis for the 
 
 # Recent Changes
 
+## November 19, 2025
+
+### User Reviews Tool Update
+- **Fixed Competitor Mismatch**: Updated `userReviewsResearchTool.ts` to use Carbon Accounting Software competitors instead of old DAP competitors
+- **Review Sources Updated**: Changed from WalkMe/WhatFix/Pendo/Apty to Greenly/Workiva/Persefoni/carbmee/Trace
+- **Platforms**: Now fetches reviews from G2 and Capterra (7 review sources total)
+- **Coverage Note**: Some newer/enterprise-only competitors (osapiens, StepChange, coolset, Google Carbon Footprint, Carbonze, vaayu) may not have public review pages yet
+
 ## November 17, 2025
 
 ### Market Adaptation

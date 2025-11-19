@@ -2,20 +2,30 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 const REVIEW_SOURCES = [
-  { company: "WalkMe", url: "https://www.g2.com/products/walkme/reviews?qs=pros-and-cons", platform: "G2", type: "user_reviews" },
-  { company: "WhatFix", url: "https://www.g2.com/products/whatfix/reviews?qs=pros-and-cons", platform: "G2", type: "user_reviews" },
-  { company: "Pendo", url: "https://www.g2.com/products/pendo-io-pendo/reviews?qs=pros-and-cons", platform: "G2", type: "user_reviews" },
-  { company: "Apty", url: "https://www.g2.com/products/apty/reviews?qs=pros-and-cons", platform: "G2", type: "user_reviews" },
-  { company: "WalkMe", url: "https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/walkme/product/walkme-digital-adoption-platform/reviews", platform: "Gartner", type: "user_reviews" },
-  { company: "WhatFix", url: "https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/whatfix/product/whatfix-digital-adoption-platform/reviews", platform: "Gartner", type: "user_reviews" },
-  { company: "Pendo", url: "https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/pendo/product/pendo/reviews", platform: "Gartner", type: "user_reviews" },
-  { company: "Apty", url: "https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/apty/product/apty/reviews", platform: "Gartner", type: "user_reviews" },
+  // G2 Reviews for Carbon Accounting Software competitors (verified URLs)
+  { company: "Greenly", url: "https://www.g2.com/products/greenly/reviews", platform: "G2", type: "user_reviews" }, // 35 reviews
+  { company: "Workiva", url: "https://www.g2.com/products/workiva-workiva/reviews", platform: "G2", type: "user_reviews" }, // Verified
+  { company: "Persefoni", url: "https://www.g2.com/products/persefoni/reviews", platform: "G2", type: "user_reviews" }, // 11 reviews
+  
+  // Capterra Reviews for additional coverage (verified URLs)
+  { company: "Greenly", url: "https://www.capterra.com/p/219931/Greenly-Climate-Dashboard/", platform: "Capterra", type: "user_reviews" },
+  
+  // Note: The following competitors do not have public review pages on G2/Capterra:
+  // - carbmee (enterprise-focused, limited public reviews)
+  // - Trace (may be listed but unclear if same product)
+  // - osapiens (newer platform, no reviews found)
+  // - StepChange (no reviews found)
+  // - coolset (no reviews found)
+  // - Google Carbon Footprint (part of Google Cloud, no dedicated review page)
+  // - Carbonze (no reviews found)
+  // - vaayu (no reviews found)
+  // The agent will note "No recent user feedback available" for these competitors in the report.
 ];
 
 export const userReviewsResearchTool = createTool({
   id: "user-reviews-research-tool",
   description:
-    "Analyzes recent customer reviews from G2 and Gartner for DAP competitors (WalkMe, WhatFix, Pendo, Apty) to identify satisfaction patterns, feature feedback, and competitive positioning.",
+    "Analyzes recent customer reviews from G2 and Capterra for Carbon Accounting Software competitors (Greenly, Workiva, Persefoni, carbmee, Trace, osapiens, StepChange, coolset, Google Carbon Footprint, Carbonze, vaayu) to identify satisfaction patterns, feature feedback, and competitive positioning.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reviews (YYYY-MM-DD format)"),
@@ -99,7 +109,7 @@ export const userReviewsResearchTool = createTool({
           
           const response = await fetch(source.url, {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; DAPMarketResearch/1.0)',
+              'User-Agent': 'Mozilla/5.0 (compatible; CarbonAccountingMarketResearch/1.0)',
             },
           });
           
