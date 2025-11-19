@@ -11,11 +11,13 @@ import { slackNotificationTool } from "../tools/slackNotificationTool";
 import { db } from "../storage/db.js";
 import { extractMetricsFromText, getAllCompetitorNames } from "../../utils/metricExtraction";
 
+const workflowInputSchema = z.object({});
+
 const gatherMarketData = createStep({
   id: "gather-market-data",
   description: "Gathers market data from competitor newsrooms, industry reports, and user reviews",
   
-  inputSchema: z.object({}),
+  inputSchema: workflowInputSchema,
   
   outputSchema: z.object({
     runId: z.string(),
@@ -797,6 +799,7 @@ const exportToGoogleDocs = createStep({
   
   inputSchema: z.object({
     reportId: z.number(),
+    runId: z.string(),
     summary: z.string(),
     weekRangeLabel: z.string(),
     dateStart: z.string(),
@@ -979,7 +982,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   id: "weekly-market-research",
   
   // Empty input schema for time-based triggers
-  inputSchema: z.object({}) as any,
+  inputSchema: workflowInputSchema,
   
   outputSchema: z.object({
     success: z.boolean(),
