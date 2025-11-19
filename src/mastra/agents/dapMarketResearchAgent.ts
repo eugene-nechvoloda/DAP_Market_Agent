@@ -154,7 +154,7 @@ New features, launches from THIS WEEK ONLY.
 ### Partnerships & Integrations
 New partnerships from THIS WEEK ONLY.
 **Citation format**: Include source link for each partnership.
-- Example: "Trace partnered with Microsoft Sustainability ([Trace Newsroom](https://trace.com/news))."
+- Example: "Watershed partnered with Microsoft Sustainability ([Watershed Newsroom](https://watershed.com/news))."
 
 ### User Feedback
 **Include recent user reviews/feedback** from the "User Reviews Data" section of your prompt.
@@ -188,10 +188,10 @@ Use subsections only if data exists:
 
 **If metrics data is available**, create a markdown table with this format:
 
-| Competitor | Revenue | Funding | Employees |
-|------------|---------|---------|-----------|
-| greenly | $45M | $150M total | 200 |
-| workiva | Data not available | $320M total | 1,500 |
+| Competitor | Revenue | Funding | Employees | Valuation | Customer Count | Churn Rate | User Base | User Growth Rate |
+|------------|---------|---------|-----------|-----------|----------------|------------|-----------|------------------|
+| watershed | $45M | $150M total | 200 | $2B | 500 | 5% | 10,000 | ↑15% |
+| persefoni | Data not available | $320M total | 1,500 | Data not available | Data not available | Data not available | Data not available | Data not available |
 
 **Rules**:
 - Use the metrics data provided in your prompt (do NOT call any metrics tools)

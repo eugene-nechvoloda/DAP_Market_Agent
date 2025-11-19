@@ -69,6 +69,8 @@ export interface CompetitorMetricsInput {
   customerCount?: number | null;
   churnRate?: number | null;
   retentionRate?: number | null;
+  userBase?: number | null;
+  userGrowthRate?: number | null;
   
   // Metadata
   dataSourceVersion?: string | null;
@@ -343,6 +345,8 @@ export class DatabaseService {
           customerCount: data.customerCount ?? null,
           churnRate: data.churnRate ?? null,
           retentionRate: data.retentionRate ?? null,
+          userBase: data.userBase ?? null,
+          userGrowthRate: data.userGrowthRate ?? null,
           dataSourceVersion: data.dataSourceVersion ?? null,
           missingSources: data.missingSources ?? [],
           error: data.error ?? null,
@@ -373,6 +377,8 @@ export class DatabaseService {
             customerCount: data.customerCount ?? null,
             churnRate: data.churnRate ?? null,
             retentionRate: data.retentionRate ?? null,
+            userBase: data.userBase ?? null,
+            userGrowthRate: data.userGrowthRate ?? null,
             dataSourceVersion: data.dataSourceVersion ?? null,
             missingSources: data.missingSources ?? [],
             error: data.error ?? null,

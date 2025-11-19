@@ -59,6 +59,8 @@ export const competitorMetrics = pgTable('competitor_metrics', {
   customerCount: integer('customer_count'),
   churnRate: numeric('churn_rate', { precision: 6, scale: 2 }), // Percentage
   retentionRate: numeric('retention_rate', { precision: 6, scale: 2 }), // Percentage
+  userBase: integer('user_base'), // Number of active users
+  userGrowthRate: numeric('user_growth_rate', { precision: 6, scale: 2 }), // Percentage growth rate
   
   // Metadata
   dataSourceVersion: text('data_source_version'), // Version of tools used

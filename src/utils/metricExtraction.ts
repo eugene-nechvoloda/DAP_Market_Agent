@@ -19,6 +19,8 @@ export interface ExtractedMetrics {
   customerCount?: number;
   churnRate?: number;
   retentionRate?: number;
+  userBase?: number;
+  userGrowthRate?: number;
   sourceUrls: string[];
   rawContext: string;
 }
@@ -47,9 +49,11 @@ EXTRACTION RULES:
 3. For revenue ranges (e.g., "$10M-$50M"), store as revenueRange and estimate midpoint for revenueUsd
 4. Extract customer counts (e.g., "1,000 customers" → 1000, "500+ clients" → 500)
 5. Extract churn/retention rates as percentages (e.g., "5% churn" → 5, "95% retention" → 95)
-6. Include source context and dates when available
-7. Return null for any metric not found (do NOT guess or estimate)
-8. Use competitor slug format: lowercase, hyphens (e.g., "Greenly" → "greenly")
+6. Extract user base counts (e.g., "10,000 active users" → 10000, "5K users" → 5000)
+7. Extract user growth rates as percentages (e.g., "15% user growth" → 15, "grew users by 20%" → 20)
+8. Include source context and dates when available
+9. Return null for any metric not found (do NOT guess or estimate)
+10. Use competitor slug format: lowercase, hyphens (e.g., "Greenly" → "greenly")
 
 OUTPUT FORMAT (JSON array):
 [
@@ -57,7 +61,7 @@ OUTPUT FORMAT (JSON array):
     "competitorSlug": "greenly",
     "revenueUsd": 50000000,
     "revenueRange": "$40M-$60M",
-    "valuationUsd": null,
+    "valuationUsd": 2000000000,
     "fundingTotalUsd": 150000000,
     "lastRoundAmountUsd": 50000000,
     "lastRoundType": "Series C",
@@ -66,8 +70,10 @@ OUTPUT FORMAT (JSON array):
     "customerCount": 1000,
     "churnRate": 5,
     "retentionRate": 95,
+    "userBase": 10000,
+    "userGrowthRate": 15,
     "sourceUrls": ["https://techcrunch.com/..."],
-    "rawContext": "Greenly raised $50M in Series C funding with 1,000 customers..."
+    "rawContext": "Greenly raised $50M in Series C funding with 1,000 customers and 10,000 active users, growing at 15% YoY..."
   }
 ]
 

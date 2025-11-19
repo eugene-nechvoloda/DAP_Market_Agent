@@ -268,7 +268,7 @@ const searchFundingMetrics = createStep({
     });
     
     const competitorNames = getAllCompetitorNames();
-    const fundingQuery = `${competitorNames.join(' ')} carbon accounting funding rounds Series A B C valuation revenue 2024 2025 TechCrunch Crunchbase investment`;
+    const fundingQuery = `${competitorNames.join(' OR ')} carbon accounting software funding rounds valuation revenue 2024 2025 Series A B C investment TechCrunch Crunchbase`;
     
     const fundingSearch = await webSearchTool.execute({
       context: {
@@ -356,7 +356,7 @@ const searchRevenueMetrics = createStep({
     logger?.info('📊 [Step 2.5.2] Searching for revenue and employee data...');
     
     const competitorNames = getAllCompetitorNames();
-    const revenueQuery = `${competitorNames.join(' ')} carbon accounting software revenue ARR employees headcount company size 2024 2025`;
+    const revenueQuery = `${competitorNames.join(' OR ')} carbon accounting software revenue ARR annual recurring employees headcount company size 2024 2025 financial performance`;
     
     const revenueSearch = await webSearchTool.execute({
       context: {
@@ -445,7 +445,7 @@ const searchCustomerMetrics = createStep({
     logger?.info('👥 [Step 2.5.3] Searching for customer base and churn data...');
     
     const competitorNames = getAllCompetitorNames();
-    const customerQuery = `${competitorNames.join(' ')} carbon accounting customers client count user base churn rate retention 2024 2025`;
+    const customerQuery = `${competitorNames.join(' OR ')} carbon accounting software customers client count user base active users churn rate retention rate user growth 2024 2025 customer base`;
     
     const customerSearch = await webSearchTool.execute({
       context: {
@@ -600,6 +600,8 @@ const persistCompetitorMetrics = createStep({
           customerCount: metrics.customerCount,
           churnRate: metrics.churnRate,
           retentionRate: metrics.retentionRate,
+          userBase: metrics.userBase,
+          userGrowthRate: metrics.userGrowthRate,
           dataSourceVersion: 'public-web-search-v1',
           missingSources: [],
           error: null,
