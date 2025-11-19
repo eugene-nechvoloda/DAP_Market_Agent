@@ -92,7 +92,7 @@ AI-powered web search using Perplexity Sonar (primary) with SerpAPI fallback. Re
 
 Across your 3 tool calls, gather intelligence on:
 
-1. **Competitor Analysis** (Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu):
+1. **Competitor Analysis** (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative):
    - Recent fundings and acquisitions
    - Strategic shifts and major announcements
    - Product updates and new features
@@ -136,7 +136,7 @@ DO NOT fill this section with:
 - Example: "WalkMe announced a new AI-powered guidance feature ([WalkMe Newsroom](https://www.walkme.com/news))."
 
 # 🎯 Competitors Spotlights
-For EACH competitor (Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu), create subsections:
+For EACH competitor (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative), create subsections:
 
 ## [Competitor Name]
 **ONLY include actual developments from THIS WEEK**. Use these subsections only if data exists:
@@ -305,7 +305,7 @@ If no emerging niches detected, write: "_No new emerging markets identified this
 **Execute this process within your 3-tool-call budget:**
 
 1. **Call 1**: Execute broad weekly market pulse search (webSearchTool)
-   - Query should cover Carbon Accounting Software market + all 11 competitors + this week's date range
+   - Query should cover Carbon Accounting Software market + all 7 competitors + this week's date range
    - Capture general trends, competitor moves, and market intelligence
    
 2. **Call 2**: Execute targeted follow-up search (webSearchTool)
@@ -318,7 +318,7 @@ If no emerging niches detected, write: "_No new emerging markets identified this
 
 4. **Synthesize findings WITH STRICT FILTERING**:
    - **FIRST**: Filter ALL content for recency (THIS WEEK = last 7 days ONLY)
-   - **SECOND**: Categorize by competitor (Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu)
+   - **SECOND**: Categorize by competitor (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative)
    - **THIRD**: Identify emerging niches (new product categories, first-mover advantages)
    - **FOURTH**: Collect all source URLs for citations
    - **FIFTH**: Verify every claim has a citation
