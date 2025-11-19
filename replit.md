@@ -8,6 +8,16 @@ The platform is designed to provide automated, in-depth market analysis for the 
 
 ## November 19, 2025
 
+### Workflow Timeout Fix
+- **Issue**: Workflow was encountering 504 timeout errors at the "Gather Competitor Metrics" step due to monolithic execution (3 searches + extractions + persistence in one step)
+- **Solution**: Refactored into 4 separate workflow steps for better Inngest checkpoint management:
+  1. `searchFundingMetrics` - Searches for funding and valuation data
+  2. `searchRevenueMetrics` - Searches for revenue and employee data
+  3. `searchCustomerMetrics` - Searches for customer count, churn, and retention data
+  4. `persistCompetitorMetrics` - Merges all metrics by competitor slug and persists to database
+- **Benefits**: Each step completes in <60 seconds, Inngest can checkpoint progress, failed steps can retry independently
+- **Rate Limiting**: Removed in-step 25-second delays since Inngest now provides natural checkpoints between steps
+
 ### Major Competitor List Update
 - **Competitor List Changed**: Updated from 11 competitors to 7 focused competitors
 - **Old List**: Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu
