@@ -1,18 +1,33 @@
 # Overview
 
-This project is a Mastra-based AI agent automation platform for **Carbon Accounting Software Market Research**. It automatically researches competitors (Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu), analyzes industry trends, aggregates user reviews, generates comprehensive weekly reports, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
+This project is a Mastra-based AI agent automation platform for **Carbon Accounting Software Market Research**. It automatically researches 7 key competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative), analyzes industry trends, aggregates user reviews from G2 and keyword-based web searches, generates comprehensive weekly reports using GPT-5, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
 
-The platform is designed to provide automated, in-depth market analysis for the Carbon Accounting Software industry (also known as Carbon Accounting and Management Software), leveraging AI agents for data gathering and report generation, and integrating with external services for output and notifications. It aims to deliver verifiable, factual market insights for Climatiq.io regularly.
+The platform is designed to provide automated, in-depth market analysis for the Carbon Accounting Software industry, leveraging AI agents (GPT-5 for report generation, Claude Sonnet 4.5 for research tasks, Perplexity Sonar for web searches) for data gathering and report generation, and integrating with external services for output and notifications. It aims to deliver verifiable, factual market insights for Climatiq.io regularly.
 
 # Recent Changes
 
 ## November 19, 2025
 
-### User Reviews Tool Update
-- **Fixed Competitor Mismatch**: Updated `userReviewsResearchTool.ts` to use Carbon Accounting Software competitors instead of old DAP competitors
-- **Review Sources Updated**: Changed from WalkMe/WhatFix/Pendo/Apty to Greenly/Workiva/Persefoni/carbmee/Trace
-- **Platforms**: Now fetches reviews from G2 and Capterra (7 review sources total)
-- **Coverage Note**: Some newer/enterprise-only competitors (osapiens, StepChange, coolset, Google Carbon Footprint, Carbonze, vaayu) may not have public review pages yet
+### Major Competitor List Update
+- **Competitor List Changed**: Updated from 11 competitors to 7 focused competitors
+- **Old List**: Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu
+- **New List**: Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative
+- **Newsroom URLs Updated**: All competitor newsroom sources updated with verified URLs
+- **Review Sources Updated**: All 7 competitors now have verified G2 review page URLs
+- **Keyword-Based User Feedback**: Added web search capability to find user feedback from forums, Reddit, Twitter, and other platforms beyond G2
+
+### Model Configuration Update
+- **Report Generation**: Changed from Claude Sonnet 4.5 to GPT-5 for final report synthesis
+- **Research Tools**: Keeping Claude Sonnet 4.5 for metric extraction and analysis tasks
+- **Web Search**: Continuing to use Perplexity Sonar for market research searches
+- **Rationale**: GPT-5 provides superior synthesis and report generation quality
+
+### Tools & Utilities Updated
+- Updated `competitorNewsResearchTool.ts` with new newsroom URLs
+- Updated `userReviewsResearchTool.ts` with verified G2 review URLs for all 7 competitors
+- Updated `metricExtraction.ts` with new competitor names and slugs
+- Updated `dapMarketResearchAgent.ts` with new competitor list in instructions
+- Created `userFeedbackSearchTool.ts` for keyword-based feedback research
 
 ## November 17, 2025
 
