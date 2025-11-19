@@ -101,18 +101,14 @@ Extract metrics for ALL competitors mentioned in the search results. Return empt
  */
 export function getCompetitorSlug(name: string): string {
   const slugMap: Record<string, string> = {
+    'watershed': 'watershed',
+    'persefoni': 'persefoni',
     'greenly': 'greenly',
-    'workiva': 'workiva',
-    'osapiens': 'osapiens',
     'carbmee': 'carbmee',
     'carbmee eis': 'carbmee',
-    'stepchange': 'stepchange',
-    'trace': 'trace',
-    'coolset': 'coolset',
-    'google carbon footprint': 'google-carbon-footprint',
-    'persefoni': 'persefoni',
-    'carbonze': 'carbonze',
-    'vaayu': 'vaayu',
+    'osapiens': 'osapiens',
+    'sweep': 'sweep',
+    'normative': 'normative',
   };
 
   const normalized = name.toLowerCase().trim();
@@ -124,17 +120,13 @@ export function getCompetitorSlug(name: string): string {
  */
 export function getAllCompetitorSlugs(): string[] {
   return [
-    'greenly',
-    'workiva',
-    'osapiens',
-    'carbmee',
-    'stepchange',
-    'trace',
-    'coolset',
-    'google-carbon-footprint',
+    'watershed',
     'persefoni',
-    'carbonze',
-    'vaayu',
+    'greenly',
+    'carbmee',
+    'osapiens',
+    'sweep',
+    'normative',
   ];
 }
 
@@ -143,16 +135,12 @@ export function getAllCompetitorSlugs(): string[] {
  */
 export function getAllCompetitorNames(): string[] {
   return [
-    'Greenly',
-    'Workiva',
-    'osapiens',
-    'carbmee EIS',
-    'StepChange',
-    'Trace',
-    'coolset',
-    'Google Carbon Footprint',
+    'Watershed',
     'Persefoni',
-    'Carbonze',
-    'vaayu',
+    'Greenly',
+    'carbmee',
+    'osapiens',
+    'Sweep',
+    'Normative',
   ];
 }

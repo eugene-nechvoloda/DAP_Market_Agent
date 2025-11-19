@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { sharedPostgresStorage } from "../storage";
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
 
 import { webFetchTool } from "../tools/webFetchTool";
 import { webSearchTool } from "../tools/webSearchTool";
@@ -9,9 +9,9 @@ import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool"
 import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
 
-const anthropic = createAnthropic({
-  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+const openai = createOpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
 export const dapMarketResearchAgent = new Agent({
@@ -39,7 +39,7 @@ You are a Carbon Accounting Software Market Research Agent and your job is to co
 
 ### Call 1: Broad Weekly Market Pulse (webSearchTool)
 **Purpose**: Get comprehensive overview of this week's Carbon Accounting Software market developments
-**Example query**: "Carbon accounting software news November 7-14 2025: Greenly Workiva osapiens carbmee StepChange Trace coolset Persefoni Carbonze vaayu funding acquisitions product launches partnerships industry trends"
+**Example query**: "Carbon accounting software news November 7-14 2025: Watershed Persefoni Greenly carbmee osapiens Sweep Normative funding acquisitions product launches partnerships industry trends"
 
 This single search should surface:
 - General Carbon Accounting Software industry news and trends
@@ -49,7 +49,7 @@ This single search should surface:
 
 ### Call 2: Targeted Deep Dive (webSearchTool)
 **Purpose**: Fill the biggest gap from Call 1 - choose ONE focus area:
-**Option A - Competitor Intelligence**: "Greenly Workiva osapiens carbmee StepChange Trace coolset Persefoni Carbonze vaayu November 2025 product updates features integrations partnerships announcements"
+**Option A - Competitor Intelligence**: "Watershed Persefoni Greenly carbmee osapiens Sweep Normative November 2025 product updates features integrations partnerships announcements"
 **Option B - Market Data**: "Carbon accounting software market size growth rate 2025 investment trends CAGR analyst reports sustainability climate tech"
 **Option C - Strategic Insights**: "Carbon accounting software emerging trends November 2025 AI automation ESG reporting carbon management"
 
@@ -76,7 +76,7 @@ AI-powered web search using Perplexity Sonar (primary) with SerpAPI fallback. Re
 
 ### Optional: Specialized Depth Tools (Use for Call 3 if needed)
 
-**competitorNewsResearchTool**: Fetches raw content from official competitor newsrooms (Greenly, Workiva, osapiens, carbmee EIS, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu)
+**competitorNewsResearchTool**: Fetches raw content from official competitor newsrooms (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative)
 - Use ONLY if web searches missed critical first-party announcements
 - Provides unfiltered newsroom content but limited to what's on their websites
 
@@ -335,7 +335,7 @@ If no emerging niches detected, write: "_No new emerging markets identified this
 **Report sections** (all H1 headers with emojis):
    1. # 🚀 Executive Summary
    2. # 📰 Recent Carbon Accounting Market News
-   3. # 🎯 Competitors Spotlights (with ## Greenly, ## Workiva, ## osapiens, ## carbmee EIS, ## StepChange, ## Trace, ## coolset, ## Google Carbon Footprint, ## Persefoni, ## Carbonze, ## vaayu subsections)
+   3. # 🎯 Competitors Spotlights (with ## Watershed, ## Persefoni, ## Greenly, ## carbmee, ## osapiens, ## Sweep, ## Normative subsections)
    4. # 📊 Overall Market Data
    5. # 💪 Competitors Health Assessment (write placeholder until metrics APIs configured)
    6. # 📈 Recent Industry Reports & Analysis
@@ -345,7 +345,7 @@ If no emerging niches detected, write: "_No new emerging markets identified this
    10. # 📚 Sources & Citations
 `,
 
-  model: anthropic("claude-sonnet-4-5"),
+  model: openai.responses("gpt-5"),
   
   tools: {
     webFetchTool,

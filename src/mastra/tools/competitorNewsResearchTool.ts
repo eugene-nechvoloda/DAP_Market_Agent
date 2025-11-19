@@ -2,23 +2,20 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 const COMPETITOR_SOURCES = [
-  { company: "Greenly", url: "https://greenly.earth/en-us/blog", type: "newsroom" },
-  { company: "Workiva", url: "https://www.workiva.com/newsroom", type: "newsroom" },
-  { company: "osapiens", url: "https://www.osapiens.com/news", type: "newsroom" },
-  { company: "carbmee", url: "https://www.carbmee.com/newsroom", type: "newsroom" },
-  { company: "StepChange", url: "https://www.stepchange.ai/news", type: "newsroom" },
-  { company: "Trace", url: "https://trace.eco/blog", type: "newsroom" },
-  { company: "coolset", url: "https://www.coolset.com/blog", type: "newsroom" },
-  { company: "Google Carbon Footprint", url: "https://cloud.google.com/blog/topics/sustainability", type: "newsroom" },
-  { company: "Persefoni", url: "https://www.persefoni.com/blog", type: "newsroom" },
-  { company: "Carbonze", url: "https://carbonze.com/news", type: "newsroom" },
-  { company: "vaayu", url: "https://www.vaayu.tech/blog", type: "newsroom" },
+  { company: "Watershed", url: "https://watershed.com/press#h-press-releases", type: "newsroom" },
+  { company: "Watershed", url: "https://watershed.com/press#h-press-coverage", type: "newsroom" },
+  { company: "Persefoni", url: "https://www.persefoni.com/category/product", type: "newsroom" },
+  { company: "Greenly", url: "https://greenly.earth/en-gb/resources/events", type: "newsroom" },
+  { company: "carbmee", url: "https://www.carbmee.com/product-updates", type: "newsroom" },
+  { company: "osapiens", url: "https://osapiens.com/news/", type: "newsroom" },
+  { company: "Sweep", url: "https://www.sweep.net/newsroom", type: "newsroom" },
+  { company: "Normative", url: "https://normative.io/press/", type: "newsroom" },
 ];
 
 export const competitorNewsResearchTool = createTool({
   id: "competitor-news-research-tool",
   description:
-    "Analyzes competitor newsrooms (Greenly, Workiva, osapiens, carbmee, StepChange, Trace, coolset, Google Carbon Footprint, Persefoni, Carbonze, vaayu) to extract recent product updates, announcements, and company news from the Carbon Accounting Software market. Filters for developments from the past 7 days and excludes outdated information.",
+    "Analyzes competitor newsrooms (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) to extract recent product updates, announcements, and company news from the Carbon Accounting Software market. Filters for developments from the past 7 days and excludes outdated information.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering news (YYYY-MM-DD format)"),

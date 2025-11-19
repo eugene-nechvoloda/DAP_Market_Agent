@@ -2,30 +2,20 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 const REVIEW_SOURCES = [
-  // G2 Reviews for Carbon Accounting Software competitors (verified URLs)
-  { company: "Greenly", url: "https://www.g2.com/products/greenly/reviews", platform: "G2", type: "user_reviews" }, // 35 reviews
-  { company: "Workiva", url: "https://www.g2.com/products/workiva-workiva/reviews", platform: "G2", type: "user_reviews" }, // Verified
-  { company: "Persefoni", url: "https://www.g2.com/products/persefoni/reviews", platform: "G2", type: "user_reviews" }, // 11 reviews
-  
-  // Capterra Reviews for additional coverage (verified URLs)
-  { company: "Greenly", url: "https://www.capterra.com/p/219931/Greenly-Climate-Dashboard/", platform: "Capterra", type: "user_reviews" },
-  
-  // Note: The following competitors do not have public review pages on G2/Capterra:
-  // - carbmee (enterprise-focused, limited public reviews)
-  // - Trace (may be listed but unclear if same product)
-  // - osapiens (newer platform, no reviews found)
-  // - StepChange (no reviews found)
-  // - coolset (no reviews found)
-  // - Google Carbon Footprint (part of Google Cloud, no dedicated review page)
-  // - Carbonze (no reviews found)
-  // - vaayu (no reviews found)
-  // The agent will note "No recent user feedback available" for these competitors in the report.
+  // G2 Reviews for Carbon Accounting Software competitors
+  { company: "Greenly", url: "https://www.g2.com/products/greenly/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
+  { company: "carbmee", url: "https://www.g2.com/products/carbmee-eis/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
+  { company: "osapiens", url: "https://www.g2.com/products/osapiens/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
+  { company: "Persefoni", url: "https://www.g2.com/products/persefoni/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
+  { company: "Watershed", url: "https://www.g2.com/products/watershed/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
+  { company: "Sweep", url: "https://www.g2.com/products/sweep-sweep/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
+  { company: "Normative", url: "https://www.g2.com/products/normative/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
 ];
 
 export const userReviewsResearchTool = createTool({
   id: "user-reviews-research-tool",
   description:
-    "Analyzes recent customer reviews from G2 and Capterra for Carbon Accounting Software competitors (Greenly, Workiva, Persefoni, carbmee, Trace, osapiens, StepChange, coolset, Google Carbon Footprint, Carbonze, vaayu) to identify satisfaction patterns, feature feedback, and competitive positioning.",
+    "Analyzes recent customer reviews from G2 for Carbon Accounting Software competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) to identify satisfaction patterns, feature feedback, and competitive positioning. Also performs keyword-based web searches for additional user feedback from forums, social media, and other platforms.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reviews (YYYY-MM-DD format)"),
