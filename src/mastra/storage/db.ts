@@ -65,6 +65,11 @@ export interface CompetitorMetricsInput {
   semrushRawPayload?: any;
   semrushSuccess: boolean;
   
+  // Customer health metrics
+  customerCount?: number | null;
+  churnRate?: number | null;
+  retentionRate?: number | null;
+  
   // Metadata
   dataSourceVersion?: string | null;
   missingSources?: string[];
@@ -335,6 +340,9 @@ export class DatabaseService {
           semrushDatabase: data.semrushDatabase ?? null,
           semrushRawPayload: data.semrushRawPayload ?? null,
           semrushSuccess: data.semrushSuccess,
+          customerCount: data.customerCount ?? null,
+          churnRate: data.churnRate ?? null,
+          retentionRate: data.retentionRate ?? null,
           dataSourceVersion: data.dataSourceVersion ?? null,
           missingSources: data.missingSources ?? [],
           error: data.error ?? null,
@@ -362,6 +370,9 @@ export class DatabaseService {
             semrushDatabase: data.semrushDatabase ?? null,
             semrushRawPayload: data.semrushRawPayload ?? null,
             semrushSuccess: data.semrushSuccess,
+            customerCount: data.customerCount ?? null,
+            churnRate: data.churnRate ?? null,
+            retentionRate: data.retentionRate ?? null,
             dataSourceVersion: data.dataSourceVersion ?? null,
             missingSources: data.missingSources ?? [],
             error: data.error ?? null,

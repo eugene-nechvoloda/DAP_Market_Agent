@@ -22,11 +22,19 @@ The platform is designed to provide automated, in-depth market analysis for the 
 - **Web Search**: Continuing to use Perplexity Sonar for market research searches
 - **Rationale**: GPT-5 provides superior synthesis and report generation quality
 
+### Customer Health Metrics Enhancement
+- **Third Web Search Added**: Implemented dedicated search for customer count, churn rate, and retention data
+- **Database Schema Extended**: Added `customer_count`, `churn_rate`, and `retention_rate` columns to `competitor_metrics` table
+- **Metric Extraction Enhanced**: Updated `extractMetricsFromText` to extract customer health metrics from web search results
+- **Workflow Updated**: All three web searches (funding, revenue/employees, customer/churn) run before database persistence
+- **Agent Prompt Enhanced**: Metrics formatting now includes customer count, churn, and retention in competitor health data
+
 ### Tools & Utilities Updated
 - Updated `competitorNewsResearchTool.ts` with new newsroom URLs
 - Updated `userReviewsResearchTool.ts` with verified G2 review URLs for all 7 competitors
-- Updated `metricExtraction.ts` with new competitor names and slugs
-- Updated `dapMarketResearchAgent.ts` with new competitor list in instructions
+- Updated `metricExtraction.ts` with new competitor names and slugs, plus customer health metrics extraction
+- Updated `dapMarketResearchAgent.ts` with new competitor list in all instructions and web search queries
+- Updated `weeklyMarketResearchWorkflow.ts` to use correct 7-competitor list in broad pulse search
 - Created `userFeedbackSearchTool.ts` for keyword-based feedback research
 
 ## November 17, 2025

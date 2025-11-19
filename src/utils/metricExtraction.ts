@@ -16,6 +16,9 @@ export interface ExtractedMetrics {
   lastRoundType?: string;
   lastRoundDate?: string;
   employeeCount?: number;
+  customerCount?: number;
+  churnRate?: number;
+  retentionRate?: number;
   sourceUrls: string[];
   rawContext: string;
 }
@@ -39,12 +42,14 @@ SEARCH RESULTS:
 ${searchResults}
 
 EXTRACTION RULES:
-1. Extract ONLY factual data with explicit mentions (e.g., "raised $50M", "valued at $1B")
+1. Extract ONLY factual data with explicit mentions (e.g., "raised $50M", "valued at $1B", "500 customers")
 2. Convert all monetary values to USD numbers (e.g., "$50M" → 50000000, "€20M" → ~22000000)
 3. For revenue ranges (e.g., "$10M-$50M"), store as revenueRange and estimate midpoint for revenueUsd
-4. Include source context and dates when available
-5. Return null for any metric not found (do NOT guess or estimate)
-6. Use competitor slug format: lowercase, hyphens (e.g., "Greenly" → "greenly")
+4. Extract customer counts (e.g., "1,000 customers" → 1000, "500+ clients" → 500)
+5. Extract churn/retention rates as percentages (e.g., "5% churn" → 5, "95% retention" → 95)
+6. Include source context and dates when available
+7. Return null for any metric not found (do NOT guess or estimate)
+8. Use competitor slug format: lowercase, hyphens (e.g., "Greenly" → "greenly")
 
 OUTPUT FORMAT (JSON array):
 [
@@ -58,8 +63,11 @@ OUTPUT FORMAT (JSON array):
     "lastRoundType": "Series C",
     "lastRoundDate": "2024-11-01",
     "employeeCount": 200,
+    "customerCount": 1000,
+    "churnRate": 5,
+    "retentionRate": 95,
     "sourceUrls": ["https://techcrunch.com/..."],
-    "rawContext": "Greenly raised $50M in Series C funding..."
+    "rawContext": "Greenly raised $50M in Series C funding with 1,000 customers..."
   }
 ]
 
