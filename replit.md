@@ -8,6 +8,18 @@ The platform is designed to provide automated, in-depth market analysis for the 
 
 ## November 19, 2025
 
+### Health Metrics Expansion (Latest)
+- **Database Schema**: Added `user_base` and `user_growth_rate` columns to `competitor_metrics` table via SQL ALTER TABLE
+- **Metric Extraction Enhanced**: Updated extraction rules to capture valuation, user base counts, and user growth rates from web search results
+- **Web Search Optimization**: Improved search queries with specific keywords:
+  - Funding search: Added "valuation", "company value" keywords with OR logic
+  - Revenue search: Added "annual recurring", "financial performance" keywords
+  - Customer search: Added "user base", "active users", "user growth" keywords
+- **Data Pipeline Fixed**: Updated `persistCompetitorMetrics` workflow step to include `userBase` and `userGrowthRate` when saving metrics to database
+- **Agent Report Format**: Updated health assessment table example to display all 8 columns: Competitor, Revenue, Valuation, Funding, Employees, Customer Count, Churn Rate, User Base, User Growth Rate
+- **Old References Cleaned**: Removed remaining outdated competitor examples (Trace, workiva) from agent prompts
+- **Status**: Data collection pipeline complete; trend calculation logic (↑↓ indicators vs previous period) pending implementation
+
 ### Workflow Timeout Fix
 - **Issue**: Workflow was encountering 504 timeout errors at the "Gather Competitor Metrics" step due to monolithic execution (3 searches + extractions + persistence in one step)
 - **Solution**: Refactored into 4 separate workflow steps for better Inngest checkpoint management:
