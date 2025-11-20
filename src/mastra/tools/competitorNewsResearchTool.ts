@@ -2,24 +2,48 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 const COMPETITOR_SOURCES = [
-  { company: "Watershed", url: "https://watershed.com/press#h-press-releases", type: "newsroom" },
-  { company: "Watershed", url: "https://watershed.com/press#h-press-coverage", type: "newsroom" },
-  { company: "Persefoni", url: "https://www.persefoni.com/category/product", type: "newsroom" },
-  { company: "Greenly", url: "https://greenly.earth/en-gb/resources/events", type: "newsroom" },
-  { company: "carbmee", url: "https://www.carbmee.com/product-updates", type: "newsroom" },
-  { company: "osapiens", url: "https://osapiens.com/news/", type: "newsroom" },
+  // Watershed
+  { company: "Watershed", url: "https://watershed.com/press#h-press-releases", type: "press_releases" },
+  { company: "Watershed", url: "https://watershed.com/press#h-press-coverage", type: "press_coverage" },
+  { company: "Watershed", url: "https://watershed.com/category/customer-stories", type: "case_studies" },
+  
+  // Persefoni
+  { company: "Persefoni", url: "https://www.persefoni.com/category/product", type: "product_updates" },
+  
+  // Greenly
+  { company: "Greenly", url: "https://greenly.earth/en-gb/resources/events", type: "events" },
+  { company: "Greenly", url: "https://greenly.earth/en-gb/newsletter", type: "newsletter" },
+  { company: "Greenly", url: "https://greenly.earth/en-gb/case-study", type: "case_studies" },
+  { company: "Greenly", url: "https://greenly.earth/en-gb/info/press-kit", type: "press_kit" },
+  
+  // carbmee
+  { company: "carbmee", url: "https://www.carbmee.com/product-updates", type: "product_updates" },
+  { company: "carbmee", url: "https://www.carbmee.com/knowledge-insights", type: "insights" },
+  
+  // osapiens
+  { company: "osapiens", url: "https://osapiens.com/news/", type: "news" },
+  
+  // Sweep
   { company: "Sweep", url: "https://www.sweep.net/newsroom", type: "newsroom" },
-  { company: "Normative", url: "https://normative.io/press/", type: "newsroom" },
+  { company: "Sweep", url: "https://www.sweep.net/newsroom/tag/press-release#list", type: "press_releases" },
+  { company: "Sweep", url: "https://www.sweep.net/newsroom/tag/news-announcement#list", type: "news_announcements" },
+  { company: "Sweep", url: "https://www.sweep.net/newsroom/tag/carbon-management#list", type: "carbon_management" },
+  
+  // Normative
+  { company: "Normative", url: "https://normative.io/insights/", type: "insights" },
+  { company: "Normative", url: "https://normative.io/press/", type: "press_releases" },
 ];
 
 export const competitorNewsResearchTool = createTool({
   id: "competitor-news-research-tool",
   description:
-    "Analyzes competitor newsrooms (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) to extract recent product updates, announcements, and company news from the Carbon Accounting Software market. Filters for developments from the past 7 days and excludes outdated information.",
+    "Analyzes competitor newsrooms, newsletters, case studies, press releases, and insights pages (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) to extract recent product updates, announcements, and company news from the Carbon Accounting Software market. Uses flexible timespan filtering: 1-week for general news, 1-month for product updates, and current calendar month for press releases and user reviews.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering news (YYYY-MM-DD format)"),
     dateEnd: z.string().describe("End date for filtering news (YYYY-MM-DD format)"),
+    currentMonth: z.string().describe("Current calendar month for press releases and user reviews (e.g., 'November 2025')"),
+    productUpdatesLookback: z.string().describe("Lookback period for product updates (e.g., '1 month')"),
   }),
   
   outputSchema: z.object({
@@ -46,6 +70,8 @@ export const competitorNewsResearchTool = createTool({
     logger?.info('🏢 [competitorNewsResearchTool] Starting competitor news analysis:', {
       dateStart: context.dateStart,
       dateEnd: context.dateEnd,
+      currentMonth: context.currentMonth,
+      productUpdatesLookback: context.productUpdatesLookback,
     });
     
     const competitors: Array<{
