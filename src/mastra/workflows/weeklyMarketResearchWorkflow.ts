@@ -838,8 +838,7 @@ const analyzeAndCompileReport = createStep({
       return str.length > maxLength ? str.substring(0, maxLength) + '...[truncated]' : str;
     };
     
-    // Calculate flexible timespan parameters for agent prompt
-    const dateEnd = new Date(inputData.dateEnd);
+    // Calculate flexible timespan parameters for agent prompt (reusing dateEnd from metrics section)
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const currentMonth = `${monthNames[dateEnd.getMonth()]} ${dateEnd.getFullYear()}`;
     const productUpdatesLookback = "1 month";
