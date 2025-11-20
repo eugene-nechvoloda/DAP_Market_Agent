@@ -1103,13 +1103,9 @@ const sendSlackNotification = createStep({
     // Construct web version URL (assumes standard Replit deployment URL structure)
     const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${inputData.reportId}`;
     
-    const message = `
-🔔 *Weekly Carbon Accounting Market Research Report*
+    const message = `🔔 *Weekly Carbon Accounting Market Research Report*
 
-${inputData.summary}
-
-📊 View the full report in your browser or Google Docs (links below)
-`;
+${inputData.summary}`;
     
     const result = await slackNotificationTool.execute({
       context: {
