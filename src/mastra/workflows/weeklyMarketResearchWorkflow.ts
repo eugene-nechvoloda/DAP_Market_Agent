@@ -56,17 +56,28 @@ const gatherMarketData = createStep({
       ? `${startMonth} ${dateStart.getDate()}-${dateEnd.getDate()}, ${dateEnd.getFullYear()}`
       : `${startMonth} ${dateStart.getDate()}, ${dateStart.getFullYear()}-${endMonth} ${dateEnd.getDate()}, ${dateEnd.getFullYear()}`;
     
+    // Calculate flexible timespan parameters
+    const currentMonth = `${monthNames[dateEnd.getMonth()]} ${dateEnd.getFullYear()}`;
+    const productUpdatesLookback = "1 month";
+    
     logger?.info('📅 [Step 1] Date range:', { 
       dateStart: dateStartStr, 
       dateEnd: dateEndStr, 
       daysLookback: daysToLookBack, 
-      isFirstRun 
+      isFirstRun,
+      currentMonth,
+      productUpdatesLookback,
     });
     
     // Gather data from all sources
     logger?.info('🏢 [Step 1] Gathering competitor news...');
     const competitorData = await competitorNewsResearchTool.execute({
-      context: { dateStart: dateStartStr, dateEnd: dateEndStr },
+      context: { 
+        dateStart: dateStartStr, 
+        dateEnd: dateEndStr,
+        currentMonth,
+        productUpdatesLookback,
+      },
       runtimeContext,
       mastra,
     });
@@ -80,7 +91,11 @@ const gatherMarketData = createStep({
     
     logger?.info('⭐ [Step 1] Gathering user reviews...');
     const reviewsData = await userReviewsResearchTool.execute({
-      context: { dateStart: dateStartStr, dateEnd: dateEndStr },
+      context: { 
+        dateStart: dateStartStr, 
+        dateEnd: dateEndStr,
+        currentMonth,
+      },
       runtimeContext,
       mastra,
     });
