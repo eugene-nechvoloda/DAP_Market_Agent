@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { competitorMetrics, marketMetrics } from '../../../shared/schema';
+import { competitorMetrics, marketMetrics, competitorSources } from '../../../shared/schema';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { eq, and } from 'drizzle-orm';
 
@@ -536,6 +536,47 @@ export class DatabaseService {
       return result;
     } catch (error) {
       console.error(`❌ [DatabaseService] Error fetching all competitor metrics:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all active competitor sources
+   */
+  async getAllCompetitorSources(): Promise<Array<typeof competitorSources.$inferSelect>> {
+    try {
+      const result = await this.orm
+        .select()
+        .from(competitorSources)
+        .where(eq(competitorSources.isActive, true));
+      
+      console.log(`✅ [DatabaseService] Found ${result.length} active competitor sources`);
+      return result;
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error fetching competitor sources:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get competitor sources by category
+   */
+  async getCompetitorSourcesByCategory(category: string): Promise<Array<typeof competitorSources.$inferSelect>> {
+    try {
+      const result = await this.orm
+        .select()
+        .from(competitorSources)
+        .where(
+          and(
+            eq(competitorSources.isActive, true),
+            eq(competitorSources.category, category)
+          )
+        );
+      
+      console.log(`✅ [DatabaseService] Found ${result.length} sources for category ${category}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error fetching competitor sources by category:`, error);
       throw error;
     }
   }
