@@ -1,21 +1,21 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
+import { webSearchTool } from "./webSearchTool";
 
-const REVIEW_SOURCES = [
-  // G2 Reviews for Carbon Accounting Software competitors
-  { company: "Greenly", url: "https://www.g2.com/products/greenly/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
-  { company: "carbmee", url: "https://www.g2.com/products/carbmee-eis/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
-  { company: "osapiens", url: "https://www.g2.com/products/osapiens/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
-  { company: "Persefoni", url: "https://www.g2.com/products/persefoni/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
-  { company: "Watershed", url: "https://www.g2.com/products/watershed/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
-  { company: "Sweep", url: "https://www.g2.com/products/sweep-sweep/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
-  { company: "Normative", url: "https://www.g2.com/products/normative/reviews?source=search#reviews", platform: "G2", type: "user_reviews" },
+const COMPETITORS_FOR_REVIEWS = [
+  "Watershed",
+  "Persefoni",
+  "Greenly",
+  "carbmee",
+  "osapiens",
+  "Sweep",
+  "Normative"
 ];
 
 export const userReviewsResearchTool = createTool({
   id: "user-reviews-research-tool",
   description:
-    "Analyzes recent customer reviews from G2 for Carbon Accounting Software competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) to identify satisfaction patterns, feature feedback, and competitive positioning. Uses calendar-month filtering: includes all reviews from the current month (e.g., all November reviews throughout November). Also performs keyword-based web searches for additional user feedback from forums, social media, and other platforms.",
+    "Uses AI-powered web search (Perplexity + SerpAPI) to find recent customer reviews and feedback for Carbon Accounting Software competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) from G2, forums, Reddit, Twitter, and other platforms. Calendar-month filtering: includes all reviews from the current month (e.g., all November reviews throughout November). More reliable than HTML scraping for finding actual review content.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reviews (YYYY-MM-DD format)"),
@@ -48,9 +48,9 @@ export const userReviewsResearchTool = createTool({
     researchDate: z.string(),
   }),
   
-  execute: async ({ context, mastra }) => {
+  execute: async ({ context, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('⭐ [userReviewsResearchTool] Starting user reviews analysis:', {
+    logger?.info('⭐ [userReviewsResearchTool] Starting user reviews analysis using web search:', {
       dateStart: context.dateStart,
       dateEnd: context.dateEnd,
       currentMonth: context.currentMonth,
@@ -70,93 +70,60 @@ export const userReviewsResearchTool = createTool({
       }>;
     }> = [];
     
-    // Group sources by company
-    const sourcesByCompany = REVIEW_SOURCES.reduce((acc, source) => {
-      if (!acc[source.company]) {
-        acc[source.company] = [];
-      }
-      acc[source.company].push(source);
-      return acc;
-    }, {} as Record<string, typeof REVIEW_SOURCES>);
-    
-    let totalReviewsAnalyzed = 0;
-    
-    for (const [company, sources] of Object.entries(sourcesByCompany)) {
-      logger?.info(`⭐ [userReviewsResearchTool] Analyzing reviews for ${company}...`);
+    try {
+      // OPTIMIZED APPROACH: Single batched search for ALL competitors to avoid rate limits
+      // Instead of 7 sequential searches (which hit Perplexity rate limits), do ONE comprehensive search
+      const competitorList = COMPETITORS_FOR_REVIEWS.join(", ");
+      const query = `G2 reviews user feedback ${context.currentMonth} for carbon accounting software: ${competitorList}. Include pros cons ratings customer experience for each competitor`;
       
-      const platforms: Array<{
-        platform: string;
-        recentReviews: Array<{
-          sentiment: "positive" | "neutral" | "negative";
-          keyThemes: string[];
-          snippet: string;
-        }>;
-        commonPros: string[];
-        commonCons: string[];
-      }> = [];
+      logger?.info(`🔍 [userReviewsResearchTool] Batched web search for all competitors:`, { query });
       
-      for (const source of sources) {
-        try {
-          logger?.info(`🔗 [userReviewsResearchTool] Fetching reviews from ${source.platform} for ${company}`);
-          
-          const response = await fetch(source.url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; CarbonAccountingMarketResearch/1.0)',
-            },
-          });
-          
-          if (!response.ok) {
-            logger?.warn(`⚠️ [userReviewsResearchTool] HTTP error for ${source.platform}:`, {
-              status: response.status,
-            });
-            continue;
-          }
-          
-          const html = await response.text();
-          const cleanText = html
-            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          
-          // Store raw content for agent analysis
-          // Agent will extract sentiment, themes, pros/cons, and filter by date
-          platforms.push({
-            platform: source.platform,
-            recentReviews: [{
-              sentiment: "neutral",
-              keyThemes: [],
-              snippet: cleanText.substring(0, 5000), // First 5000 chars for agent analysis
+      const searchResult = await webSearchTool.execute({
+        context: { query },
+        runtimeContext,
+        mastra,
+      });
+      
+      if (searchResult.answer) {
+        logger?.info(`✅ [userReviewsResearchTool] Found batched reviews (${searchResult.answer.length} chars)`);
+        
+        // Store batched results - agent will parse per-competitor insights
+        // Each competitor gets the same search results (agent extracts relevant parts)
+        const sharedSnippet = searchResult.answer.substring(0, 5000);
+        
+        for (const company of COMPETITORS_FOR_REVIEWS) {
+          competitors.push({
+            company,
+            platforms: [{
+              platform: "Web Search (G2, Forums, Social Media)",
+              recentReviews: [{
+                sentiment: "neutral", // Agent will analyze
+                keyThemes: [],
+                snippet: sharedSnippet, // Shared search results, agent extracts relevant parts
+              }],
+              commonPros: [],
+              commonCons: [],
             }],
-            commonPros: [], // Agent will populate from analysis
-            commonCons: [], // Agent will populate from analysis
-          });
-          
-          totalReviewsAnalyzed++;
-          logger?.info(`✅ [userReviewsResearchTool] Fetched reviews from ${source.platform} (${cleanText.length} chars)`);
-        } catch (error) {
-          logger?.warn(`⚠️ [userReviewsResearchTool] Failed to fetch reviews from ${source.platform}:`, {
-            error: error instanceof Error ? error.message : String(error),
           });
         }
+        
+        logger?.info(`✅ [userReviewsResearchTool] User reviews search complete:`, {
+          competitorsAnalyzed: competitors.length,
+          note: 'Single batched search avoids rate limits - agent will extract per-competitor insights'
+        });
+      } else {
+        logger?.warn('⚠️ [userReviewsResearchTool] No reviews found in batched search');
       }
-      
-      if (platforms.length > 0) {
-        competitors.push({ company, platforms });
-      }
+    } catch (error) {
+      logger?.error('❌ [userReviewsResearchTool] Failed to search reviews:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-    
-    logger?.info('✅ [userReviewsResearchTool] User reviews fetched:', {
-      competitorsAnalyzed: competitors.length,
-      totalReviewsAnalyzed,
-      note: 'Raw content fetched - agent will analyze sentiment, themes, pros/cons, and filter by date'
-    });
     
     return {
       competitors,
       overallSentiment: {}, // Agent will populate from analysis
-      totalReviewsAnalyzed,
+      totalReviewsAnalyzed: competitors.length,
       researchDate: new Date().toISOString(),
     };
   },

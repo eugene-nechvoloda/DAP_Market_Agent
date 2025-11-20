@@ -54,7 +54,7 @@ The web report pages include sticky header navigation with a dropdown selector f
 - **Report Generation**: Uses GPT-5 for synthesis, ensuring inline citations with URL validation and strict anti-hallucination rules.
 - **Google Docs Export**: Utilizes a two-phase pipeline for native table insertion and cell population, ensuring correct data representation.
 - **Keyword Analysis**: Detects rising keywords with historical comparison (50% growth threshold) and extracts source URLs.
-- **User Feedback**: Aggregates user reviews from G2 and keyword-based web searches across forums, Reddit, and Twitter.
+- **User Feedback**: Uses AI-powered web search (Perplexity/SerpAPI) to find user reviews from G2, forums, Reddit, and Twitter. More reliable than HTML scraping for dynamic content.
 
 # External Dependencies
 
