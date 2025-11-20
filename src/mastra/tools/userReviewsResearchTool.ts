@@ -15,11 +15,12 @@ const REVIEW_SOURCES = [
 export const userReviewsResearchTool = createTool({
   id: "user-reviews-research-tool",
   description:
-    "Analyzes recent customer reviews from G2 for Carbon Accounting Software competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) to identify satisfaction patterns, feature feedback, and competitive positioning. Also performs keyword-based web searches for additional user feedback from forums, social media, and other platforms.",
+    "Analyzes recent customer reviews from G2 for Carbon Accounting Software competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) to identify satisfaction patterns, feature feedback, and competitive positioning. Uses calendar-month filtering: includes all reviews from the current month (e.g., all November reviews throughout November). Also performs keyword-based web searches for additional user feedback from forums, social media, and other platforms.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reviews (YYYY-MM-DD format)"),
     dateEnd: z.string().describe("End date for filtering reviews (YYYY-MM-DD format)"),
+    currentMonth: z.string().describe("Current calendar month for review filtering (e.g., 'November 2025')"),
   }),
   
   outputSchema: z.object({
@@ -52,6 +53,7 @@ export const userReviewsResearchTool = createTool({
     logger?.info('⭐ [userReviewsResearchTool] Starting user reviews analysis:', {
       dateStart: context.dateStart,
       dateEnd: context.dateEnd,
+      currentMonth: context.currentMonth,
     });
     
     const competitors: Array<{
