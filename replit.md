@@ -54,7 +54,12 @@ The web report pages include sticky header navigation with a dropdown selector f
 - **Report Generation**: Uses GPT-5 for synthesis, ensuring inline citations with URL validation and strict anti-hallucination rules.
 - **Google Docs Export**: Utilizes a two-phase pipeline for native table insertion and cell population, ensuring correct data representation.
 - **Keyword Analysis**: Detects rising keywords with historical comparison (50% growth threshold) and extracts source URLs.
-- **User Feedback**: Uses AI-powered web search (Perplexity/SerpAPI) to find user reviews from G2, forums, Reddit, and Twitter. More reliable than HTML scraping for dynamic content.
+- **User Feedback**: Uses AI-powered web search (Perplexity/SerpAPI) to find user reviews from G2, forums, Reddit, and Twitter. G2 review URLs stored in database, but actual content fetched via web search because G2 loads reviews dynamically via JavaScript (not accessible via simple HTTP fetch). Web search is more reliable for finding actual review content from dynamically-loaded pages.
+
+## Technical Limitations
+
+### G2 Review Scraping
+G2 pages with `#reviews` anchors load content dynamically via JavaScript. To truly scrape these sections would require a headless browser (Puppeteer/Playwright), which is not available in the current Mastra environment. The current solution uses AI-powered web search which can access the review content that search engines have indexed, but doesn't literally navigate the #reviews anchor. This approach is actually more reliable than HTML scraping for dynamic content.
 
 # External Dependencies
 
