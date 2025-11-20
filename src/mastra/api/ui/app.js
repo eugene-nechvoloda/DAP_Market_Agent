@@ -121,12 +121,12 @@ function renderHistory(reports) {
   tbody.innerHTML = reports.map(report => `
     <tr>
       <td>${escapeHtml(report.title)}</td>
-      <td>${escapeHtml(report.date_start)} to ${escapeHtml(report.date_end)}</td>
-      <td>${new Date(report.generated_at).toLocaleString()}</td>
-      <td><span class="badge ${report.trigger_type}">${report.trigger_type}</span></td>
-      <td><a href="/reports/${report.id}" target="_blank">View Report</a></td>
-      <td>${report.google_docs_url ? `<a href="${escapeHtml(report.google_docs_url)}" target="_blank">View Doc</a>` : 'N/A'}</td>
-      <td><span class="badge ${report.slack_notification_sent ? 'yes' : 'no'}">${report.slack_notification_sent ? 'Yes' : 'No'}</span></td>
+      <td>${escapeHtml(report.dateStart)} to ${escapeHtml(report.dateEnd)}</td>
+      <td>${report.generatedAt ? new Date(report.generatedAt).toLocaleString() : 'Invalid Date'}</td>
+      <td><span class="badge ${report.triggerType || 'undefined'}">${report.triggerType || 'undefined'}</span></td>
+      <td><a href="/reports/${report.id}" target="_blank">🌐 View</a></td>
+      <td>${report.googleDocsUrl ? `<a href="${escapeHtml(report.googleDocsUrl)}" target="_blank">📄 View</a>` : 'N/A'}</td>
+      <td><span class="badge ${report.slackNotificationSent ? 'yes' : 'no'}">${report.slackNotificationSent ? 'Yes' : 'No'}</span></td>
     </tr>
   `).join('');
   
