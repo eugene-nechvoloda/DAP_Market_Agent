@@ -838,8 +838,19 @@ const analyzeAndCompileReport = createStep({
       return str.length > maxLength ? str.substring(0, maxLength) + '...[truncated]' : str;
     };
     
+    // Calculate flexible timespan parameters for agent prompt
+    const dateEnd = new Date(inputData.dateEnd);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentMonth = `${monthNames[dateEnd.getMonth()]} ${dateEnd.getFullYear()}`;
+    const productUpdatesLookback = "1 month";
+    
     const prompt = `
 You are conducting the weekly Carbon Accounting Software market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
+
+**FLEXIBLE TIMESPAN PARAMETERS FOR CONTENT FILTERING**:
+- Current Calendar Month: ${currentMonth} (use for press releases and user reviews)
+- Product Updates Lookback: ${productUpdatesLookback} (use for product updates/releases)
+- General News: 7 days (${inputData.dateStart} to ${inputData.dateEnd})
 
 You have been provided with comprehensive market intelligence from BOTH curated sources AND web searches.
 
@@ -873,9 +884,14 @@ ${metricsText}
 **YOUR TASK:**
 1. **Prioritize web search results** - they provide the most comprehensive, recent market intelligence
 2. Use curated sources to supplement and validate findings from web searches
-3. Extract and categorize recent developments (from THIS WEEK ONLY: ${inputData.dateStart} to ${inputData.dateEnd})
+3. **Apply flexible timespan filtering based on content type**:
+   - General news/announcements: 7 days (${inputData.dateStart} to ${inputData.dateEnd})
+   - Product updates/releases: ${productUpdatesLookback} lookback
+   - Press releases: All from ${currentMonth}
+   - User reviews: All from ${currentMonth}
+   - Case studies: ${productUpdatesLookback} lookback
 4. Filter out outdated information from 2020-2024 or earlier
-5. Identify temporal clues and focus on "recent", "latest", "new" content
+5. Identify temporal clues and apply smart filtering (be STRICT on news, FLEXIBLE on product updates/press/reviews)
 6. Generate a comprehensive market research report following the exact structure in your instructions
 7. Create a brief 2-3 sentence executive summary highlighting the most important findings
 
