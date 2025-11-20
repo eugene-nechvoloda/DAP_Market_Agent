@@ -190,11 +190,13 @@ Use subsections only if data exists:
 
 | Competitor | Revenue | Funding | Employees | Valuation | Customer Count | Churn Rate | User Base | User Growth Rate |
 |------------|---------|---------|-----------|-----------|----------------|------------|-----------|------------------|
-| watershed | $45M | $150M total | 200 | $2B | 500 | 5% | 10,000 | ↑15% |
-| persefoni | Data not available | $320M total | 1,500 | Data not available | Data not available | Data not available | Data not available | Data not available |
+| watershed | $45M ▲ +$5M | $150M total | 200 ▲ +15 | $2B 🆕 New data | 500 | 5% | 10,000 | 15% ▲ +3.0% |
+| persefoni | Data not available | $320M total ━ No change | 1,500 ▼ -50 | Data not available | Data not available | Data not available | Data not available | Data not available |
 
 **Rules**:
 - Use the metrics data provided in your prompt (do NOT call any metrics tools)
+- **Trend indicators**: Metrics include trend indicators (▲ +X%, ▼ -X%, ━ No change, 🆕 New data) comparing current vs previous week
+- Copy trend indicators EXACTLY as provided in the metrics data - they are pre-calculated
 - If a competitor has no data, write "Data not available" in that row
 - Keep revenue/funding in $M format (e.g., "$45M")
 - If NO metrics data is provided at all, write: "_Competitor health metrics will be populated after the first workflow run collects data from public sources._"

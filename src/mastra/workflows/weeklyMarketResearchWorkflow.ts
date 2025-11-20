@@ -1,6 +1,7 @@
 import { createStep, createWorkflow } from "../inngest";
 import { z } from "zod";
 import { dapMarketResearchAgent } from "../agents/dapMarketResearchAgent";
+import { getAllCompetitorTrends } from "../../utils/trendCalculation";
 import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool";
 import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
 import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
@@ -625,6 +626,73 @@ const persistCompetitorMetrics = createStep({
   },
 });
 
+// Step 2.5.5: Calculate competitor trends
+const calculateCompetitorTrends = createStep({
+  id: "calculate-competitor-trends",
+  description: "Calculate trends by comparing current week's metrics vs previous week",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    metricsGathered: z.boolean(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    metricsGathered: z.boolean(),
+    competitorTrends: z.any(),
+  }),
+  
+  execute: async ({ inputData, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('📊 [Step 2.5.5] Calculating competitor trends vs previous week...');
+    
+    // Skip trend calculation if no metrics were stored
+    if (!inputData.metricsGathered) {
+      logger?.warn('⚠️ [Step 2.5.5] No metrics gathered, skipping trend calculation');
+      return {
+        ...inputData,
+        competitorTrends: null,
+      };
+    }
+    
+    // Calculate reporting week start
+    const dateEnd = new Date(inputData.dateEnd);
+    const dayOfWeek = dateEnd.getDay();
+    const daysToMonday = (dayOfWeek + 6) % 7;
+    const reportingWeekStart = new Date(dateEnd);
+    reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
+    reportingWeekStart.setHours(0, 0, 0, 0);
+    
+    logger?.info(`📅 [Step 2.5.5] Reporting week start: ${reportingWeekStart.toISOString().split('T')[0]}`);
+    
+    // Get all competitor trends
+    const competitorTrends = await getAllCompetitorTrends(reportingWeekStart);
+    
+    // Log trend summary
+    const trendsCount = Object.keys(competitorTrends).length;
+    logger?.info(`✅ [Step 2.5.5] Calculated trends for ${trendsCount} competitors`);
+    
+    return {
+      ...inputData,
+      competitorTrends,
+    };
+  },
+});
+
 const analyzeAndCompileReport = createStep({
   id: "analyze-and-compile-report",
   description: "Agent analyzes gathered data and compiles comprehensive weekly market research report",
@@ -639,6 +707,7 @@ const analyzeAndCompileReport = createStep({
       targetedFollowUpSearch: z.any(),
     }),
     metricsGathered: z.boolean(),
+    competitorTrends: z.any().optional(),
   }),
   
   outputSchema: z.object({
@@ -681,9 +750,21 @@ const analyzeAndCompileReport = createStep({
     const allMetrics = await db.getAllLatestCompetitorMetrics(reportingWeekStart);
     logger?.info(`✅ [Step 3] Loaded metrics for ${allMetrics.length} competitors`);
     
-    // Format metrics for prompt
+    // Format metrics for prompt with trend indicators
+    const formatMetricWithTrend = (value: number | null, trend: any, unit: string = ''): string => {
+      if (value === null || value === undefined) return 'Data not available';
+      const valueStr = unit === '$M' ? `$${(Number(value) / 1000000).toFixed(1)}M` : 
+                       unit === '%' ? `${Number(value)}%` :
+                       value.toString();
+      const trendStr = trend?.formattedChange || '';
+      return trendStr ? `${valueStr} ${trendStr}` : valueStr;
+    };
+    
     const metricsText = allMetrics.length > 0 
-      ? allMetrics.map(m => `${m.competitorSlug}: ${m.revenueUsd ? `$${(Number(m.revenueUsd) / 1000000).toFixed(1)}M revenue, ` : ''}${m.fundingTotalUsd ? `$${(Number(m.fundingTotalUsd) / 1000000).toFixed(1)}M funding, ` : ''}${m.lastRoundAmountUsd ? `last round $${(Number(m.lastRoundAmountUsd) / 1000000).toFixed(1)}M (${m.lastRoundType}), ` : ''}${m.employeeCount ? `${m.employeeCount} employees, ` : ''}${m.customerCount ? `${m.customerCount} customers, ` : ''}${m.churnRate ? `${Number(m.churnRate)}% churn, ` : ''}${m.retentionRate ? `${Number(m.retentionRate)}% retention` : ''}`).join('\n')
+      ? allMetrics.map(m => {
+          const trends = inputData.competitorTrends?.[m.competitorSlug]?.trends || {};
+          return `${m.competitorSlug}: ${m.revenueUsd ? formatMetricWithTrend(m.revenueUsd, trends.revenue, '$M') + ' revenue, ' : ''}${m.valuationUsd ? formatMetricWithTrend(m.valuationUsd, trends.valuation, '$M') + ' valuation, ' : ''}${m.fundingTotalUsd ? formatMetricWithTrend(m.fundingTotalUsd, trends.fundingTotal, '$M') + ' funding, ' : ''}${m.employeeCount ? formatMetricWithTrend(m.employeeCount, trends.employeeCount) + ' employees, ' : ''}${m.customerCount ? formatMetricWithTrend(m.customerCount, trends.customerCount) + ' customers, ' : ''}${m.userBase ? formatMetricWithTrend(m.userBase, trends.userBase) + ' users, ' : ''}${m.churnRate ? formatMetricWithTrend(m.churnRate, trends.churnRate, '%') + ' churn, ' : ''}${m.retentionRate ? formatMetricWithTrend(m.retentionRate, trends.retentionRate, '%') + ' retention, ' : ''}${m.userGrowthRate ? formatMetricWithTrend(m.userGrowthRate, trends.userGrowthRate, '%') + ' user growth' : ''}`;
+        }).join('\n')
       : 'No competitor metrics available (will be populated after first run)';
     
     // Trim curated data to avoid prompt size limits (prioritize web search results)
@@ -998,6 +1079,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   .then(searchRevenueMetrics as any)
   .then(searchCustomerMetrics as any)
   .then(persistCompetitorMetrics as any)
+  .then(calculateCompetitorTrends as any)
   .then(analyzeAndCompileReport as any)
   .then(exportToGoogleDocs as any)
   .then(updateReportMetadata as any)
