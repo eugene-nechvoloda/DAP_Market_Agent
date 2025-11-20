@@ -8,9 +8,39 @@ import { marked } from 'marked';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 
-// Helper function to convert markdown to styled HTML
-function convertMarkdownToHTML(markdown: string, title: string): string {
+// Helper function to convert markdown to styled HTML with navigation
+function convertMarkdownToHTML(
+  markdown: string,
+  title: string,
+  currentReportId?: number,
+  allReports?: any[]
+): string {
   const htmlContent = marked.parse(markdown);
+  
+  // Generate report navigation dropdown if reports are provided
+  let navigationHTML = '';
+  if (allReports && allReports.length > 0 && currentReportId) {
+    const reportOptions = allReports
+      .map(report => {
+        const selected = report.id === currentReportId ? 'selected' : '';
+        const dateStr = report.generatedAt 
+          ? new Date(report.generatedAt).toLocaleDateString()
+          : 'No date';
+        return `<option value="${report.id}" ${selected}>${report.title} (${dateStr})</option>`;
+      })
+      .join('');
+    
+    navigationHTML = `
+    <div class="report-nav">
+      <div class="nav-content">
+        <span class="nav-label">📚 Report History:</span>
+        <select id="reportSelector" onchange="window.location.href='/reports/' + this.value">
+          ${reportOptions}
+        </select>
+        <a href="/dashboard" class="dashboard-link">← Back to Dashboard</a>
+      </div>
+    </div>`;
+  }
   
   return `<!DOCTYPE html>
 <html lang="en">
@@ -26,11 +56,57 @@ function convertMarkdownToHTML(markdown: string, title: string): string {
       line-height: 1.6;
       color: #333;
       background: #f5f5f5;
-      padding: 20px;
+      padding: 0;
+    }
+    .report-nav {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .nav-content {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .nav-label {
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+    #reportSelector {
+      flex: 1;
+      min-width: 300px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9em;
+      cursor: pointer;
+      background: white;
+      color: #333;
+    }
+    .dashboard-link {
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border: 2px solid white;
+      border-radius: 6px;
+      font-size: 0.9em;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .dashboard-link:hover {
+      background: white;
+      color: #667eea;
     }
     .container {
       max-width: 900px;
-      margin: 0 auto;
+      margin: 20px auto;
       background: white;
       padding: 40px;
       border-radius: 8px;
@@ -102,6 +178,7 @@ function convertMarkdownToHTML(markdown: string, title: string): string {
   </style>
 </head>
 <body>
+  ${navigationHTML}
   <div class="container">
     ${htmlContent}
   </div>
@@ -264,23 +341,18 @@ export const apiRoutes = [
           return c.html('<html><body><h1>Report not found</h1></body></html>', 404);
         }
         
-        // Use stored HTML if available, otherwise convert markdown to HTML
-        let htmlContent: string;
-        if (report.reportContentHtml) {
-          logger?.info('📝 [API] Using stored HTML');
-          htmlContent = report.reportContentHtml;
-        } else if (report.reportContent) {
-          logger?.info('🔄 [API] Converting markdown to HTML');
-          htmlContent = convertMarkdownToHTML(report.reportContent, report.title);
-          
-          // Store the HTML asynchronously for future requests (non-blocking)
-          db.updateReport(report.id, { reportContentHtml: htmlContent })
-            .then(() => logger?.info('💾 [API] Stored generated HTML for future requests'))
-            .catch((err) => logger?.warn('⚠️ [API] Failed to store HTML:', err));
-        } else {
+        // Fetch all reports for navigation dropdown
+        const allReports = await db.getAllReports();
+        logger?.info('📚 [API] Fetched all reports for navigation:', { count: allReports.length });
+        
+        // Always regenerate HTML to include latest navigation dropdown
+        if (!report.reportContent) {
           logger?.error('❌ [API] Report has no content');
           return c.html('<html><body><h1>Report content not available</h1></body></html>', 404);
         }
+        
+        logger?.info('🔄 [API] Converting markdown to HTML with navigation');
+        const htmlContent = convertMarkdownToHTML(report.reportContent, report.title, report.id, allReports);
         
         logger?.info('✅ [API] Serving HTML report');
         return c.html(htmlContent);

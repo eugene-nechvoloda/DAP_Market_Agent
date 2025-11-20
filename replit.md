@@ -6,9 +6,37 @@ The platform is designed to provide automated, in-depth market analysis for the 
 
 # Recent Changes
 
+## November 20, 2025
+
+### Critical Fixes: Metrics Collection, Report Navigation, and Google Docs Display (Latest)
+- **Issue 1 - Empty Health Metrics**: All competitor metrics were NULL in database due to silent Anthropic integration failure
+  - **Root Cause**: `metricExtraction.ts` was using unconfigured Anthropic integration which failed silently, returning empty arrays
+  - **Fix**: Switched from `createAnthropic()` + `anthropic("claude-sonnet-4-5")` to `createOpenAI()` + `openai("gpt-4o-mini")`
+  - **Logging Added**: Extensive logging throughout extraction pipeline to surface failures (prompt length, response snippets, metric previews)
+  
+- **Issue 2 - Missing Report History Navigation**: Web report pages (`/reports/:reportId`) had no way to navigate to other reports
+  - **Fix**: Added sticky header navigation to all report pages with:
+    - Dropdown selector showing all reports (latest first)
+    - Report title + generation date displayed in dropdown
+    - "Back to Dashboard" link
+    - Gradient purple background matching dashboard design
+  - **Implementation**: Modified `convertMarkdownToHTML()` to accept current report ID and all reports list, always regenerate HTML with fresh navigation
+  
+- **Issue 3 - Google Docs Empty Cells**: Tables showed blank cells instead of "Data not available" for missing metrics
+  - **Root Cause**: Cell population code inserted empty strings for null/undefined values
+  - **Fix**: Added type checking and coercion: `typeof rawValue === 'string' ? rawValue.trim() : rawValue != null ? String(rawValue) : ''`
+  - **Result**: Now shows "Data not available" matching web version format
+  
+- **Logging Enhancements**: Added comprehensive debug logging to:
+  - Perplexity search results (answer length, preview, citation counts)
+  - Metric extraction (prompt size, response snippets, JSON parsing, extracted metrics preview)
+  - Database persistence (merged metrics preview, individual metric storage with full values)
+  
+- **Status**: All three issues fixed and ready for testing. Next workflow run should populate metrics, show proper navigation, and display complete Google Docs tables.
+
 ## November 19, 2025
 
-### Health Metrics Expansion (Latest)
+### Health Metrics Expansion
 - **Database Schema**: Added `user_base` and `user_growth_rate` columns to `competitor_metrics` table via SQL ALTER TABLE
 - **Metric Extraction Enhanced**: Updated extraction rules to capture valuation, user base counts, and user growth rates from web search results
 - **Web Search Optimization**: Improved search queries with specific keywords:

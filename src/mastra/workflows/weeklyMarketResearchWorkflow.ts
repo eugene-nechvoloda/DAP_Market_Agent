@@ -283,6 +283,13 @@ const searchFundingMetrics = createStep({
     let fundingMetrics: any[] = [];
     
     if (fundingSearch.success && fundingSearch.answer) {
+      logger?.info('📝 [Step 2.5.1] Perplexity search successful:', {
+        answerLength: fundingSearch.answer.length,
+        answerPreview: fundingSearch.answer.substring(0, 300),
+        citationCount: fundingSearch.citations?.length || 0,
+        citations: fundingSearch.citations?.map((c: any) => c.url).slice(0, 3),
+      });
+      
       logger?.info('📄 [Step 2.5.1] Fetching full article content from citations...');
       const citationTexts: string[] = [fundingSearch.answer];
       
@@ -371,6 +378,13 @@ const searchRevenueMetrics = createStep({
     let revenueMetrics: any[] = [];
     
     if (revenueSearch.success && revenueSearch.answer) {
+      logger?.info('📝 [Step 2.5.2] Perplexity search successful:', {
+        answerLength: revenueSearch.answer.length,
+        answerPreview: revenueSearch.answer.substring(0, 300),
+        citationCount: revenueSearch.citations?.length || 0,
+        citations: revenueSearch.citations?.map((c: any) => c.url).slice(0, 3),
+      });
+      
       logger?.info('📄 [Step 2.5.2] Fetching full article content from citations...');
       const citationTexts: string[] = [revenueSearch.answer];
       
@@ -460,6 +474,13 @@ const searchCustomerMetrics = createStep({
     let customerMetrics: any[] = [];
     
     if (customerSearch.success && customerSearch.answer) {
+      logger?.info('📝 [Step 2.5.3] Perplexity search successful:', {
+        answerLength: customerSearch.answer.length,
+        answerPreview: customerSearch.answer.substring(0, 300),
+        citationCount: customerSearch.citations?.length || 0,
+        citations: customerSearch.citations?.map((c: any) => c.url).slice(0, 3),
+      });
+      
       logger?.info('📄 [Step 2.5.3] Fetching full article content from citations...');
       const citationTexts: string[] = [customerSearch.answer];
       
@@ -564,7 +585,23 @@ const persistCompetitorMetrics = createStep({
     // Convert map to array
     metricsMap.forEach(metric => allMetrics.push(metric));
     
-    logger?.info(`📊 [Step 2.5.4] Merged metrics for ${allMetrics.length} competitors`);
+    logger?.info(`📊 [Step 2.5.4] Merged metrics for ${allMetrics.length} competitors`, {
+      competitors: allMetrics.map(m => ({
+        slug: m.competitorSlug,
+        hasRevenue: !!m.revenueUsd,
+        revenue: m.revenueUsd,
+        hasValuation: !!m.valuationUsd,
+        valuation: m.valuationUsd,
+        hasFunding: !!m.fundingTotalUsd,
+        funding: m.fundingTotalUsd,
+        hasEmployees: !!m.employeeCount,
+        employees: m.employeeCount,
+        hasCustomers: !!m.customerCount,
+        customers: m.customerCount,
+        hasUserBase: !!m.userBase,
+        userBase: m.userBase,
+      })),
+    });
     
     // Store metrics in database
     const reportingWeekStart = new Date(inputData.reportingWeekStart);
@@ -572,6 +609,18 @@ const persistCompetitorMetrics = createStep({
     
     for (const metrics of allMetrics) {
       try {
+        logger?.info(`💾 [Step 2.5.4] Storing metrics for ${metrics.competitorSlug}:`, {
+          revenue: metrics.revenueUsd,
+          valuation: metrics.valuationUsd,
+          funding: metrics.fundingTotalUsd,
+          employees: metrics.employeeCount,
+          customers: metrics.customerCount,
+          churn: metrics.churnRate,
+          retention: metrics.retentionRate,
+          userBase: metrics.userBase,
+          userGrowth: metrics.userGrowthRate,
+        });
+        
         await db.saveCompetitorMetrics({
           competitorSlug: metrics.competitorSlug,
           reportingWeekStart,
@@ -751,11 +800,13 @@ const analyzeAndCompileReport = createStep({
     logger?.info(`✅ [Step 3] Loaded metrics for ${allMetrics.length} competitors`);
     
     // Format metrics for prompt with trend indicators
-    const formatMetricWithTrend = (value: number | null, trend: any, unit: string = ''): string => {
+    const formatMetricWithTrend = (value: number | string | null | undefined, trend: any, unit: string = ''): string => {
       if (value === null || value === undefined) return 'Data not available';
-      const valueStr = unit === '$M' ? `$${(Number(value) / 1000000).toFixed(1)}M` : 
-                       unit === '%' ? `${Number(value)}%` :
-                       value.toString();
+      const numValue = typeof value === 'string' ? parseFloat(value) : value;
+      if (isNaN(numValue)) return 'Data not available';
+      const valueStr = unit === '$M' ? `$${(numValue / 1000000).toFixed(1)}M` : 
+                       unit === '%' ? `${numValue}%` :
+                       numValue.toString();
       const trendStr = trend?.formattedChange || '';
       return trendStr ? `${valueStr} ${trendStr}` : valueStr;
     };

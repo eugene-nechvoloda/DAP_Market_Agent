@@ -470,9 +470,14 @@ export const googleDocsExportTool = createTool({
                   const cell = tableElement.tableRows?.[rowIdx + 1]?.tableCells?.[col];
                   if (cell && cell.content?.[0]?.startIndex != null) {
                     const cellIndex = cell.content[0].startIndex;
+                    // Handle empty cells - show "Data not available" instead of blank
+                    const rawValue = row[col];
+                    const textValue = typeof rawValue === 'string' ? rawValue.trim() : 
+                                     rawValue != null ? String(rawValue) : '';
+                    const cellValue = textValue !== '' ? textValue : 'Data not available';
                     cellRequests.push({
                       insertText: {
-                        text: row[col],
+                        text: cellValue,
                         location: {
                           index: cellIndex + 1, // +1 to skip the paragraph marker
                         },

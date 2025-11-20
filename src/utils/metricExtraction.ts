@@ -1,9 +1,9 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
-const anthropic = createAnthropic({
-  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+const openai = createOpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
 export interface ExtractedMetrics {
@@ -80,32 +80,59 @@ OUTPUT FORMAT (JSON array):
 Extract metrics for ALL competitors mentioned in the search results. Return empty array if no metrics found.`;
 
   try {
+    logger?.info('📝 [MetricExtraction] Calling OpenAI GPT-4o-mini for metric extraction...', {
+      promptLength: prompt.length,
+      searchResultsLength: searchResults.length,
+      competitorCount: competitorNames.length,
+    });
+    
     const response = await generateText({
-      model: anthropic("claude-sonnet-4-5"),
+      model: openai("gpt-4o-mini"),
       prompt,
       temperature: 0.1, // Low temperature for factual extraction
     });
 
-    logger?.info('✅ [MetricExtraction] LLM extraction complete');
+    logger?.info('✅ [MetricExtraction] LLM extraction complete', {
+      responseLength: response.text.length,
+      responseSnippet: response.text.substring(0, 200),
+    });
 
     // Parse JSON response
     const text = response.text.trim();
+    logger?.info('🔍 [MetricExtraction] Parsing JSON from response...');
+    
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     
     if (!jsonMatch) {
-      logger?.warn('⚠️ [MetricExtraction] No valid JSON array found in LLM response');
+      logger?.warn('⚠️ [MetricExtraction] No valid JSON array found in LLM response', {
+        responseText: text.substring(0, 500),
+      });
       return [];
     }
 
     const metrics: ExtractedMetrics[] = JSON.parse(jsonMatch[0]);
-    logger?.info('✅ [MetricExtraction] Extracted metrics for competitors:', {
+    logger?.info('✅ [MetricExtraction] Successfully extracted metrics:', {
       count: metrics.length,
       competitors: metrics.map(m => m.competitorSlug),
+      metricsPreview: metrics.map(m => ({
+        slug: m.competitorSlug,
+        hasRevenue: !!m.revenueUsd,
+        hasFunding: !!m.fundingTotalUsd,
+        hasValuation: !!m.valuationUsd,
+        hasEmployees: !!m.employeeCount,
+        hasCustomers: !!m.customerCount,
+        hasChurn: !!m.churnRate,
+        hasUserBase: !!m.userBase,
+        hasUserGrowth: !!m.userGrowthRate,
+      })),
     });
 
     return metrics;
   } catch (error) {
-    logger?.error('❌ [MetricExtraction] Failed to extract metrics:', error);
+    logger?.error('❌ [MetricExtraction] Failed to extract metrics:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return [];
   }
 }
