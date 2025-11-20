@@ -67,10 +67,10 @@ The platform is designed to provide automated, in-depth market analysis for the 
 - **Keyword-Based User Feedback**: Added web search capability to find user feedback from forums, Reddit, Twitter, and other platforms beyond G2
 
 ### Model Configuration Update
-- **Report Generation**: Changed from Claude Sonnet 4.5 to GPT-5 for final report synthesis
-- **Research Tools**: Keeping Claude Sonnet 4.5 for metric extraction and analysis tasks
+- **Report Generation**: Changed from Claude Sonnet 4.5 to GPT-5 for final report synthesis (uses `.generateLegacy()` with `openai.responses("gpt-5")`)
+- **Metric Extraction**: Using GPT-4o-mini for extracting metrics from search results (uses `generateText()` with `openai("gpt-4o-mini")`)
 - **Web Search**: Continuing to use Perplexity Sonar for market research searches
-- **Rationale**: GPT-5 provides superior synthesis and report generation quality
+- **Rationale**: GPT-5 provides superior synthesis and report generation quality; GPT-4o-mini is compatible with AI SDK v1's `generateText()` function
 
 ### Customer Health Metrics Enhancement
 - **Third Web Search Added**: Implemented dedicated search for customer count, churn rate, and retention data
