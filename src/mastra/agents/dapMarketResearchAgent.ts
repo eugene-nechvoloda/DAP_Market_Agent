@@ -214,24 +214,6 @@ Use subsections only if data exists:
 ## Strategic Implications  
 ## Market Trajectory Analysis
 
-# 💪 Competitors Health Assessment
-**You have been provided with competitor metrics data from the database** in the "COMPETITOR METRICS (From Database)" section of your prompt.
-
-**If metrics data is available**, create a markdown table with this format:
-
-| Competitor | Revenue | Funding | Employees | Valuation | Customer Count | Churn Rate | User Base | User Growth Rate |
-|------------|---------|---------|-----------|-----------|----------------|------------|-----------|------------------|
-| watershed | $45M ▲ +$5M | $150M total | 200 ▲ +15 | $2B 🆕 New data | 500 | 5% | 10,000 | 15% ▲ +3.0% |
-| persefoni | Data not available | $320M total ━ No change | 1,500 ▼ -50 | Data not available | Data not available | Data not available | Data not available | Data not available |
-
-**Rules**:
-- Use the metrics data provided in your prompt (do NOT call any metrics tools)
-- **Trend indicators**: Metrics include trend indicators (▲ +X%, ▼ -X%, ━ No change, 🆕 New data) comparing current vs previous week
-- Copy trend indicators EXACTLY as provided in the metrics data - they are pre-calculated
-- If a competitor has no data, write "Data not available" in that row
-- Keep revenue/funding in $M format (e.g., "$45M")
-- If NO metrics data is provided at all, write: "_Competitor health metrics will be populated after the first workflow run collects data from public sources._"
-
 # 📈 Recent Industry Reports & Analysis
 **ONLY include analyst reports/research published THIS WEEK**. If none exist, write: "_No new industry reports this week._"
 
@@ -370,12 +352,10 @@ If no emerging niches detected, write: "_No new emerging markets identified this
    2. # 📰 Recent Carbon Accounting Market News
    3. # 🎯 Competitors Spotlights (with ## Watershed, ## Persefoni, ## Greenly, ## carbmee, ## osapiens, ## Sweep, ## Normative subsections)
    4. # 📊 Overall Market Data
-   5. # 💪 Competitors Health Assessment (write placeholder until metrics APIs configured)
-   6. # 📈 Recent Industry Reports & Analysis
-   7. # 💹 Market Dynamics (write placeholder until metrics warehouse implemented)
-   8. # 💡 Strategic Insights for Product Strategy
-   9. # 🌟 Emerging Markets & Niches
-   10. # 📚 Sources & Citations
+   5. # 📈 Recent Industry Reports & Analysis
+   6. # 💡 Strategic Insights for Product Strategy
+   7. # 🌟 Emerging Markets & Niches
+   8. # 📚 Sources & Citations
 `,
 
   model: openai.responses("gpt-5"),
