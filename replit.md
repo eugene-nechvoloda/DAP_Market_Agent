@@ -18,7 +18,7 @@ The platform is designed to provide automated, in-depth market analysis for the 
 - **Data Pipeline Fixed**: Updated `persistCompetitorMetrics` workflow step to include `userBase` and `userGrowthRate` when saving metrics to database
 - **Agent Report Format**: Updated health assessment table example to display all 8 columns: Competitor, Revenue, Valuation, Funding, Employees, Customer Count, Churn Rate, User Base, User Growth Rate
 - **Old References Cleaned**: Removed remaining outdated competitor examples (Trace, workiva) from agent prompts
-- **Status**: Data collection pipeline complete; trend calculation logic (↑↓ indicators vs previous period) pending implementation
+- **Status**: Data collection pipeline complete; trend calculation logic implemented with ▲▼━🆕 indicators comparing current vs previous week
 
 ### Workflow Timeout Fix
 - **Issue**: Workflow was encountering 504 timeout errors at the "Gather Competitor Metrics" step due to monolithic execution (3 searches + extractions + persistence in one step)
