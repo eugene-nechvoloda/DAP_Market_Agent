@@ -115,3 +115,21 @@ export const keywordOccurrences = pgTable('keyword_occurrences', {
   // Index for efficient queries: get latest keywords and historical comparison
   keywordWeekIdx: index('idx_keyword_week_desc').on(table.keyword, table.reportingWeekStart.desc()),
 }));
+
+// Competitor sources table for tracking all research URLs
+export const competitorSources = pgTable('competitor_sources', {
+  id: serial('id').primaryKey(),
+  competitorSlug: varchar('competitor_slug', { length: 50 }).notNull(), // watershed, persefoni, greenly, etc.
+  sourceName: text('source_name').notNull(), // e.g., "Newsletter", "Case Studies", "Press Releases"
+  url: text('url').notNull(),
+  category: text('category').notNull(), // news, blog, reviews, press, case_studies, newsletter, insights, product_updates
+  isActive: boolean('is_active').default(true).notNull(), // Allow disabling sources without deleting
+  timeFilter: text('time_filter').default('7days'), // '7days', '1month', 'current_month' - smart filtering based on update frequency
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  // Index for efficient queries by competitor
+  competitorIdx: index('idx_competitor_sources_slug').on(table.competitorSlug),
+  // Index for category-based filtering
+  categoryIdx: index('idx_competitor_sources_category').on(table.category),
+}));
