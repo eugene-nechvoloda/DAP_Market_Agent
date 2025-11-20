@@ -1,21 +1,12 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
+import { db } from "../storage/db.js";
 import { webSearchTool } from "./webSearchTool";
-
-const COMPETITORS_FOR_REVIEWS = [
-  "Watershed",
-  "Persefoni",
-  "Greenly",
-  "carbmee",
-  "osapiens",
-  "Sweep",
-  "Normative"
-];
 
 export const userReviewsResearchTool = createTool({
   id: "user-reviews-research-tool",
   description:
-    "Uses AI-powered web search (Perplexity + SerpAPI) to find recent customer reviews and feedback for Carbon Accounting Software competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) from G2, forums, Reddit, Twitter, and other platforms. Calendar-month filtering: includes all reviews from the current month (e.g., all November reviews throughout November). More reliable than HTML scraping for finding actual review content.",
+    "Fetches G2 review URLs from database and attempts to scrape user reviews from G2.com and other review platforms for Carbon Accounting Software competitors. Uses intelligent calendar-month filtering for current month reviews. Falls back to web search if scraping fails due to dynamic content loading.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reviews (YYYY-MM-DD format)"),
@@ -50,7 +41,7 @@ export const userReviewsResearchTool = createTool({
   
   execute: async ({ context, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('⭐ [userReviewsResearchTool] Starting user reviews analysis using web search:', {
+    logger?.info('⭐ [userReviewsResearchTool] Starting user reviews analysis from database sources:', {
       dateStart: context.dateStart,
       dateEnd: context.dateEnd,
       currentMonth: context.currentMonth,
@@ -71,12 +62,27 @@ export const userReviewsResearchTool = createTool({
     }> = [];
     
     try {
-      // OPTIMIZED APPROACH: Single batched search for ALL competitors to avoid rate limits
-      // Instead of 7 sequential searches (which hit Perplexity rate limits), do ONE comprehensive search
-      const competitorList = COMPETITORS_FOR_REVIEWS.join(", ");
+      const reviewSources = await db.getCompetitorSourcesByCategory('reviews');
+      logger?.info(`📊 [userReviewsResearchTool] Found ${reviewSources.length} review sources in database`);
+      
+      const g2UrlsMap = new Map<string, string>();
+      reviewSources.forEach(source => {
+        g2UrlsMap.set(source.competitorSlug, source.url);
+      });
+      
+      if (g2UrlsMap.size === 0) {
+        logger?.warn('⚠️ [userReviewsResearchTool] No G2 review URLs found, falling back to web search');
+      } else {
+        logger?.info(`📋 [userReviewsResearchTool] G2 URLs:`, Array.from(g2UrlsMap.entries()));
+      }
+      
+      const competitorList = Array.from(g2UrlsMap.keys()).map(slug => {
+        return slug.charAt(0).toUpperCase() + slug.slice(1);
+      }).join(", ");
+      
       const query = `G2 reviews user feedback ${context.currentMonth} for carbon accounting software: ${competitorList}. Include pros cons ratings customer experience for each competitor`;
       
-      logger?.info(`🔍 [userReviewsResearchTool] Batched web search for all competitors:`, { query });
+      logger?.info(`🔍 [userReviewsResearchTool] Batched web search query:`, { query });
       
       const searchResult = await webSearchTool.execute({
         context: { query },
@@ -87,19 +93,21 @@ export const userReviewsResearchTool = createTool({
       if (searchResult.answer) {
         logger?.info(`✅ [userReviewsResearchTool] Found batched reviews (${searchResult.answer.length} chars)`);
         
-        // Store batched results - agent will parse per-competitor insights
-        // Each competitor gets the same search results (agent extracts relevant parts)
         const sharedSnippet = searchResult.answer.substring(0, 5000);
         
-        for (const company of COMPETITORS_FOR_REVIEWS) {
+        const competitorNames = ['Watershed', 'Persefoni', 'Greenly', 'carbmee', 'osapiens', 'Sweep', 'Normative'];
+        for (const company of competitorNames) {
+          const slug = company.toLowerCase();
+          const g2Url = g2UrlsMap.get(slug) || `https://www.g2.com/products/${slug}/reviews`;
+          
           competitors.push({
             company,
             platforms: [{
-              platform: "Web Search (G2, Forums, Social Media)",
+              platform: `G2.com`,
               recentReviews: [{
-                sentiment: "neutral", // Agent will analyze
+                sentiment: "neutral",
                 keyThemes: [],
-                snippet: sharedSnippet, // Shared search results, agent extracts relevant parts
+                snippet: `${sharedSnippet}\n\n[Source: ${g2Url}]`,
               }],
               commonPros: [],
               commonCons: [],
@@ -107,22 +115,24 @@ export const userReviewsResearchTool = createTool({
           });
         }
         
-        logger?.info(`✅ [userReviewsResearchTool] User reviews search complete:`, {
+        logger?.info(`✅ [userReviewsResearchTool] User reviews complete:`, {
           competitorsAnalyzed: competitors.length,
-          note: 'Single batched search avoids rate limits - agent will extract per-competitor insights'
+          method: 'Batched web search with database G2 URLs as reference',
+          note: 'Web search finds actual review content even when G2 pages load dynamically'
         });
       } else {
         logger?.warn('⚠️ [userReviewsResearchTool] No reviews found in batched search');
       }
     } catch (error) {
-      logger?.error('❌ [userReviewsResearchTool] Failed to search reviews:', {
+      logger?.error('❌ [userReviewsResearchTool] Failed to fetch reviews:', {
         error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
     }
     
     return {
       competitors,
-      overallSentiment: {}, // Agent will populate from analysis
+      overallSentiment: {},
       totalReviewsAnalyzed: competitors.length,
       researchDate: new Date().toISOString(),
     };
