@@ -136,6 +136,11 @@ export async function getCompetitorTrends(
     valuation?: TrendIndicator;
     employeeCount?: TrendIndicator;
     fundingTotal?: TrendIndicator;
+    customerCount?: TrendIndicator;
+    churnRate?: TrendIndicator;
+    retentionRate?: TrendIndicator;
+    userBase?: TrendIndicator;
+    userGrowthRate?: TrendIndicator;
     organicTraffic?: TrendIndicator;
     organicKeywords?: TrendIndicator;
   };
@@ -192,6 +197,31 @@ export async function getCompetitorTrends(
       current?.fundingTotalUsd != null ? Number(current.fundingTotalUsd) : null,
       previous?.fundingTotalUsd != null ? Number(previous.fundingTotalUsd) : null,
       'currency'
+    ),
+    customerCount: formatTrend(
+      current?.customerCount ?? null,
+      previous?.customerCount ?? null,
+      'count'
+    ),
+    churnRate: formatTrend(
+      current?.churnRate != null ? Number(current.churnRate) : null,
+      previous?.churnRate != null ? Number(previous.churnRate) : null,
+      'percent'
+    ),
+    retentionRate: formatTrend(
+      current?.retentionRate != null ? Number(current.retentionRate) : null,
+      previous?.retentionRate != null ? Number(previous.retentionRate) : null,
+      'percent'
+    ),
+    userBase: formatTrend(
+      current?.userBase ?? null,
+      previous?.userBase ?? null,
+      'count'
+    ),
+    userGrowthRate: formatTrend(
+      current?.userGrowthRate != null ? Number(current.userGrowthRate) : null,
+      previous?.userGrowthRate != null ? Number(previous.userGrowthRate) : null,
+      'percent'
     ),
     organicTraffic: formatTrend(
       current?.organicTraffic ?? null,
@@ -270,7 +300,7 @@ export async function getMarketTrends(currentWeekStart: Date): Promise<{
  * Get all competitors' latest metrics with trends
  */
 export async function getAllCompetitorTrends(currentWeekStart: Date) {
-  const competitors = ['walkme', 'whatfix', 'pendo', 'apty'];
+  const competitors = ['watershed', 'persefoni', 'greenly', 'carbmee', 'osapiens', 'sweep', 'normative'];
 
   const results = await Promise.all(
     competitors.map((slug) => getCompetitorTrends(slug, currentWeekStart))
