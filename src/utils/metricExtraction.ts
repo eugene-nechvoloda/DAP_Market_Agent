@@ -80,21 +80,21 @@ OUTPUT FORMAT (JSON array):
 Extract metrics for ALL competitors mentioned in the search results. Return empty array if no metrics found.`;
 
   try {
-    logger?.info('📝 [MetricExtraction] Calling OpenAI GPT-4o-mini for metric extraction...', {
+    logger?.info('📝 [MetricExtraction] Calling OpenAI GPT-4o for metric extraction...', {
       promptLength: prompt.length,
       searchResultsLength: searchResults.length,
       competitorCount: competitorNames.length,
     });
     
     const response = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-4o"), // Upgraded from gpt-4o-mini for better reliability
       prompt,
       temperature: 0.1, // Low temperature for factual extraction
     });
 
     logger?.info('✅ [MetricExtraction] LLM extraction complete', {
       responseLength: response.text.length,
-      responseSnippet: response.text.substring(0, 200),
+      responseSnippet: response.text.substring(0, 300),
     });
 
     // Parse JSON response
@@ -104,8 +104,9 @@ Extract metrics for ALL competitors mentioned in the search results. Return empt
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     
     if (!jsonMatch) {
-      logger?.warn('⚠️ [MetricExtraction] No valid JSON array found in LLM response', {
-        responseText: text.substring(0, 500),
+      logger?.error('⚠️ [MetricExtraction] No valid JSON array found in LLM response', {
+        fullResponseText: text, // Log FULL response for debugging
+        responseLength: text.length,
       });
       return [];
     }
@@ -116,14 +117,14 @@ Extract metrics for ALL competitors mentioned in the search results. Return empt
       competitors: metrics.map(m => m.competitorSlug),
       metricsPreview: metrics.map(m => ({
         slug: m.competitorSlug,
-        hasRevenue: !!m.revenueUsd,
-        hasFunding: !!m.fundingTotalUsd,
-        hasValuation: !!m.valuationUsd,
-        hasEmployees: !!m.employeeCount,
-        hasCustomers: !!m.customerCount,
-        hasChurn: !!m.churnRate,
-        hasUserBase: !!m.userBase,
-        hasUserGrowth: !!m.userGrowthRate,
+        revenue: m.revenueUsd,
+        funding: m.fundingTotalUsd,
+        valuation: m.valuationUsd,
+        employees: m.employeeCount,
+        customers: m.customerCount,
+        churn: m.churnRate,
+        userBase: m.userBase,
+        userGrowth: m.userGrowthRate,
       })),
     });
 

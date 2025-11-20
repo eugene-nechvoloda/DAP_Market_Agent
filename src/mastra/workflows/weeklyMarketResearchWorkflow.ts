@@ -179,11 +179,10 @@ const performWebSearches = createStep({
     
     logger?.info('✅ [Step 2] Web searches complete');
     
-    // Trim web search results to reduce payload size for Inngest step output limits
-    // Keep only essential data: truncated answers + trimmed citations
+    // Keep full answers for metric extraction but limit citations to reduce payload size
     const trimCitations = (citations: any[]) => 
-      citations.slice(0, 3).map(c => ({
-        title: c.title?.substring(0, 100) || '', // Trim title to 100 chars
+      citations.slice(0, 5).map(c => ({
+        title: c.title?.substring(0, 150) || '',
         url: c.url || '',
         // Remove snippet to save space
       }));
@@ -191,7 +190,7 @@ const performWebSearches = createStep({
     const trimmedBroadPulse = {
       success: broadPulseSearch.success,
       query: broadPulseSearch.query,
-      answer: broadPulseSearch.answer?.substring(0, 500) || '', // Trim to 500 chars
+      answer: broadPulseSearch.answer || '', // Keep full answer for metric extraction
       citations: trimCitations(broadPulseSearch.citations || []),
       error: broadPulseSearch.error,
     };
@@ -199,12 +198,12 @@ const performWebSearches = createStep({
     const trimmedTargetedSearch = {
       success: targetedFollowUpSearch.success,
       query: targetedFollowUpSearch.query,
-      answer: targetedFollowUpSearch.answer?.substring(0, 500) || '', // Trim to 500 chars
+      answer: targetedFollowUpSearch.answer || '', // Keep full answer for metric extraction
       citations: trimCitations(targetedFollowUpSearch.citations || []),
       error: targetedFollowUpSearch.error,
     };
     
-    logger?.info('📦 [Step 2] Trimmed web search payloads for Inngest:', {
+    logger?.info('📦 [Step 2] Prepared web search payloads for Inngest:', {
       broadPulseAnswerLength: trimmedBroadPulse.answer.length,
       targetedAnswerLength: trimmedTargetedSearch.answer.length,
       totalCitations: (trimmedBroadPulse.citations?.length || 0) + (trimmedTargetedSearch.citations?.length || 0),

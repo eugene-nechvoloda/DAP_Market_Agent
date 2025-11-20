@@ -15,7 +15,16 @@ function convertMarkdownToHTML(
   currentReportId?: number,
   allReports?: any[]
 ): string {
-  const htmlContent = marked.parse(markdown);
+  let htmlContent = marked.parse(markdown);
+  
+  // Wrap tables in scrollable containers for horizontal scrolling
+  htmlContent = htmlContent.replace(
+    /<table>/g,
+    '<div class="table-wrapper"><table>'
+  ).replace(
+    /<\/table>/g,
+    '</table></div>'
+  );
   
   // Generate report navigation dropdown if reports are provided
   let navigationHTML = '';
@@ -143,22 +152,28 @@ function convertMarkdownToHTML(
     em { font-style: italic; color: #7f8c8d; }
     a { color: #3498db; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    .table-wrapper {
+      overflow-x: auto;
+      margin: 1.5em 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 1.5em 0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      min-width: 800px; /* Ensure tables are wide enough for readability */
     }
     th {
       background: #3498db;
       color: white;
       font-weight: 700;
-      padding: 12px;
+      padding: 12px 16px;
       text-align: left;
+      white-space: nowrap; /* Prevent header text wrapping */
     }
     td {
-      padding: 10px 12px;
+      padding: 10px 16px;
       border-bottom: 1px solid #ecf0f1;
+      min-width: 100px; /* Ensure cells have minimum width */
     }
     tr:hover { background: #f8f9fa; }
     blockquote {
