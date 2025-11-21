@@ -1,6 +1,6 @@
 # Overview
 
-This project is a Mastra-based AI agent automation platform for **Carbon Accounting Software Market Research**. It automatically researches 7 key competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative), analyzes industry trends, aggregates user reviews from G2 and keyword-based web searches, generates comprehensive weekly reports using GPT-5, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
+This project is a Mastra-based AI agent automation platform for **Carbon Accounting Software Market Research**. It automatically researches 7 key competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative), analyzes industry trends from 6 major research sources (GHG Protocol, Carbon Brief, CDP, WRI Climate, Ecosystem Marketplace, UNFCCC), aggregates user reviews from G2 and keyword-based web searches, generates comprehensive weekly reports using GPT-5, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
 
 The platform aims to provide automated, in-depth market analysis for the Carbon Accounting Software industry, leveraging AI agents for data gathering and report generation, and integrating with external services for output and notifications. It is designed to deliver verifiable, factual market insights for Climatiq.io regularly. Key capabilities include flexible timespan filtering for various content types (news, product updates, reviews, case studies), robust metric extraction (funding, revenue, employees, user base, churn), and comprehensive report generation with inline citations and native Google Docs tables.
 
@@ -49,6 +49,13 @@ The web report pages include sticky header navigation with a dropdown selector f
 ## Feature Specifications
 
 - **Competitor Research**: Expanded from 8 to 21 URLs per competitor, covering newsletters, case studies, press releases, insights pages, and newsrooms.
+- **Industry Research Sources**: 6 curated sources for carbon accounting standards, news, and policy:
+  - **GHG Protocol** (https://ghgprotocol.org/) - Global standard for measuring GHG emissions
+  - **Carbon Brief** (https://www.carbonbrief.org/) - Science-based climate news
+  - **CDP** (https://www.cdp.net/) - Global environmental disclosure system
+  - **WRI Climate** (https://www.wri.org/climate) - Climate research and solutions
+  - **Ecosystem Marketplace** (https://www.ecosystemmarketplace.com/) - Carbon markets intelligence
+  - **UNFCCC** (https://unfccc.int/) - UN climate policy framework
 - **Intelligent Timespan Filtering**: GPT-5-powered context-aware date range determination that considers current date position (mid/late month = full current month, early month = late previous month + current month) for general news, product updates, reviews, and press releases. Replaces rigid heuristic rules with adaptive intelligence.
 - **Metric Extraction**: Captures funding, valuation, revenue, employees, customer count, churn rate, user base, and user growth rates. Trend calculation logic implemented with ▲▼━🆕 indicators.
 - **Report Generation**: Uses GPT-5 for synthesis, ensuring inline citations with URL validation and strict anti-hallucination rules.
@@ -99,6 +106,13 @@ The web report pages include sticky header navigation with a dropdown selector f
 - **Root Causes**: (1) trimData truncated curated data to 2-3K chars, cutting off reviews/industry data; (2) Agent prompt didn't require all sections
 - **Fix**: (1) Replaced trimData with `createBoundedSummary` using 10-15K char limits and intelligent JSON truncation; (2) Added explicit MUST-fill directives for all mandatory sections; (3) Added competitor coverage logging showing which competitors have data
 - **Impact**: All curated data flows to final prompt, agent explicitly required to populate all sections or write "_No data available_" fallback
+
+### Industry Research Sources Database (Implemented - November 21, 2025)
+- **Feature**: Added dedicated `industry_sources` table for tracking general carbon accounting industry research sources
+- **Implementation**: Created table with columns for source_name, url, description, category, is_active, time_filter
+- **Initial Seed Data**: Loaded 6 major sources - GHG Protocol (standards), Carbon Brief (news), CDP (reports), WRI Climate (research), Ecosystem Marketplace (research), UNFCCC (policy)
+- **Database Methods**: Added `getAllIndustrySources()` and `getIndustrySourcesByCategory()` to DatabaseService
+- **Impact**: Centralized management of industry research URLs, enabling systematic tracking of carbon accounting standards, climate policy, and market intelligence sources
 
 ## Technical Limitations
 

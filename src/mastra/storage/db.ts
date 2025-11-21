@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { competitorMetrics, marketMetrics, competitorSources } from '../../../shared/schema';
+import { competitorMetrics, marketMetrics, competitorSources, industrySources } from '../../../shared/schema';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { eq, and } from 'drizzle-orm';
 
@@ -592,6 +592,47 @@ export class DatabaseService {
       return result;
     } catch (error) {
       console.error(`❌ [DatabaseService] Error fetching competitor sources by category:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all active industry research sources
+   */
+  async getAllIndustrySources(): Promise<Array<typeof industrySources.$inferSelect>> {
+    try {
+      const result = await this.orm
+        .select()
+        .from(industrySources)
+        .where(eq(industrySources.isActive, true));
+      
+      console.log(`✅ [DatabaseService] Found ${result.length} active industry sources`);
+      return result;
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error fetching industry sources:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get industry sources by category
+   */
+  async getIndustrySourcesByCategory(category: string): Promise<Array<typeof industrySources.$inferSelect>> {
+    try {
+      const result = await this.orm
+        .select()
+        .from(industrySources)
+        .where(
+          and(
+            eq(industrySources.isActive, true),
+            eq(industrySources.category, category)
+          )
+        );
+      
+      console.log(`✅ [DatabaseService] Found ${result.length} industry sources for category ${category}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ [DatabaseService] Error fetching industry sources by category:`, error);
       throw error;
     }
   }
