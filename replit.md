@@ -56,6 +56,25 @@ The web report pages include sticky header navigation with a dropdown selector f
 - **Keyword Analysis**: Detects rising keywords with historical comparison (50% growth threshold) and extracts source URLs.
 - **User Feedback**: Uses AI-powered web search (Perplexity/SerpAPI) to find user reviews from G2, forums, Reddit, and Twitter. G2 review URLs stored in database, but actual content fetched via web search because G2 loads reviews dynamically via JavaScript (not accessible via simple HTTP fetch). Web search is more reliable for finding actual review content from dynamically-loaded pages.
 
+## Recent Bug Fixes (November 2025)
+
+### Duplicate Report Generation (Fixed)
+- **Problem**: Each workflow run created 2 reports with different content - one empty (#43), one full (#44)
+- **Root Cause**: Agent used `threadId: weekly-research-${dateEnd}`, causing multiple runs on same day to share memory thread and accumulate context
+- **Fix**: Changed to `threadId: weekly-research-${runId}` for unique memory context per run
+- **Impact**: Each workflow execution now produces single, consistent report
+
+### Missing Current-Month Content (Fixed)
+- **Problem**: November content from early in month (Watershed CDP partnership, Greenly EcoPilot) excluded from late-month reports
+- **Root Cause**: Agent instructions unclear about current-month inclusion, causing overly aggressive date filtering
+- **Fix**: Enhanced agent and workflow instructions to "default to inclusion" for all press releases, reviews, and product updates from current calendar month
+- **Impact**: Reports now include complete current-month coverage (e.g., all November content when generated on Nov 21)
+
+### Inngest Function ID Collision (Fixed)
+- **Problem**: registerCronWorkflow used hardcoded `id: "cron-trigger"` for all workflows
+- **Fix**: Changed to unique `id: cron-${workflowId}` per workflow
+- **Impact**: Prevents future conflicts when adding multiple cron workflows
+
 ## Technical Limitations
 
 ### G2 Review Scraping
