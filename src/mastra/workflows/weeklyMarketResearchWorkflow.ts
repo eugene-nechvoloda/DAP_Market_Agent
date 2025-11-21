@@ -883,24 +883,25 @@ ${metricsText}
 **YOUR TASK:**
 1. **Prioritize web search results** - they provide the most comprehensive, recent market intelligence
 2. Use curated sources to supplement and validate findings from web searches
-3. **Apply flexible timespan filtering based on content type**:
-   - General news/announcements: 7 days (${inputData.dateStart} to ${inputData.dateEnd})
-   - Product updates/releases: ${productUpdatesLookback} lookback
-   - Press releases: All from ${currentMonth}
-   - User reviews: All from ${currentMonth}
-   - Case studies: ${productUpdatesLookback} lookback
-4. Filter out outdated information from 2020-2024 or earlier
-5. Identify temporal clues and apply smart filtering (be STRICT on news, FLEXIBLE on product updates/press/reviews)
+3. **Apply flexible timespan filtering based on content type (DEFAULT TO INCLUSION FOR CURRENT MONTH)**:
+   - General news/announcements: 7 days (${inputData.dateStart} to ${inputData.dateEnd}), but include current month if no recent news
+   - Product updates/releases: ${productUpdatesLookback} lookback - INCLUDE ALL from ${currentMonth}
+   - Press releases: **ALL from ${currentMonth}** (November 1-21 if generated on Nov 21) - DO NOT exclude early-month press releases
+   - User reviews: **ALL from ${currentMonth}** (November 1-21 if generated on Nov 21) - DO NOT exclude early-month reviews
+   - Case studies: ${productUpdatesLookback} lookback - INCLUDE ALL from ${currentMonth}
+4. Filter out outdated information from 2020-2024 or earlier years only
+5. **ANTI-PATTERN**: Do NOT say "No new updates this week" if there are updates from earlier in ${currentMonth}
 6. Generate a comprehensive market research report following the exact structure in your instructions
 7. Create a brief 2-3 sentence executive summary highlighting the most important findings
 
-**CRITICAL**: 
+**CRITICAL INCLUSION RULES**: 
+- **When in doubt about current month content, INCLUDE IT** - Don't be overly restrictive
 - The web search results are COMPREHENSIVE - you have sufficient data to generate the full report
 - Additional tool calls are OPTIONAL and only needed for specific gaps (e.g., missing user sentiment)
 - You have a budget of up to 3 tool calls if needed, but the provided data should be sufficient
 - Include ALL citations from web searches in your Sources & Citations section
-- Be intelligent about temporal relevance - exclude outdated content
 - Focus on actionable insights for Climatiq.io's product strategy
+- **Example**: If generating a report on Nov 21, include Watershed's CDP partnership announced on Nov 20, Greenly's EcoPilot from earlier in November, etc.
 
 Generate the complete markdown report now using the web search results as your primary source.
 `;
@@ -909,7 +910,7 @@ Generate the complete markdown report now using the web search results as your p
       [{ role: "user", content: prompt }],
       {
         resourceId: "weekly-research",
-        threadId: `weekly-research-${inputData.dateEnd}`,
+        threadId: `weekly-research-${inputData.runId}`, // Use unique runId instead of dateEnd to avoid memory conflicts
         maxSteps: 3, // Limited to 3 steps to respect Perplexity API rate limits (3 requests/min)
       }
     );
