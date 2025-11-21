@@ -8,6 +8,7 @@ const { Pool } = pg;
 
 export interface ReportHistoryRecord {
   id: number;
+  runId: string;
   title: string;
   dateStart: string;
   dateEnd: string;
@@ -112,6 +113,7 @@ export class DatabaseService {
     // Map snake_case column names to camelCase
     return {
       id: row.id,
+      runId: row.run_id,
       title: row.title,
       dateStart: row.date_start,
       dateEnd: row.date_end,
@@ -127,10 +129,20 @@ export class DatabaseService {
   async saveReport(report: Omit<ReportHistoryRecord, 'id' | 'generatedAt'>): Promise<ReportHistoryRecord> {
     const result = await this.pool.query(
       `INSERT INTO report_history 
-       (title, date_start, date_end, google_docs_url, slack_notification_sent, trigger_type, report_content, report_content_html) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+       (run_id, title, date_start, date_end, google_docs_url, slack_notification_sent, trigger_type, report_content, report_content_html) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+       ON CONFLICT (run_id) DO UPDATE SET
+         title = EXCLUDED.title,
+         date_start = EXCLUDED.date_start,
+         date_end = EXCLUDED.date_end,
+         google_docs_url = EXCLUDED.google_docs_url,
+         slack_notification_sent = EXCLUDED.slack_notification_sent,
+         trigger_type = EXCLUDED.trigger_type,
+         report_content = EXCLUDED.report_content,
+         report_content_html = EXCLUDED.report_content_html
        RETURNING *`,
       [
+        report.runId,
         report.title,
         report.dateStart,
         report.dateEnd,
@@ -145,6 +157,7 @@ export class DatabaseService {
     // Map snake_case column names to camelCase
     return {
       id: row.id,
+      runId: row.run_id,
       title: row.title,
       dateStart: row.date_start,
       dateEnd: row.date_end,
@@ -164,6 +177,7 @@ export class DatabaseService {
     // Map each row from snake_case to camelCase
     return result.rows.map((row: any) => ({
       id: row.id,
+      runId: row.run_id,
       title: row.title,
       dateStart: row.date_start,
       dateEnd: row.date_end,
@@ -213,6 +227,7 @@ export class DatabaseService {
     // Map snake_case column names to camelCase
     return {
       id: row.id,
+      runId: row.run_id,
       title: row.title,
       dateStart: row.date_start,
       dateEnd: row.date_end,

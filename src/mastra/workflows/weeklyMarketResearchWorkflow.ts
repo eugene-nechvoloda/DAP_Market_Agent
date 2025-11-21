@@ -1070,6 +1070,7 @@ Generate the complete markdown report now using the web search results as your p
     const title = `Carbon Accounting Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const savedReport = await db.saveReport({
+      runId: inputData.runId, // Idempotent writes using unique workflow run identifier
       title,
       reportContent: reportText,
       reportContentHtml: null, // HTML version will be generated later if needed

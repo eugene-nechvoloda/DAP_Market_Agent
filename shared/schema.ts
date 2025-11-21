@@ -3,6 +3,7 @@ import { pgTable, serial, text, timestamp, integer, boolean, numeric, jsonb, dat
 // Report history table to track all generated reports
 export const reportHistory = pgTable('report_history', {
   id: serial('id').primaryKey(),
+  runId: text('run_id').unique().notNull(), // Unique workflow run identifier for idempotent writes
   title: text('title').notNull(),
   dateStart: text('date_start').notNull(),
   dateEnd: text('date_end').notNull(),
