@@ -973,16 +973,58 @@ const analyzeAndCompileReport = createStep({
         }).join('\n')
       : 'No competitor metrics available (will be populated after first run)';
     
-    // Trim curated data to avoid prompt size limits (prioritize web search results)
-    const trimData = (data: any, maxLength: number = 2000) => {
-      const str = JSON.stringify(data, null, 2);
-      return str.length > maxLength ? str.substring(0, maxLength) + '...[truncated]' : str;
-    };
-    
     // Calculate flexible timespan parameters for agent prompt (reusing dateEnd from metrics section)
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const currentMonth = `${monthNames[dateEnd.getMonth()]} ${dateEnd.getFullYear()}`;
     const productUpdatesLookback = "1 month";
+    
+    // Validate data completeness and provide structured summaries
+    const competitorCount = Array.isArray(sources.competitorData) ? sources.competitorData.length : 0;
+    const reviewsCount = Array.isArray(sources.reviewsData) ? sources.reviewsData.length : 0;
+    const industryCount = Array.isArray(sources.industryData) ? sources.industryData.length : 0;
+    
+    logger?.info('📊 [Step 3] Data completeness check:', {
+      competitorDataItems: competitorCount,
+      reviewsDataItems: reviewsCount,
+      industryDataItems: industryCount,
+    });
+    
+    // Smart summarization with bounded size per category (prevents token overflow)
+    const createBoundedSummary = (data: any, maxChars: number = 10000): string => {
+      if (!data) return '_No data available_';
+      const jsonStr = JSON.stringify(data, null, 2);
+      if (jsonStr.length <= maxChars) return jsonStr;
+      
+      // Intelligently truncate while preserving structure
+      const truncated = jsonStr.substring(0, maxChars);
+      const lastCompleteObject = truncated.lastIndexOf('},');
+      return lastCompleteObject > 0 
+        ? truncated.substring(0, lastCompleteObject + 2) + '\n  ...[Additional items truncated - see full data above]\n]'
+        : truncated + '...[truncated]';
+    };
+    
+    // Ensure all competitors are represented with data summary
+    const allCompetitors = ['watershed', 'persefoni', 'greenly', 'carbmee', 'osapiens', 'sweep', 'normative'];
+    const competitorDataMap = new Map();
+    if (Array.isArray(sources.competitorData)) {
+      sources.competitorData.forEach((item: any) => {
+        const slug = item.competitorSlug || item.competitor;
+        if (slug && !competitorDataMap.has(slug)) {
+          competitorDataMap.set(slug, []);
+        }
+        if (slug) {
+          competitorDataMap.get(slug).push(item);
+        }
+      });
+    }
+    
+    // Log which competitors have data
+    const competitorsWithData = Array.from(competitorDataMap.keys());
+    const competitorsWithoutData = allCompetitors.filter(c => !competitorsWithData.includes(c));
+    logger?.info('📊 [Step 3] Competitor coverage:', {
+      withData: competitorsWithData,
+      withoutData: competitorsWithoutData,
+    });
     
     const prompt = `
 You are conducting the weekly Carbon Accounting Software market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
@@ -1006,16 +1048,18 @@ You have been provided with comprehensive market intelligence from BOTH curated 
 **Answer**: ${inputData.webSearchResults.targetedFollowUpSearch.answer || 'No answer available'}
 **Citations**: ${JSON.stringify(inputData.webSearchResults.targetedFollowUpSearch.citations || [], null, 2)}
 
-## CURATED SOURCE DATA (Supplementary Intelligence - Trimmed):
+## CURATED SOURCE DATA (Structured with Bounded Summaries):
 
-### Competitor News Data:
-${trimData(sources.competitorData, 3000)}
+### Competitor News Data (${competitorCount} items covering ${competitorsWithData.length}/7 competitors):
+**Competitors with data**: ${competitorsWithData.join(', ') || 'None'}
+**Competitors without curated data** (use web search for these): ${competitorsWithoutData.join(', ') || 'None'}
+${createBoundedSummary(sources.competitorData, 15000)}
 
-### Industry Reports Data:
-${trimData(sources.industryData, 2000)}
+### Industry Reports Data (${industryCount} items):
+${createBoundedSummary(sources.industryData, 10000)}
 
-### User Reviews Data:
-${trimData(sources.reviewsData, 2000)}
+### User Reviews Data (${reviewsCount} items - MUST analyze ALL):
+${createBoundedSummary(sources.reviewsData, 10000)}
 
 ## COMPETITOR METRICS (From Database):
 
@@ -1035,6 +1079,25 @@ ${metricsText}
 6. Generate a comprehensive market research report following the exact structure in your instructions
 7. Create a brief 2-3 sentence executive summary highlighting the most important findings
 
+**MANDATORY CONTENT REQUIREMENTS (MUST BE POPULATED)**:
+You MUST include ALL of the following sections in your report. If data is missing for a section, write "_No updates found for [section name]._" instead of omitting the section entirely.
+
+✅ **REQUIRED SECTIONS**:
+- Executive Summary (ALWAYS required)
+- Recent Carbon Accounting Market News (ALWAYS required - write "_No significant market news this week._" if empty)
+- Competitor Spotlights for ALL 7 competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) - ALWAYS required, write "_No updates found for [competitor]._" if no data
+- User Sentiment & Reviews (ALWAYS required - ${reviewsCount} reviews provided, MUST summarize ALL)
+- Industry Trends & Emerging Themes (ALWAYS required)
+- Market Opportunities (ALWAYS required)
+- Potential Threats & Risks (ALWAYS required)
+- Sources & Citations (ALWAYS required - include ALL citations from web searches)
+
+**CRITICAL DATA VALIDATION**:
+- User Reviews: You have ${reviewsCount} review items in the curated data - YOU MUST analyze and summarize ALL of them
+- Competitor Data: You have ${competitorCount} competitor items - YOU MUST create spotlights for ALL 7 competitors using this data
+- Industry Data: You have ${industryCount} industry items - YOU MUST extract sustainability tech trends and market insights
+- If any competitor has no data in the curated sources, use web search results to find updates or write "_No updates found._"
+
 **CRITICAL INCLUSION RULES**: 
 - **When in doubt about current month content, INCLUDE IT** - Don't be overly restrictive
 - The web search results are COMPREHENSIVE - you have sufficient data to generate the full report
@@ -1044,7 +1107,7 @@ ${metricsText}
 - Focus on actionable insights for Climatiq.io's product strategy
 - **Example**: If generating a report on Nov 21, include Watershed's CDP partnership announced on Nov 20, Greenly's EcoPilot from earlier in November, etc.
 
-Generate the complete markdown report now using the web search results as your primary source.
+Generate the complete markdown report now using the web search results as your primary source and ensuring ALL ${competitorCount + reviewsCount + industryCount} curated data items are analyzed.
 `;
     
     const response = await dapMarketResearchAgent.generateLegacy(

@@ -88,6 +88,18 @@ The web report pages include sticky header navigation with a dropdown selector f
 - **Fallback**: If GPT-5 fails, falls back to sensible defaults (7 days for news, current month for updates/reviews/press)
 - **Logging**: GPT-5 reasoning logged for transparency and debugging
 
+### Idempotent Report Writes (Implemented - November 21, 2025)
+- **Problem**: Each workflow run created 2 identical reports in web version (Slack showed 1)
+- **Root Cause**: No unique constraint on report writes, allowing multiple inserts per workflow execution
+- **Fix**: Added `run_id` column with UNIQUE constraint, updated `saveReport` to use `ON CONFLICT (run_id) DO UPDATE` for idempotent writes
+- **Impact**: Single report per workflow run, regardless of how many times save step executes
+
+### Content Completeness Guarantees (Implemented - November 21, 2025)
+- **Problem**: Reports missing G2 reviews, sustainability tech coverage, and competitor spotlights
+- **Root Causes**: (1) trimData truncated curated data to 2-3K chars, cutting off reviews/industry data; (2) Agent prompt didn't require all sections
+- **Fix**: (1) Replaced trimData with `createBoundedSummary` using 10-15K char limits and intelligent JSON truncation; (2) Added explicit MUST-fill directives for all mandatory sections; (3) Added competitor coverage logging showing which competitors have data
+- **Impact**: All curated data flows to final prompt, agent explicitly required to populate all sections or write "_No data available_" fallback
+
 ## Technical Limitations
 
 ### G2 Review Scraping
