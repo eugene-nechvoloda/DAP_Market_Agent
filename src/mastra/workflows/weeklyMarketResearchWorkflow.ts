@@ -11,14 +11,167 @@ import { googleDocsExportTool } from "../tools/googleDocsExportTool";
 import { slackNotificationTool } from "../tools/slackNotificationTool";
 import { db } from "../storage/db.js";
 import { extractMetricsFromText, getAllCompetitorNames } from "../../utils/metricExtraction";
+import { OpenAI } from "openai";
+
+// Configure OpenAI with Replit AI Integrations
+const openaiClient = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+});
 
 const workflowInputSchema = z.object({});
 
-const gatherMarketData = createStep({
-  id: "gather-market-data",
-  description: "Gathers market data from competitor newsrooms, industry reports, and user reviews",
+// Step 0: Intelligent Timespan Determination using GPT-5
+const determineIntelligentTimespans = createStep({
+  id: "determine-intelligent-timespans",
+  description: "Uses GPT-5 to intelligently determine date ranges for different content types based on current date context",
   
   inputSchema: workflowInputSchema,
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    reasoning: z.string(),
+  }),
+  
+  execute: async ({ mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('🧠 [Step 0] Determining intelligent date ranges using GPT-5...');
+    
+    // Generate unique run ID for this workflow execution  
+    const runId = `run-${Date.now()}`;
+    logger?.info('📋 [Step 0] Run ID:', { runId });
+    
+    const now = new Date();
+    const dateEnd = now.toISOString().split('T')[0];
+    const dayOfMonth = now.getDate();
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentMonthName = monthNames[now.getMonth()];
+    const currentYear = now.getFullYear();
+    
+    // Get previous month name
+    const prevMonthDate = new Date(now);
+    prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+    const previousMonthName = monthNames[prevMonthDate.getMonth()];
+    const previousMonthYear = prevMonthDate.getFullYear();
+    
+    logger?.info(`📅 [Step 0] Current date context: ${currentMonthName} ${dayOfMonth}, ${currentYear}`);
+    
+    const prompt = `You are a market research analyst determining intelligent date ranges for different content types in a weekly market research report.
+
+**Current Date:** ${currentMonthName} ${dayOfMonth}, ${currentYear}
+**Previous Month:** ${previousMonthName} ${previousMonthYear}
+
+**Your Task:** Determine smart date ranges for each content type based on the current date context:
+
+1. **General News/Announcements** - Typically 7 days, but consider if we're early in the month
+2. **Product Updates/Launches** - Usually 1 month, but consider current month context
+3. **User Reviews** - Should capture current month, but consider if we're early/mid/late in month
+4. **Press Releases** - Should capture current month activity
+
+**Guidelines:**
+- **Mid to Late Month (day 15-31)**: Include ALL content from the entire current month
+  - Example: If today is November 21, include all November content (Nov 1-21)
+- **Early Month (day 1-7)**: Include late previous month + current month
+  - Example: If today is December 3, include late November (Nov 15-30) + early December (Dec 1-3)
+- **Always prioritize recency** - More recent content is more valuable
+- **Be generous with inclusion** - Better to include too much than miss important updates
+
+Return your decision as structured data with:
+- generalNewsDateStart: Start date for general news (YYYY-MM-DD)
+- productUpdatesDateStart: Start date for product updates (YYYY-MM-DD)
+- reviewsDateStart: Start date for reviews (YYYY-MM-DD)
+- pressReleasesDateStart: Start date for press releases (YYYY-MM-DD)
+- currentMonth: Current month name and year (e.g., "November 2025")
+- productUpdatesLookback: Human-readable lookback period (e.g., "1 month")
+- reasoning: Brief explanation of your date range decisions`;
+
+    try {
+      const response = await openaiClient.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant that responds in JSON format. Always respond with valid JSON matching the requested structure."
+          },
+          {
+            role: "user",
+            content: prompt + `\n\nRespond with valid JSON in this exact format:
+{
+  "generalNewsDateStart": "YYYY-MM-DD",
+  "productUpdatesDateStart": "YYYY-MM-DD",
+  "reviewsDateStart": "YYYY-MM-DD",
+  "pressReleasesDateStart": "YYYY-MM-DD",
+  "currentMonth": "Month YYYY",
+  "productUpdatesLookback": "human readable period",
+  "reasoning": "your explanation"
+}`
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const resultText = response.choices[0]?.message?.content || "{}";
+      const timespans = JSON.parse(resultText);
+      
+      logger?.info('✅ [Step 0] GPT-5 determined intelligent timespans:', timespans);
+      
+      return {
+        runId,
+        dateEnd,
+        generalNewsDateStart: timespans.generalNewsDateStart,
+        productUpdatesDateStart: timespans.productUpdatesDateStart,
+        reviewsDateStart: timespans.reviewsDateStart,
+        pressReleasesDateStart: timespans.pressReleasesDateStart,
+        currentMonth: timespans.currentMonth,
+        productUpdatesLookback: timespans.productUpdatesLookback,
+        reasoning: timespans.reasoning,
+      };
+    } catch (error) {
+      logger?.error('❌ [Step 0] Failed to determine intelligent timespans, falling back to defaults:', error);
+      
+      // Fallback to sensible defaults if GPT-5 fails
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      return {
+        runId,
+        dateEnd,
+        generalNewsDateStart: sevenDaysAgo.toISOString().split('T')[0],
+        productUpdatesDateStart: monthStart.toISOString().split('T')[0],
+        reviewsDateStart: monthStart.toISOString().split('T')[0],
+        pressReleasesDateStart: monthStart.toISOString().split('T')[0],
+        currentMonth: `${currentMonthName} ${currentYear}`,
+        productUpdatesLookback: "1 month",
+        reasoning: "Fallback: GPT-5 failed, using default ranges (7 days for news, current month for updates/reviews/press)",
+      };
+    }
+  },
+});
+
+const gatherMarketData = createStep({
+  id: "gather-market-data",
+  description: "Gathers market data from competitor newsrooms, industry reports, and user reviews using GPT-5 determined date ranges",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    reasoning: z.string(),
+  }),
   
   outputSchema: z.object({
     runId: z.string(),
@@ -27,28 +180,18 @@ const gatherMarketData = createStep({
     weekRangeLabel: z.string(),
   }),
   
-  execute: async ({ mastra, runtimeContext }) => {
+  execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🚀 [Step 1] Starting market data gathering...');
+    logger?.info('🚀 [Step 1] Starting market data gathering with GPT-5 determined timespans...');
+    logger?.info('🧠 [Step 1] GPT-5 Reasoning:', inputData.reasoning);
     
-    // Generate unique run ID for this workflow execution  
-    const runId = `run-${Date.now()}`;
-    logger?.info('📋 [Step 1] Run ID:', { runId });
+    // Use the most general date start (general news) for overall week range
+    const dateStartStr = inputData.generalNewsDateStart;
+    const dateEndStr = inputData.dateEnd;
     
-    // Check if this is the first run by looking for previous reports
-    const lastReport = await db.getLastReport();
-    const isFirstRun = !lastReport;
-    
-    // Calculate date range: 90 days for first run, 7 days for subsequent runs
-    const dateEnd = new Date();
-    const dateStart = new Date();
-    const daysToLookBack = isFirstRun ? 90 : 7;
-    dateStart.setDate(dateStart.getDate() - daysToLookBack);
-    
-    const dateStartStr = dateStart.toISOString().split('T')[0];
-    const dateEndStr = dateEnd.toISOString().split('T')[0];
-    
-    // Format week range label for document title (e.g., "Nov 6-13, 2025" or "Aug 15-Nov 13, 2025" for first run)
+    // Format week range label for document title
+    const dateStart = new Date(dateStartStr);
+    const dateEnd = new Date(dateEndStr);
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const startMonth = monthNames[dateStart.getMonth()];
     const endMonth = monthNames[dateEnd.getMonth()];
@@ -56,27 +199,22 @@ const gatherMarketData = createStep({
       ? `${startMonth} ${dateStart.getDate()}-${dateEnd.getDate()}, ${dateEnd.getFullYear()}`
       : `${startMonth} ${dateStart.getDate()}, ${dateStart.getFullYear()}-${endMonth} ${dateEnd.getDate()}, ${dateEnd.getFullYear()}`;
     
-    // Calculate flexible timespan parameters
-    const currentMonth = `${monthNames[dateEnd.getMonth()]} ${dateEnd.getFullYear()}`;
-    const productUpdatesLookback = "1 month";
-    
-    logger?.info('📅 [Step 1] Date range:', { 
-      dateStart: dateStartStr, 
-      dateEnd: dateEndStr, 
-      daysLookback: daysToLookBack, 
-      isFirstRun,
-      currentMonth,
-      productUpdatesLookback,
+    logger?.info('📅 [Step 1] Using intelligent date ranges:', { 
+      generalNews: `${inputData.generalNewsDateStart} to ${dateEndStr}`,
+      productUpdates: `${inputData.productUpdatesDateStart} to ${dateEndStr}`,
+      reviews: `${inputData.reviewsDateStart} to ${dateEndStr}`,
+      pressReleases: `${inputData.pressReleasesDateStart} to ${dateEndStr}`,
+      currentMonth: inputData.currentMonth,
     });
     
-    // Gather data from all sources
+    // Gather data from all sources using intelligent timespans
     logger?.info('🏢 [Step 1] Gathering competitor news...');
     const competitorData = await competitorNewsResearchTool.execute({
       context: { 
-        dateStart: dateStartStr, 
+        dateStart: inputData.generalNewsDateStart, // Use general news date for most sources
         dateEnd: dateEndStr,
-        currentMonth,
-        productUpdatesLookback,
+        currentMonth: inputData.currentMonth,
+        productUpdatesLookback: inputData.productUpdatesLookback,
       },
       runtimeContext,
       mastra,
@@ -84,7 +222,10 @@ const gatherMarketData = createStep({
     
     logger?.info('📊 [Step 1] Gathering industry reports...');
     const industryData = await industryReportsResearchTool.execute({
-      context: { dateStart: dateStartStr, dateEnd: dateEndStr },
+      context: { 
+        dateStart: inputData.generalNewsDateStart, 
+        dateEnd: dateEndStr 
+      },
       runtimeContext,
       mastra,
     });
@@ -92,9 +233,9 @@ const gatherMarketData = createStep({
     logger?.info('⭐ [Step 1] Gathering user reviews...');
     const reviewsData = await userReviewsResearchTool.execute({
       context: { 
-        dateStart: dateStartStr, 
+        dateStart: inputData.reviewsDateStart, // Use reviews-specific date range
         dateEnd: dateEndStr,
-        currentMonth,
+        currentMonth: inputData.currentMonth,
       },
       runtimeContext,
       mastra,
@@ -103,18 +244,18 @@ const gatherMarketData = createStep({
     logger?.info('✅ [Step 1] Market data gathering complete');
     
     // Save curated data to database to avoid Inngest step output size limits
-    logger?.info('💾 [Step 1] Saving curated data to database:',{
+    logger?.info('💾 [Step 1] Saving curated data to database:', {
       competitorDataSize: JSON.stringify(competitorData).length,
       industryDataSize: JSON.stringify(industryData).length,
       reviewsDataSize: JSON.stringify(reviewsData).length,
     });
     
-    await db.saveReportSources(runId, competitorData, industryData, reviewsData);
+    await db.saveReportSources(inputData.runId, competitorData, industryData, reviewsData);
     logger?.info('✅ [Step 1] Curated data saved to database');
     
     // Return only lightweight metadata
     return {
-      runId,
+      runId: inputData.runId,
       dateStart: dateStartStr,
       dateEnd: dateEndStr,
       weekRangeLabel,
@@ -1150,6 +1291,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
     documentUrl: z.string().optional(),
   }),
 })
+  .then(determineIntelligentTimespans as any) // Step 0: GPT-5 determines intelligent date ranges
   .then(gatherMarketData as any)
   .then(performWebSearches as any)
   .then(searchFundingMetrics as any)

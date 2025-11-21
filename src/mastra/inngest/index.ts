@@ -97,7 +97,7 @@ export function registerCronWorkflow(cronExpression: string, workflow: any) {
   const workflowId = workflow.id || 'weekly-market-research';
   const f = inngest.createFunction(
     { id: `cron-${workflowId}` }, // Use unique ID based on workflow to avoid conflicts
-    [{ event: "replit/cron.trigger" }, { cron: cronExpression }],
+    { cron: cronExpression }, // Only use cron trigger (not event trigger) to prevent duplicate executions
     async ({ event, step }) => {
       const run = await workflow.createRunAsync();
       const result = await run.start({ inputData: {} });
