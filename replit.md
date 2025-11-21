@@ -49,7 +49,7 @@ The web report pages include sticky header navigation with a dropdown selector f
 ## Feature Specifications
 
 - **Competitor Research**: Expanded from 8 to 21 URLs per competitor, covering newsletters, case studies, press releases, insights pages, and newsrooms.
-- **Intelligent Timespan Filtering**: Content filtering based on publication frequency: 7-day for general news, 1-month for product updates and case studies, current calendar month for press releases and user reviews.
+- **Intelligent Timespan Filtering**: GPT-5-powered context-aware date range determination that considers current date position (mid/late month = full current month, early month = late previous month + current month) for general news, product updates, reviews, and press releases. Replaces rigid heuristic rules with adaptive intelligence.
 - **Metric Extraction**: Captures funding, valuation, revenue, employees, customer count, churn rate, user base, and user growth rates. Trend calculation logic implemented with ▲▼━🆕 indicators.
 - **Report Generation**: Uses GPT-5 for synthesis, ensuring inline citations with URL validation and strict anti-hallucination rules.
 - **Google Docs Export**: Utilizes a two-phase pipeline for native table insertion and cell population, ensuring correct data representation.
@@ -74,6 +74,19 @@ The web report pages include sticky header navigation with a dropdown selector f
 - **Problem**: registerCronWorkflow used hardcoded `id: "cron-trigger"` for all workflows
 - **Fix**: Changed to unique `id: cron-${workflowId}` per workflow
 - **Impact**: Prevents future conflicts when adding multiple cron workflows
+
+### Duplicate Trigger Execution (Fixed - November 21, 2025)
+- **Problem**: Reports #45 and #46 created with split content (G2 reviews in one, general news in another)
+- **Root Cause**: Inngest function registered with BOTH `{ event: "replit/cron.trigger" }` AND `{ cron: cronExpression }` triggers, causing two executions per cron fire
+- **Fix**: Changed to single `{ cron: cronExpression }` trigger only in `registerCronWorkflow`
+- **Impact**: Single workflow execution per cron schedule, single report per run
+
+### GPT-5 Intelligent Timespan Filtering (Implemented - November 21, 2025)
+- **Feature**: Replaced heuristic date filtering with GPT-5-powered context-aware date range determination
+- **Implementation**: New `determineIntelligentTimespans` workflow step uses GPT-5 to decide date ranges based on current date (mid/late month = full current month, early month = late previous month + current month)
+- **Benefits**: More flexible and intelligent content inclusion that adapts to calendar context
+- **Fallback**: If GPT-5 fails, falls back to sensible defaults (7 days for news, current month for updates/reviews/press)
+- **Logging**: GPT-5 reasoning logged for transparency and debugging
 
 ## Technical Limitations
 
