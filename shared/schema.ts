@@ -134,3 +134,19 @@ export const competitorSources = pgTable('competitor_sources', {
   // Index for category-based filtering
   categoryIdx: index('idx_competitor_sources_category').on(table.category),
 }));
+
+// Industry research sources table for tracking general carbon accounting industry data sources
+export const industrySources = pgTable('industry_sources', {
+  id: serial('id').primaryKey(),
+  sourceName: text('source_name').notNull(), // e.g., "GHG Protocol", "Carbon Brief", "CDP"
+  url: text('url').notNull().unique(), // Unique constraint to prevent duplicates
+  description: text('description'), // Optional description of what this source provides
+  category: text('category').notNull(), // standards, news, reports, policy, research
+  isActive: boolean('is_active').default(true).notNull(), // Allow disabling sources without deleting
+  timeFilter: text('time_filter').default('1month'), // '7days', '1month', 'current_month' - smart filtering based on update frequency
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  // Index for category-based filtering
+  categoryIdx: index('idx_industry_sources_category').on(table.category),
+}));
