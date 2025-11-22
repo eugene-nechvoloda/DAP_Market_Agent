@@ -27,6 +27,7 @@ export function createWorkflow(
 export { inngest, createStep, cloneStep };
 
 const inngestFunctions: InngestFunction.Any[] = [];
+const registeredCronWorkflows = new Set<string>(); // Guard against duplicate cron registrations
 
 // Create a middleware for Inngest to be able to route triggers to Mastra directly.
 export function registerApiRoute<P extends string>(
@@ -95,6 +96,17 @@ export function registerApiRoute<P extends string>(
 
 export function registerCronWorkflow(cronExpression: string, workflow: any) {
   const workflowId = workflow.id || 'weekly-market-research';
+  const registrationKey = `${workflowId}-${cronExpression}`;
+  
+  // Guard: Prevent duplicate cron registrations (can happen when index.ts loads multiple times during boot)
+  if (registeredCronWorkflows.has(registrationKey)) {
+    console.warn(`⚠️ [registerCronWorkflow] Skipping duplicate registration for ${workflowId} (${cronExpression})`);
+    return;
+  }
+  
+  console.log(`✅ [registerCronWorkflow] Registering cron workflow: ${workflowId} with schedule ${cronExpression}`);
+  registeredCronWorkflows.add(registrationKey);
+  
   const f = inngest.createFunction(
     { id: `cron-${workflowId}` }, // Use unique ID based on workflow to avoid conflicts
     { cron: cronExpression }, // Only use cron trigger (not event trigger) to prevent duplicate executions
