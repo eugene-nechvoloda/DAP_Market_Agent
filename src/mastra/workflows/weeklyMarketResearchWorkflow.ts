@@ -978,14 +978,18 @@ const analyzeAndCompileReport = createStep({
     const productUpdatesLookback = "1 month";
     
     // Validate data completeness and provide structured summaries
+    // Note: reviewsData is an object with { competitors: [...] }, not a plain array
     const competitorCount = Array.isArray(sources.competitorData) ? sources.competitorData.length : 0;
-    const reviewsCount = Array.isArray(sources.reviewsData) ? sources.reviewsData.length : 0;
+    const reviewsCount = (sources.reviewsData?.competitors && Array.isArray(sources.reviewsData.competitors)) 
+      ? sources.reviewsData.competitors.length 
+      : 0;
     const industryCount = Array.isArray(sources.industryData) ? sources.industryData.length : 0;
     
     logger?.info('📊 [Step 3] Data completeness check:', {
       competitorDataItems: competitorCount,
       reviewsDataItems: reviewsCount,
       industryDataItems: industryCount,
+      reviewsDataStructure: sources.reviewsData ? Object.keys(sources.reviewsData) : 'null',
     });
     
     // Smart summarization with bounded size per category (prevents token overflow)
@@ -1121,7 +1125,24 @@ Generate the complete markdown report now using the web search results as your p
     logger?.info('✅ [Step 3] Agent analysis and report compilation complete');
     
     // Extract a summary from the report (first paragraph or executive summary)
-    const reportText = response.text;
+    const reportText = response.text || '';
+    
+    // Log response structure for debugging
+    logger?.info('📝 [Step 3] Agent response:', {
+      hasText: !!response.text,
+      textLength: reportText.length,
+      textPreview: reportText.substring(0, 200),
+      responseKeys: Object.keys(response),
+    });
+    
+    // Validate report content
+    if (!reportText || reportText.trim().length === 0) {
+      logger?.error('❌ [Step 3] Agent returned empty report text!', {
+        response: JSON.stringify(response).substring(0, 500),
+      });
+      throw new Error('Agent returned empty report text - check agent configuration and prompt');
+    }
+    
     const summaryMatch = reportText.match(/##\s*Executive Summary\s*\n([\s\S]*?)(?=\n##|$)/i);
     const summary = summaryMatch 
       ? summaryMatch[1].trim().substring(0, 500) 
