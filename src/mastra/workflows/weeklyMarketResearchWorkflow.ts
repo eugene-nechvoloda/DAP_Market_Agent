@@ -177,6 +177,12 @@ const gatherMarketData = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
   }),
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
@@ -252,25 +258,37 @@ const gatherMarketData = createStep({
     await db.saveReportSources(inputData.runId, competitorData, industryData, reviewsData);
     logger?.info('✅ [Step 1] Curated data saved to database');
     
-    // Return only lightweight metadata
+    // Return metadata including intelligent timespan info for downstream search queries
     return {
       runId: inputData.runId,
       dateStart: dateStartStr,
       dateEnd: dateEndStr,
       weekRangeLabel,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      currentMonth: inputData.currentMonth,
+      reasoning: inputData.reasoning,
     };
   },
 });
 
 const performWebSearches = createStep({
   id: "perform-web-searches",
-  description: "Performs two web searches for comprehensive market intelligence",
+  description: "Performs two web searches for comprehensive market intelligence using GPT-5 intelligent timespans",
   
   inputSchema: z.object({
     runId: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
   }),
   
   outputSchema: z.object({
@@ -278,6 +296,12 @@ const performWebSearches = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -286,19 +310,22 @@ const performWebSearches = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🔍 [Step 2] Performing web searches for market intelligence...');
+    logger?.info('🔍 [Step 2] Performing web searches for market intelligence with intelligent timespans...');
+    logger?.info('🧠 [Step 2] Using GPT-5 date logic:', inputData.reasoning);
     
-    // Calculate date range for search queries
-    const dateStart = new Date(inputData.dateStart);
+    // Format intelligent date range for general news search (use generalNewsDateStart)
+    const dateStart = new Date(inputData.generalNewsDateStart);
     const dateEnd = new Date(inputData.dateEnd);
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const startMonth = monthNames[dateStart.getMonth()];
     const endMonth = monthNames[dateEnd.getMonth()];
     const dateRange = `${startMonth} ${dateStart.getDate()}-${endMonth !== startMonth ? endMonth + ' ' : ''}${dateEnd.getDate()} ${dateEnd.getFullYear()}`;
     
-    // Search 1: Broad weekly market pulse
+    // Search 1: Broad weekly market pulse (using intelligent general news timespan)
     logger?.info('🔍 [Step 2.1] Executing broad weekly market pulse search...');
     const broadPulseQuery = `Carbon accounting software news ${dateRange}: Watershed Persefoni Greenly carbmee osapiens Sweep Normative funding acquisitions product launches partnerships industry trends market analysis`;
+    
+    logger?.info('📝 [Step 2.1] Query with intelligent timespan:', broadPulseQuery);
     
     const broadPulseSearch = await webSearchTool.execute({
       context: {
@@ -314,9 +341,11 @@ const performWebSearches = createStep({
       citationsCount: broadPulseSearch.citations?.length || 0,
     });
     
-    // Search 2: Targeted follow-up (market data focus)
+    // Search 2: Targeted follow-up (market data focus - current month context)
     logger?.info('🔍 [Step 2.2] Executing targeted follow-up search...');
-    const targetedQuery = `Carbon accounting software market size growth rate ${dateEnd.getFullYear()} investment trends CAGR analyst reports Forrester Gartner climate tech sustainability ESG market forecast`;
+    const targetedQuery = `Carbon accounting software market size growth rate as of ${inputData.currentMonth}, investment trends, CAGR analyst reports, Forrester/Gartner climate tech sustainability ESG market forecast`;
+    
+    logger?.info('📝 [Step 2.2] Query with current month context:', targetedQuery);
     
     const targetedFollowUpSearch = await webSearchTool.execute({
       context: {
@@ -369,6 +398,12 @@ const performWebSearches = createStep({
       dateStart: inputData.dateStart,
       dateEnd: inputData.dateEnd,
       weekRangeLabel: inputData.weekRangeLabel,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      currentMonth: inputData.currentMonth,
+      reasoning: inputData.reasoning,
       webSearchResults: {
         broadPulseSearch: trimmedBroadPulse,
         targetedFollowUpSearch: trimmedTargetedSearch,
@@ -380,13 +415,19 @@ const performWebSearches = createStep({
 // Step 2.5.1: Search for funding metrics
 const searchFundingMetrics = createStep({
   id: "search-funding-metrics",
-  description: "Search for competitor funding and valuation data",
+  description: "Search for competitor funding and valuation data using GPT-5 intelligent timespans",
   
   inputSchema: z.object({
     runId: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -398,6 +439,12 @@ const searchFundingMetrics = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -408,7 +455,8 @@ const searchFundingMetrics = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💸 [Step 2.5.1] Searching for funding and financial data...');
+    logger?.info('💸 [Step 2.5.1] Searching for funding and financial data with intelligent timespans...');
+    logger?.info('🧠 [Step 2.5.1] Using GPT-5 date logic:', inputData.reasoning);
     
     // Calculate reporting week start (Monday of the current week)
     const dateEnd = new Date(inputData.dateEnd);
@@ -422,8 +470,18 @@ const searchFundingMetrics = createStep({
       reportingWeekStart: reportingWeekStart.toISOString().split('T')[0] 
     });
     
+    // Format intelligent date range for press releases (funding announcements)
+    const pressStart = new Date(inputData.pressReleasesDateStart);
+    const pressEnd = new Date(inputData.dateEnd);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const pressStartMonth = monthNames[pressStart.getMonth()];
+    const pressEndMonth = monthNames[pressEnd.getMonth()];
+    const pressDateRange = `${pressStartMonth} ${pressStart.getDate()}-${pressEndMonth !== pressStartMonth ? pressEndMonth + ' ' : ''}${pressEnd.getDate()} ${pressEnd.getFullYear()}`;
+    
     const competitorNames = getAllCompetitorNames();
-    const fundingQuery = `${competitorNames.join(' OR ')} carbon accounting software funding rounds valuation revenue 2024 2025 Series A B C investment TechCrunch Crunchbase`;
+    const fundingQuery = `${competitorNames.join(' OR ')} carbon accounting software funding rounds (Series A B C investment, TechCrunch/Crunchbase) ${pressDateRange}, valuation, revenue as of ${inputData.currentMonth}`;
+    
+    logger?.info('📝 [Step 2.5.1] Query with intelligent timespan:', fundingQuery);
     
     const fundingSearch = await webSearchTool.execute({
       context: {
@@ -484,13 +542,19 @@ const searchFundingMetrics = createStep({
 // Step 2.5.2: Search for revenue and employee metrics
 const searchRevenueMetrics = createStep({
   id: "search-revenue-metrics",
-  description: "Search for competitor revenue and employee data",
+  description: "Search for competitor revenue and employee data at running report date",
   
   inputSchema: z.object({
     runId: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -504,6 +568,12 @@ const searchRevenueMetrics = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -515,10 +585,13 @@ const searchRevenueMetrics = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('📊 [Step 2.5.2] Searching for revenue and employee data...');
+    logger?.info('📊 [Step 2.5.2] Searching for revenue and employee data at running report date...');
+    logger?.info('🧠 [Step 2.5.2] Using GPT-5 date logic:', inputData.reasoning);
     
     const competitorNames = getAllCompetitorNames();
-    const revenueQuery = `${competitorNames.join(' OR ')} carbon accounting software revenue ARR annual recurring employees headcount company size 2024 2025 financial performance`;
+    const revenueQuery = `${competitorNames.join(' OR ')} carbon accounting software revenue, ARR, annual recurring employees headcount, company size as of ${inputData.currentMonth}`;
+    
+    logger?.info('📝 [Step 2.5.2] Query with current month context:', revenueQuery);
     
     const revenueSearch = await webSearchTool.execute({
       context: {
@@ -578,13 +651,19 @@ const searchRevenueMetrics = createStep({
 // Step 2.5.3: Search for customer health metrics
 const searchCustomerMetrics = createStep({
   id: "search-customer-metrics",
-  description: "Search for competitor customer count, churn, and retention data",
+  description: "Search for competitor customer count, churn, and retention data at running report date",
   
   inputSchema: z.object({
     runId: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -599,6 +678,12 @@ const searchCustomerMetrics = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -611,10 +696,13 @@ const searchCustomerMetrics = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('👥 [Step 2.5.3] Searching for customer base and churn data...');
+    logger?.info('👥 [Step 2.5.3] Searching for customer base and churn data at running report date...');
+    logger?.info('🧠 [Step 2.5.3] Using GPT-5 date logic:', inputData.reasoning);
     
     const competitorNames = getAllCompetitorNames();
-    const customerQuery = `${competitorNames.join(' OR ')} carbon accounting software customers client count user base active users churn rate retention rate user growth 2024 2025 customer base`;
+    const customerQuery = `${competitorNames.join(' OR ')} carbon accounting software customers client count user base active users churn rate retention rate user growth as of ${inputData.currentMonth}`;
+    
+    logger?.info('📝 [Step 2.5.3] Query with current month context:', customerQuery);
     
     const customerSearch = await webSearchTool.execute({
       context: {
@@ -671,16 +759,22 @@ const searchCustomerMetrics = createStep({
   },
 });
 
-// Step 2.5.4: Persist all metrics to database
-const persistCompetitorMetrics = createStep({
-  id: "persist-competitor-metrics",
-  description: "Merge and persist all competitor metrics to database",
+// Step 2.5.4: Search for user feedback and reviews
+const searchUserFeedback = createStep({
+  id: "search-user-feedback",
+  description: "Search for recent real user feedback and reviews with GPT-5 intelligent timespans",
   
   inputSchema: z.object({
     runId: z.string(),
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
@@ -696,16 +790,137 @@ const persistCompetitorMetrics = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      userFeedbackSearch: z.any().optional(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('💬 [Step 2.5.4] Searching for recent real user feedback and reviews...');
+    logger?.info('🧠 [Step 2.5.4] Using GPT-5 date logic:', inputData.reasoning);
+    
+    // Format intelligent date range for reviews (use reviewsDateStart)
+    const reviewsStart = new Date(inputData.reviewsDateStart);
+    const reviewsEnd = new Date(inputData.dateEnd);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const reviewsStartMonth = monthNames[reviewsStart.getMonth()];
+    const reviewsEndMonth = monthNames[reviewsEnd.getMonth()];
+    const reviewsDateRange = `${reviewsStartMonth} ${reviewsStart.getDate()}-${reviewsEndMonth !== reviewsStartMonth ? reviewsEndMonth + ' ' : ''}${reviewsEnd.getDate()} ${reviewsEnd.getFullYear()}`;
+    
+    const competitorNames = getAllCompetitorNames();
+    const feedbackQuery = `${competitorNames.join(' OR ')} carbon accounting software recent real users feedback/review ${reviewsDateRange}`;
+    
+    logger?.info('📝 [Step 2.5.4] Query with intelligent timespan:', feedbackQuery);
+    
+    const feedbackSearch = await webSearchTool.execute({
+      context: {
+        query: feedbackQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    logger?.info('✅ [Step 2.5.4] User feedback search completed:', {
+      success: feedbackSearch.success,
+      citationsCount: feedbackSearch.citations?.length || 0,
+    });
+    
+    // Trim feedback search results similar to other searches
+    const trimCitations = (citations: any[]) => 
+      citations.slice(0, 5).map(c => ({
+        title: c.title?.substring(0, 150) || '',
+        url: c.url || '',
+      }));
+    
+    const trimmedFeedbackSearch = {
+      success: feedbackSearch.success,
+      query: feedbackSearch.query,
+      answer: feedbackSearch.answer || '',
+      citations: trimCitations(feedbackSearch.citations || []),
+      error: feedbackSearch.error,
+    };
+    
+    // Return all intelligent timespan data for downstream steps
+    return {
+      runId: inputData.runId,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      weekRangeLabel: inputData.weekRangeLabel,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      currentMonth: inputData.currentMonth,
+      reasoning: inputData.reasoning,
+      webSearchResults: {
+        ...inputData.webSearchResults,
+        userFeedbackSearch: trimmedFeedbackSearch,
+      },
+      fundingMetrics: inputData.fundingMetrics,
+      revenueMetrics: inputData.revenueMetrics,
+      customerMetrics: inputData.customerMetrics,
+      reportingWeekStart: inputData.reportingWeekStart,
+    };
+  },
+});
+
+// Step 2.5.5: Persist all metrics to database
+const persistCompetitorMetrics = createStep({
+  id: "persist-competitor-metrics",
+  description: "Merge and persist all competitor metrics to database",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+      userFeedbackSearch: z.any().optional(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+      userFeedbackSearch: z.any().optional(),
     }),
     metricsGathered: z.boolean(),
   }),
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💾 [Step 2.5.4] Merging and persisting competitor metrics...');
+    logger?.info('💾 [Step 2.5.5] Merging and persisting competitor metrics...');
     
     // Merge all metrics by competitor slug
     const allMetrics: any[] = [];
@@ -739,7 +954,7 @@ const persistCompetitorMetrics = createStep({
     // Convert map to array
     metricsMap.forEach(metric => allMetrics.push(metric));
     
-    logger?.info(`📊 [Step 2.5.4] Merged metrics for ${allMetrics.length} competitors`, {
+    logger?.info(`📊 [Step 2.5.5] Merged metrics for ${allMetrics.length} competitors`, {
       competitors: allMetrics.map(m => ({
         slug: m.competitorSlug,
         hasRevenue: !!m.revenueUsd,
@@ -763,7 +978,7 @@ const persistCompetitorMetrics = createStep({
     
     for (const metrics of allMetrics) {
       try {
-        logger?.info(`💾 [Step 2.5.4] Storing metrics for ${metrics.competitorSlug}:`, {
+        logger?.info(`💾 [Step 2.5.5] Storing metrics for ${metrics.competitorSlug}:`, {
           revenue: metrics.revenueUsd,
           valuation: metrics.valuationUsd,
           funding: metrics.fundingTotalUsd,
@@ -812,11 +1027,11 @@ const persistCompetitorMetrics = createStep({
         });
         storedCount++;
       } catch (error) {
-        logger?.error(`❌ [Step 2.5.4] Failed to store metrics for ${metrics.competitorSlug}:`, error);
+        logger?.error(`❌ [Step 2.5.5] Failed to store metrics for ${metrics.competitorSlug}:`, error);
       }
     }
     
-    logger?.info(`✅ [Step 2.5.4] Stored metrics for ${storedCount}/${allMetrics.length} competitors`);
+    logger?.info(`✅ [Step 2.5.5] Stored metrics for ${storedCount}/${allMetrics.length} competitors`);
     
     return {
       runId: inputData.runId,
@@ -1381,6 +1596,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   .then(searchFundingMetrics as any)
   .then(searchRevenueMetrics as any)
   .then(searchCustomerMetrics as any)
+  .then(searchUserFeedback as any) // Step 2.5.4: Search for user feedback with intelligent timespans
   .then(persistCompetitorMetrics as any)
   .then(calculateCompetitorTrends as any)
   .then(analyzeAndCompileReport as any)
