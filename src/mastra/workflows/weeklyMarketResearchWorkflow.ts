@@ -40,13 +40,12 @@ const determineIntelligentTimespans = createStep({
     reasoning: z.string(),
   }),
   
-  execute: async ({ mastra }) => {
+  execute: async ({ mastra, runId }) => {
     const logger = mastra?.getLogger();
     logger?.info('🧠 [Step 0] Determining intelligent date ranges using GPT-5...');
     
-    // Generate unique run ID for this workflow execution  
-    const runId = `run-${Date.now()}`;
-    logger?.info('📋 [Step 0] Run ID:', { runId });
+    // Use workflow execution runId from context (NOT Date.now()) to ensure consistency across all steps
+    logger?.info('📋 [Step 0] Using workflow run ID from context:', { runId });
     
     const now = new Date();
     const dateEnd = now.toISOString().split('T')[0];
