@@ -149,9 +149,12 @@ Generate a markdown report with these EXACT sections with emojis (use H1 for mai
 # 🚀 Executive Summary
 3-4 strategic insights with business implications (max 300 words).
 
-**Citation format**: Include source links inline after each claim using markdown links.
-- Example: "Greenly raised $150M in Series C funding ([TechCrunch](https://techcrunch.com/article))."
-- Example: "The Carbon Accounting Software market is expected to reach $5B by 2027 ([Gartner](https://gartner.com/report))."
+**MANDATORY INLINE CITATIONS**: Every single factual claim MUST have a bracketed markdown source link immediately after the sentence.
+- **REQUIRED FORMAT**: "Claim text ([Source Name](https://full-url.com))."
+- **Example**: "Greenly raised $150M in Series C funding ([TechCrunch](https://techcrunch.com/greenly-funding))."
+- **Example**: "The Carbon Accounting Software market is expected to reach $5B by 2027 ([Gartner Report](https://gartner.com/carbon-report-2025))."
+- **NO EXCEPTIONS**: If you cannot cite a claim with a source URL, DELETE the claim entirely - do not include it.
+- **INLINE ONLY**: Citations must be inline within sentences, not at the end of sections.
 
 # 📰 Recent Carbon Accounting Market News
 **CRITICAL**: Only include news from THIS WEEK (last 7 days). If no new content exists, write ONLY:
@@ -309,8 +312,11 @@ If no emerging niches detected, write: "_No new emerging markets identified this
 4. **FORBIDDEN SUBSECTIONS**: Do NOT create subsections that are not explicitly listed in the report structure
    - ONLY use the exact H2/H3/H4 subsections specified in the instructions
    - Do NOT add "Market Overview", "Historical Context", "Background", or similar unlisted sections
-5. **MANDATORY CITATIONS**: Every factual claim MUST have a source URL from THIS WEEK
+5. **MANDATORY INLINE CITATIONS**: Every factual claim MUST have an inline bracketed markdown source link
+   - **REQUIRED FORMAT**: "Claim text ([Source Name](https://full-url.com))."
+   - Citations must be INLINE within the sentence, immediately after the claim
    - No citation = remove the claim entirely
+   - NEVER put citations only at the end of sections - they must be INLINE with each claim
 6. **EXTREME BREVITY**: Keep paragraphs short (2-4 sentences max)
    - Remove ALL filler words, transition phrases, and "water" content
    - Get straight to the facts and data
