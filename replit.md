@@ -114,6 +114,24 @@ The web report pages include sticky header navigation with a dropdown selector f
 - **Database Methods**: Added `getAllIndustrySources()` and `getIndustrySourcesByCategory()` to DatabaseService
 - **Impact**: Centralized management of industry research URLs, enabling systematic tracking of carbon accounting standards, climate policy, and market intelligence sources
 
+### Duplicate Cron Registration Prevention (Fixed - November 22, 2025)
+- **Problem**: Server bootstrap could potentially register the same cron workflow multiple times if `registerCronWorkflow` was called during module reloads
+- **Root Cause**: No deduplication mechanism in cron registration logic
+- **Fix**: Added `registeredCronWorkflows` Set to track registered workflow/schedule pairs, with guard logging to skip duplicates
+- **Impact**: Single cron registration per workflow, preventing duplicate workflow executions
+
+### RunId Consistency Across Workflow Steps (Fixed - November 22, 2025)
+- **Problem**: Step 0 generated fresh `run-${Date.now()}` ID instead of using the workflow execution runId, causing potential UPSERT failures
+- **Root Cause**: Step 0 wasn't extracting runId from ExecuteParams context
+- **Fix**: Changed Step 0 to destructure `runId` from workflow execution context and propagate it through all subsequent steps
+- **Impact**: Consistent runId across all steps and database writes, ensuring idempotent report saves work correctly
+
+### Mandatory Inline Citation Enforcement (Enhanced - November 22, 2025)
+- **Problem**: Generated reports sometimes missing inline citations despite existing citation requirements
+- **Root Cause**: Citation instructions weren't prominent enough in agent prompt
+- **Fix**: Added "MANDATORY INLINE CITATIONS" section at top of Report Structure with explicit `[Source Name](URL)` format requirements, "NO EXCEPTIONS" guidance, and reinforced in "ABSOLUTE PROHIBITIONS" section
+- **Impact**: Every factual claim now required to have inline bracketed markdown citation, improving report verifiability and trust
+
 ## Technical Limitations
 
 ### G2 Review Scraping
