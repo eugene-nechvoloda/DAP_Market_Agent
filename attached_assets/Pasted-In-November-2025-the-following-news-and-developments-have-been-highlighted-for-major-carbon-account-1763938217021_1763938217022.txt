@@ -1,0 +1,50 @@
+In November 2025, the following news and developments have been highlighted for major carbon accounting software providers:
+
+Watershed:
+- Released Q3 2025 product updates including AI-accelerated reporting features designed to enhance data accuracy and reporting speed.
+- Announced new capabilities for EU CSRD reporting with a dedicated software solution supporting over 1,100 ESG data points and integration with frameworks like CDP and TCFD.
+- Continues to offer extensive enterprise integrations and tools for actionable decarbonization planning and supplier engagement.[1][2][3]
+
+Persefoni:
+- Recently secured $23 million in funding aimed at expanding AI functionalities, such as smart emission factor matching and a Product Carbon Footprint/LCA capability.
+- Focused on building audit-ready disclosures aligned with global standards including CSRD, ISSB, and CDP.
+- Plans to introduce a self-serve analytics builder and new AI features by late 2025 to bolster product offerings towards profitability.[4]
+
+Greenly:
+- Launched a new AI-powered platform automating complex carbon data tasks, including Scope 3 emissions modeling through supplier commitments.
+- Provides interactive scenario visualization tools and reports compliant with multiple sustainability standards including CSRD and IFRS.
+- Operates on energy-efficient infrastructure such as Google Cloud’s green-data centers, enhancing sustainability of its own operations.[5]
+
+carbmee:
+- Secured €20 million funding to develop its AI-driven carbon management software focused on value-chain-wide emissions data integration and granularity, especially for Scope 3.
+- Offers centralized carbon data management, enabling corporate-level, product-level, supplier, and SKU tracking similar to financial data management in ERP systems.[6]
+
+osapiens:
+- Showcased the HUB Reporting Cockpit, a unified interface for automated collection and management of sustainability KPIs aligned with reporting standards like VSME, GRI, SASB, CSRD, and Corporate Carbon Footprint.
+- Recently introduced two new modules to enhance its sustainability data management capabilities.[7]
+
+Sweep:
+- Continues to emphasize automated sustainable data collection across carbon emissions, water, energy, and waste metrics with AI-powered tools.
+- Has enabled clients like Margo and SSE to quickly scale scope 1, 2, and 3 emissions tracking and transition from manual to continuous data collection for improved compliance and decision-making.[8]
+
+Normative:
+- While no new specific November 2025 updates surfaced, Normative remains focused on scientific rigor in carbon calculations with extensive emission factor databases and client advisory services.
+
+Industry Trends:
+- Strong momentum in AI integration to automate and refine carbon accounting and reporting processes.
+- Growing focus on compliance with evolving global ESG regulations, notably the EU CSRD.
+- Increasing enterprise adoption of platforms that provide comprehensive, audit-ready disclosures and supply chain emissions visibility.
+- Expansion of scenario modeling and actionable decarbonization tools across major platforms.
+
+These insights reflect a competitive and fast-evolving carbon accounting software market with ongoing product innovations, strategic funding, and enterprise partnerships primarily aimed at enabling companies to meet stringent sustainability targets and regulatory requirements.[2][3][1][4][5][6][7][8]
+
+[1](https://watershed.com/category/product)
+[2](https://carbonherald.com/watershed-introduces-specialized-software-for-eu-csrd-reporting/)
+[3](https://www.arbor.eco/blog/top-11-carbon-accounting-software-tools-for-2024-arbor)
+[4](https://fintech.global/2025/04/01/persefoni-bags-23m-funding-to-enhance-carbon-accounting-software/)
+[5](https://www.esgtoday.com/greenly-launches-new-ai-powered-carbon-accounting-platform/)
+[6](https://techfundingnews.com/from-spreadsheets-to-ai-carbmee-grabs-e20m-to-revolutionise-carbon-management-for-enterprises/)
+[7](https://osapiens.com/company-news/sos-25-sustainability-as-a-strategic-advantage/)
+[8](https://netzerocompare.com/software/sweep)
+[9](https://watershed.com/topic/carbon-accounting)
+[10](https://esgnews.com/watershed-launches-1-megatonne-carbon-removal-rfp-to-expand-supplier-ecosystem/)

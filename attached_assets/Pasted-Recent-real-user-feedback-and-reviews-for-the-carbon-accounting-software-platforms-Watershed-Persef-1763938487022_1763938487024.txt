@@ -1,0 +1,48 @@
+Recent real user feedback and reviews for the carbon accounting software platforms Watershed, Persefoni, Greenly, Carbmee, Osapiens, and Sweep as of November 2025 are as follows:
+
+### Watershed
+- Pros: Recognized for comprehensive emissions management including audit-grade data, automated data collection, and strong supply chain (Scope 3) emissions tracking. It provides real-time insights aiding fast, data-driven sustainability decisions.
+- Cons: Some users report that integrating Watershed can be complex and resource-intensive, particularly for organizations without established sustainability programs.[1][2]
+
+### Persefoni
+- Pros: Highly regarded for accuracy, transparency, and an advanced calculation engine aligned with standards like GHGP and PCAF. Artificial intelligence helps detect anomalies and supports SEC-compliant workflows with XBRL tagging for registrants. It is favored by enterprises and asset managers for standardized carbon accounting across portfolios.
+- Cons: Some users note the interface is not always intuitive, with navigation challenges, and the pricing may be steep for smaller organizations.
+- Clients include large names like Xerox, Aramark, and The New York Times.
+- Its AI-assisted workflows and real-time collaboration tools make it especially effective for complex, enterprise needs.[3][4][5][2][1]
+
+### Greenly
+- Pros: Users appreciate its real-time and precise carbon accounting, customizable reports, and user-friendly interface. It is particularly valued by smaller to medium companies looking for a personalized approach and support in reducing environmental impact.
+- Cons: Some feedback points to the tool being expensive for budget-limited organizations.
+- The software is praised for ease of implementation, ongoing feature updates, and strong expert support during customer journeys.[6][7]
+
+### Carbmee
+- Carbmee emphasizes empowering enterprises with informed decision-making and impactful carbon reduction strategies through its EIS™ platform. User reviews and detailed usability information are less prominent but positioning suggests a strong fit for enterprise-scale carbon management.[8]
+
+### Sweep, Osapiens
+- These platforms were less covered in recent user reviews from the searched sources. However, Sweep was noted as among the top carbon accounting platforms in some comparative listings.[9]
+
+### Summary Table of Strengths and User Feedback
+
+| Software    | Strengths                                  | User Feedback Highlights                           | Cons                          |
+|-------------|-------------------------------------------|---------------------------------------------------|-------------------------------|
+| Watershed   | Comprehensive Scope 1,2,3, LCA, real-time| Powerful emissions tracking; some integration complexity | Resource intensive to implement |
+| Persefoni   | Advanced calculation engine, AI-assisted  | Trusted by enterprises, but UI can feel complex   | High price, not always intuitive UI |
+| Greenly     | Real-time reports, user-friendly, tailored| Good for smaller/medium business; strong support | Expensive for limited budgets  |
+| Carbmee     | Enterprise-focused decision power         | Less detailed recent user feedback available      | Limited user feedback coverage |
+| Sweep       | Noted in rankings for top tools            | General positive ranking, specifics not detailed  | Insufficient recent review data |
+| Osapiens    | Not extensively reviewed recently          | Limited recent feedback available                   | Limited visibility in current reviews |
+
+In summary, Persefoni and Watershed lead in enterprise-level carbon accounting with advanced features but may have steeper learning curves and higher costs. Greenly is favored for more accessible, personalized carbon accounting especially for smaller businesses. Carbmee provides strong enterprise decision support but with less publicly available user detail. Sweep and Osapiens have less recent user feedback but appear in top software listings.[7][5][2][3][9][6][8][1]
+
+This reflects the landscape of recent user feedback and expert reviews for these key carbon accounting platforms as of November 2025.
+
+[1](https://www.arbor.eco/blog/top-11-carbon-accounting-software-tools-for-2024-arbor)
+[2](https://mavarick.ai/blogs/best-carbon-accounting-software/)
+[3](https://www.persefoni.com/blog/best-carbon-accounting-software)
+[4](https://tracera.com/carbon-accounting-software/)
+[5](https://www.sinai.com/post/top-carbon-accounting-software-solutions-in-2025)
+[6](https://greenly.earth/en-gb/blog/company-guide/the-5-best-carbon-accounting-softwares-in-2022)
+[7](https://www.capterra.com/p/219931/Greenly-Climate-Dashboard/reviews/)
+[8](https://www.carbmee.com/knowledge-insights/blog-article/top-carbon-accounting-software)
+[9](https://www.sweep.net/blog/top-carbon-accounting-software-for-us-businesses-in-2025)
+[10](https://www.g2.com/categories/carbon-accounting)

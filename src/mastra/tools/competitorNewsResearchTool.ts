@@ -8,10 +8,13 @@ export const competitorNewsResearchTool = createTool({
     "Fetches competitor sources from database (newsrooms, newsletters, case studies, press releases, insights pages) for all 7 Carbon Accounting Software competitors. Uses intelligent timespan filtering based on content type: 7-day for general news, 1-month for product updates/case studies, current calendar month for press releases. Scrapes and extracts recent updates, announcements, and company news.",
   
   inputSchema: z.object({
-    dateStart: z.string().describe("Start date for filtering news (YYYY-MM-DD format)"),
+    dateStart: z.string().describe("Start date for filtering news (YYYY-MM-DD format) - general news 7-day window"),
     dateEnd: z.string().describe("End date for filtering news (YYYY-MM-DD format)"),
     currentMonth: z.string().describe("Current calendar month for press releases (e.g., 'November 2025')"),
     productUpdatesLookback: z.string().describe("Lookback period for product updates (e.g., '1 month')"),
+    productUpdatesDateStart: z.string().optional().describe("Intelligent start date for product updates (YYYY-MM-DD format)"),
+    pressReleasesDateStart: z.string().optional().describe("Intelligent start date for press releases (YYYY-MM-DD format)"),
+    reviewsDateStart: z.string().optional().describe("Intelligent start date for reviews (YYYY-MM-DD format)"),
   }),
   
   outputSchema: z.object({
