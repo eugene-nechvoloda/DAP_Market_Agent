@@ -769,7 +769,162 @@ const searchCustomerMetrics = createStep({
   },
 });
 
-// Step 2.5.4: Search for user feedback and reviews
+// Step 2.5.4a: Per-Competitor Intelligence Searches
+const searchPerCompetitorIntelligence = createStep({
+  id: "search-per-competitor-intelligence",
+  description: "Search for detailed intelligence on each competitor individually using Perplexity/SerpAPI to ground parsing in factual per-competitor data",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    reasoning: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('🔍 [Step 2.5.4a] Searching for per-competitor intelligence...');
+    logger?.info('🧠 [Step 2.5.4a] Using GPT-5 date logic:', inputData.reasoning);
+    
+    // Format date range for current month (for recent news)
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const endDate = new Date(inputData.dateEnd);
+    const currentMonth = monthNames[endDate.getMonth()];
+    const currentYear = endDate.getFullYear();
+    const dateRange = `${currentMonth} ${currentYear}`;
+    
+    // List of competitors
+    const competitors = [
+      { name: "Watershed", slug: "watershed" },
+      { name: "Persefoni", slug: "persefoni" },
+      { name: "Greenly", slug: "greenly" },
+      { name: "carbmee", slug: "carbmee" },
+      { name: "osapiens", slug: "osapiens" },
+      { name: "Sweep", slug: "sweep" },
+      { name: "Normative", slug: "normative" },
+    ];
+    
+    const perCompetitorSearches: Record<string, any> = {};
+    
+    // Search for each competitor individually (sequential to avoid rate limits)
+    for (const competitor of competitors) {
+      const query = `${competitor.name} carbon accounting software latest news funding product updates partnerships user reviews ${dateRange}`;
+      
+      logger?.info(`🔍 [Step 2.5.4a] Searching for ${competitor.name}:`, { query });
+      
+      try {
+        const searchResult = await webSearchTool.execute({
+          context: {
+            query,
+            maxResults: 5,
+          },
+          runtimeContext,
+          mastra,
+        });
+        
+        // Trim citations
+        const trimmedResult = {
+          success: searchResult.success,
+          query: searchResult.query,
+          answer: searchResult.answer || '',
+          citations: searchResult.citations?.slice(0, 5).map(c => ({
+            title: c.title?.substring(0, 150) || '',
+            url: c.url || '',
+            snippet: c.snippet || '',
+          })) || [],
+          error: searchResult.error,
+        };
+        
+        perCompetitorSearches[competitor.slug] = trimmedResult;
+        
+        logger?.info(`✅ [Step 2.5.4a] ${competitor.name} search completed:`, {
+          success: trimmedResult.success,
+          citationsCount: trimmedResult.citations.length,
+          answerLength: trimmedResult.answer.length,
+        });
+        
+        // Rate limit: wait 1 second between searches to avoid overwhelming Perplexity
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        logger?.error(`❌ [Step 2.5.4a] Failed to search for ${competitor.name}:`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        
+        perCompetitorSearches[competitor.slug] = {
+          success: false,
+          query,
+          answer: '',
+          citations: [],
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+    
+    logger?.info('✅ [Step 2.5.4a] All per-competitor searches completed:', {
+      total: Object.keys(perCompetitorSearches).length,
+      successful: Object.values(perCompetitorSearches).filter((s: any) => s.success).length,
+    });
+    
+    return {
+      runId: inputData.runId,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      weekRangeLabel: inputData.weekRangeLabel,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      currentMonth: inputData.currentMonth,
+      reasoning: inputData.reasoning,
+      webSearchResults: {
+        ...inputData.webSearchResults,
+        perCompetitorSearches,
+      },
+      fundingMetrics: inputData.fundingMetrics,
+      revenueMetrics: inputData.revenueMetrics,
+      customerMetrics: inputData.customerMetrics,
+      reportingWeekStart: inputData.reportingWeekStart,
+    };
+  },
+});
+
+// Step 2.5.4b: Search for user feedback and reviews
 const searchUserFeedback = createStep({
   id: "search-user-feedback",
   description: "Search for recent real user feedback and reviews with GPT-5 intelligent timespans",
@@ -788,6 +943,7 @@ const searchUserFeedback = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
     }),
     fundingMetrics: z.array(z.any()),
     revenueMetrics: z.array(z.any()),
@@ -907,6 +1063,7 @@ const persistCompetitorMetrics = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
       userFeedbackSearch: z.any().optional(),
     }),
     fundingMetrics: z.array(z.any()),
@@ -923,6 +1080,7 @@ const persistCompetitorMetrics = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
       userFeedbackSearch: z.any().optional(),
     }),
     metricsGathered: z.boolean(),
@@ -1067,6 +1225,8 @@ const calculateCompetitorTrends = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
+      userFeedbackSearch: z.any().optional(),
     }),
     metricsGathered: z.boolean(),
   }),
@@ -1079,6 +1239,8 @@ const calculateCompetitorTrends = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
+      userFeedbackSearch: z.any().optional(),
     }),
     metricsGathered: z.boolean(),
     competitorTrends: z.any(),
@@ -1134,6 +1296,8 @@ const parseCompetitorIntelligence = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
+      userFeedbackSearch: z.any().optional(),
     }),
     metricsGathered: z.boolean(),
     competitorTrends: z.any().optional(),
@@ -1147,6 +1311,8 @@ const parseCompetitorIntelligence = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
+      userFeedbackSearch: z.any().optional(),
     }),
     metricsGathered: z.boolean(),
     competitorTrends: z.any().optional(),
@@ -1155,42 +1321,62 @@ const parseCompetitorIntelligence = createStep({
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('📋 [Step 2.6] Parsing Perplexity/SerpAPI search results into structured per-competitor data...');
+    logger?.info('📋 [Step 2.6] Parsing per-competitor Perplexity/SerpAPI search results with Claude Sonnet 4.5...');
     
-    // Extract web search answers (PRIMARY SOURCE - clean, structured data from Perplexity/SerpAPI)
-    const broadPulseAnswer = inputData.webSearchResults.broadPulseSearch?.answer || '';
-    const targetedAnswer = inputData.webSearchResults.targetedFollowUpSearch?.answer || '';
-    const broadCitations = inputData.webSearchResults.broadPulseSearch?.citations || [];
-    const targetedCitations = inputData.webSearchResults.targetedFollowUpSearch?.citations || [];
+    // Extract per-competitor search results (PRIMARY SOURCE)
+    const perCompetitorSearches = inputData.webSearchResults.perCompetitorSearches || {};
     
-    // Combine all citations for reference
-    const allCitations = [...broadCitations, ...targetedCitations];
-    const citationsText = allCitations.map((c, i) => 
-      `[${i+1}] ${c.title || 'Untitled'} - ${c.url}`
-    ).join('\n');
+    const competitors = [
+      { name: "Watershed", slug: "watershed" },
+      { name: "Persefoni", slug: "persefoni" },
+      { name: "Greenly", slug: "greenly" },
+      { name: "carbmee", slug: "carbmee" },
+      { name: "osapiens", slug: "osapiens" },
+      { name: "Sweep", slug: "sweep" },
+      { name: "Normative", slug: "normative" },
+    ];
     
-    logger?.info('📊 [Step 2.6] Using Perplexity/SerpAPI as primary source:', {
-      broadPulseLength: broadPulseAnswer.length,
-      targetedLength: targetedAnswer.length,
-      citationsCount: allCitations.length,
+    // Build comprehensive prompt with all per-competitor searches
+    let competitorDataText = '';
+    let citationCounter = 1;
+    const allCitations: any[] = [];
+    
+    for (const competitor of competitors) {
+      const searchData = perCompetitorSearches[competitor.slug];
+      if (searchData && searchData.success) {
+        competitorDataText += `\n## ${competitor.name}\n`;
+        competitorDataText += `**Search Result:**\n${searchData.answer}\n\n`;
+        
+        // Add citations for this competitor
+        if (searchData.citations && searchData.citations.length > 0) {
+          competitorDataText += `**Sources:**\n`;
+          for (const citation of searchData.citations) {
+            competitorDataText += `[${citationCounter}] ${citation.title} - ${citation.url}\n`;
+            allCitations.push({ ...citation, number: citationCounter });
+            citationCounter++;
+          }
+          competitorDataText += '\n';
+        }
+      } else {
+        competitorDataText += `\n## ${competitor.name}\n`;
+        competitorDataText += `No recent search data available.\n\n`;
+      }
+    }
+    
+    logger?.info('📊 [Step 2.6] Per-competitor search data prepared:', {
+      totalCitations: allCitations.length,
+      competitorsWithData: competitors.filter(c => perCompetitorSearches[c.slug]?.success).length,
+      dataLength: competitorDataText.length,
     });
     
-    // Simplified parsing prompt focusing on clean Perplexity/SerpAPI answers
-    const parsingPrompt = `You are extracting structured competitor intelligence from Perplexity/SerpAPI search results about the Carbon Accounting Software market (November 2025).
+    // Simplified parsing prompt focusing on PER-COMPETITOR Perplexity/SerpAPI answers
+    const parsingPrompt = `You are extracting structured competitor intelligence from per-competitor Perplexity/SerpAPI search results about the Carbon Accounting Software market (November 2025).
 
-**SEARCH RESULTS (PRIMARY SOURCE):**
-
-### Search 1 - Broad Market Pulse:
-${broadPulseAnswer}
-
-### Search 2 - Targeted Market Data:
-${targetedAnswer}
-
-### Citations:
-${citationsText}
+**PER-COMPETITOR SEARCH RESULTS (PRIMARY SOURCE):**
+${competitorDataText}
 
 **YOUR TASK:**
-Extract information for each of these 7 competitors: Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative
+Extract information for each of these 7 competitors based on THEIR SPECIFIC search results above: Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative
 
 For each competitor found in the search results, extract:
 - **strategicMoves**: Funding rounds, acquisitions, major announcements (include citation [1], [2], etc.)
@@ -1786,10 +1972,11 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   .then(searchFundingMetrics as any)
   .then(searchRevenueMetrics as any)
   .then(searchCustomerMetrics as any)
-  .then(searchUserFeedback as any) // Step 2.5.4: Search for user feedback with intelligent timespans
+  .then(searchPerCompetitorIntelligence as any) // Step 2.5.4a: Per-competitor Perplexity/SerpAPI searches
+  .then(searchUserFeedback as any) // Step 2.5.4b: Search for user feedback with intelligent timespans
   .then(persistCompetitorMetrics as any)
   .then(calculateCompetitorTrends as any)
-  .then(parseCompetitorIntelligence as any) // Step 2.6: Parse web search results into structured per-competitor data
+  .then(parseCompetitorIntelligence as any) // Step 2.6: Parse Perplexity/SerpAPI results with Claude Sonnet 4.5
   .then(analyzeAndCompileReport as any)
   .then(exportToGoogleDocs as any)
   .then(updateReportMetadata as any)

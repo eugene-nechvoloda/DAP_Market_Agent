@@ -32,7 +32,7 @@ The system uses a storage abstraction supporting PostgreSQL (production with pgv
 
 ## Model Integration
 
-A provider-agnostic **model router pattern** is implemented via the AI SDK, supporting OpenAI (GPT-4o, GPT-4o-mini) and OpenRouter. Model selection is per-agent, with GPT-5 used for report generation and GPT-4o-mini for metric extraction.
+A provider-agnostic **model router pattern** is implemented via the AI SDK, supporting OpenAI (GPT-4o, GPT-4o-mini, GPT-5), Anthropic (Claude Sonnet 4.5), and OpenRouter. Model selection is per-agent, with GPT-5 used for report generation, Claude Sonnet 4.5 for structured parsing/extraction, and GPT-4o-mini for metric extraction.
 
 ## Trigger System
 
@@ -48,7 +48,10 @@ Web report pages include sticky header navigation with a dropdown selector and a
 
 ## Feature Specifications
 
-- **Competitor Research**: Expanded to 21 URLs per competitor, covering newsletters, case studies, press releases, insights pages, and newsrooms.
+- **Data Architecture (Option B)**: Perplexity/SerpAPI searches as PRIMARY data source, with curated HTML scraping as supplementary context. Per-competitor searches provide factual, grounded intelligence for each of 7 competitors.
+- **Per-Competitor Intelligence**: Individual Perplexity/SerpAPI searches for each competitor (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) with 5 citations each, ensuring factual per-competitor data.
+- **Claude Sonnet 4.5 Parsing**: Uses Claude for structured extraction from clean Perplexity/SerpAPI answers into per-competitor categories (strategicMoves, productUpdates, partnerships, userFeedback).
+- **Competitor Research**: Curated URLs per competitor (newsletters, case studies, press releases, insights pages, newsrooms) serve as supplementary context, not primary source.
 - **Industry Research Sources**: 6 curated sources for carbon accounting standards, news, and policy: GHG Protocol, Carbon Brief, CDP, WRI Climate, Ecosystem Marketplace, UNFCCC.
 - **Intelligent Timespan Filtering**: GPT-5-powered context-aware date range determination for content.
 - **Metric Extraction**: Captures funding, valuation, revenue, employees, customer count, churn rate, user base, and user growth rates with trend indicators.
@@ -65,9 +68,11 @@ G2 pages with `#reviews` anchors load content dynamically via JavaScript. Direct
 # External Dependencies
 
 ## AI/LLM Services
-- **OpenAI API**: Primary LLM provider.
+- **OpenAI API**: Primary LLM provider (GPT-5 for reports, GPT-4o-mini for extraction).
+- **Anthropic API**: Claude Sonnet 4.5 for structured parsing and extraction.
 - **OpenRouter**: Multi-provider AI access.
-- **Perplexity API**: AI-powered search with citations, used via `webSearchTool`.
+- **Perplexity API**: Primary data source for per-competitor intelligence, AI-powered search with citations via `webSearchTool`.
+- **SerpAPI**: Fallback search provider when Perplexity rate limits are reached.
 
 ## Infrastructure Services
 - **Inngest**: Durable workflow execution and event orchestration.
