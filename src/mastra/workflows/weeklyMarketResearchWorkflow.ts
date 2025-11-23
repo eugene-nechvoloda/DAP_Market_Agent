@@ -216,10 +216,13 @@ const gatherMarketData = createStep({
     logger?.info('🏢 [Step 1] Gathering competitor news...');
     const competitorData = await competitorNewsResearchTool.execute({
       context: { 
-        dateStart: inputData.generalNewsDateStart, // Use general news date for most sources
+        dateStart: inputData.generalNewsDateStart, // General news uses 7-day window
         dateEnd: dateEndStr,
         currentMonth: inputData.currentMonth,
         productUpdatesLookback: inputData.productUpdatesLookback,
+        productUpdatesDateStart: inputData.productUpdatesDateStart, // Product updates use longer timespan
+        pressReleasesDateStart: inputData.pressReleasesDateStart, // Press releases use current month
+        reviewsDateStart: inputData.reviewsDateStart, // Reviews use current month
       },
       runtimeContext,
       mastra,
@@ -1111,6 +1114,182 @@ const calculateCompetitorTrends = createStep({
   },
 });
 
+// Step 2.6: Parse Web Search Results into Structured Per-Competitor Data
+const parseCompetitorIntelligence = createStep({
+  id: "parse-competitor-intelligence",
+  description: "Uses GPT-4o to parse web search results and curated data into structured per-competitor information for easy report population",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    metricsGathered: z.boolean(),
+    competitorTrends: z.any().optional(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+    }),
+    metricsGathered: z.boolean(),
+    competitorTrends: z.any().optional(),
+    perCompetitorData: z.any(), // Structured data keyed by competitor
+  }),
+  
+  execute: async ({ inputData, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('📋 [Step 2.6] Parsing all data sources into structured per-competitor information...');
+    
+    // Load curated data from database
+    logger?.info('💾 [Step 2.6] Loading curated data from database...');
+    const sources = await db.getReportSources(inputData.runId);
+    
+    if (!sources) {
+      logger?.error('❌ [Step 2.6] No curated data found for runId:', { runId: inputData.runId });
+      throw new Error(`Curated data not found for runId: ${inputData.runId}`);
+    }
+    
+    // Extract web search answers
+    const broadPulseAnswer = inputData.webSearchResults.broadPulseSearch?.answer || '';
+    const targetedAnswer = inputData.webSearchResults.targetedFollowUpSearch?.answer || '';
+    const broadCitations = inputData.webSearchResults.broadPulseSearch?.citations || [];
+    const targetedCitations = inputData.webSearchResults.targetedFollowUpSearch?.citations || [];
+    
+    // Combine all citations for reference
+    const allCitations = [...broadCitations, ...targetedCitations];
+    const citationsText = allCitations.map((c, i) => 
+      `[${i+1}] ${c.title || 'Untitled'} - ${c.url}`
+    ).join('\n');
+    
+    logger?.info('📊 [Step 2.6] Input data size:', {
+      broadPulseLength: broadPulseAnswer.length,
+      targetedLength: targetedAnswer.length,
+      citationsCount: allCitations.length,
+      curatedCompetitorItems: Array.isArray(sources.competitorData) ? sources.competitorData.length : 0,
+      curatedReviewItems: sources.reviewsData?.competitors?.length || 0,
+    });
+    
+    const parsingPrompt = `Parse ALL the following data sources about Carbon Accounting Software market into structured per-competitor information.
+
+**DATA SOURCES:**
+
+### 1. Web Search Results - Broad Market Pulse:
+${broadPulseAnswer}
+
+### 2. Web Search Results - Targeted Market Data:
+${targetedAnswer}
+
+### 3. Curated Competitor Data (Newsrooms, Press Releases, Product Pages):
+${JSON.stringify(sources.competitorData || [], null, 2).substring(0, 20000)}
+
+### 4. User Reviews & Feedback Data:
+${JSON.stringify(sources.reviewsData || {}, null, 2).substring(0, 15000)}
+
+### 5. All Citations:
+${citationsText}
+
+**Your Task:**
+Extract information for each of these 7 competitors: Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative
+
+For each competitor, extract (if mentioned in ANY of the data sources above):
+1. **Strategic Moves**: Funding, acquisitions, major announcements, strategic partnerships
+2. **Product Updates**: New features, product launches, platform updates, November 2025 releases
+3. **Partnerships & Integrations**: New partnerships, technology integrations
+4. **User Feedback**: User sentiment, reviews, pros/cons from review data
+
+Return ONLY valid JSON in this exact format:
+{
+  "watershed": {
+    "strategicMoves": ["funding round details with citation [1]", "acquisition details with citation [2]"],
+    "productUpdates": ["product update details with citation [3]"],
+    "partnerships": ["partnership details with citation [4]"],
+    "userFeedback": ["user feedback details from reviews"]
+  },
+  "persefoni": {
+    "strategicMoves": [],
+    "productUpdates": [],
+    "partnerships": [],
+    "userFeedback": []
+  },
+  ... (repeat for all 7 competitors)
+}
+
+**IMPORTANT RULES:**
+- Include citation numbers [1], [2], etc. for web search items
+- For curated/review data, include the source type (e.g., "from Persefoni newsroom", "from G2 reviews")
+- If no information found for a competitor's category, use empty array []
+- Be specific and include dates when mentioned (e.g., "November 2025", "Q3 2025")
+- Keep each item concise but informative (1-2 sentences max)
+- Prioritize RECENT information from November 2025`;
+    
+    try {
+      logger?.info('🤖 [Step 2.6] Calling GPT-5 to parse all data sources...');
+      
+      const response = await openaiClient.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "system",
+            content: "You are a data extraction specialist. Extract structured information from multiple data sources and return ONLY valid JSON. No markdown, no explanations.",
+          },
+          {
+            role: "user",
+            content: parsingPrompt,
+          },
+        ],
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      });
+      
+      const parsedDataStr = response.choices[0]?.message?.content || "{}";
+      const perCompetitorData = JSON.parse(parsedDataStr);
+      
+      logger?.info('✅ [Step 2.6] Successfully parsed per-competitor data:', {
+        competitorsCovered: Object.keys(perCompetitorData).length,
+        totalItems: Object.values(perCompetitorData).reduce((sum: number, comp: any) => 
+          sum + (comp.strategicMoves?.length || 0) + (comp.productUpdates?.length || 0) + 
+          (comp.partnerships?.length || 0) + (comp.userFeedback?.length || 0), 0
+        ),
+      });
+      
+      return {
+        ...inputData,
+        perCompetitorData,
+      };
+    } catch (error) {
+      logger?.error('❌ [Step 2.6] Failed to parse web search results:', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      
+      // Return empty structure on error
+      const emptyStructure = {
+        watershed: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        persefoni: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        greenly: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        carbmee: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        osapiens: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        sweep: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        normative: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+      };
+      
+      return {
+        ...inputData,
+        perCompetitorData: emptyStructure,
+      };
+    }
+  },
+});
+
 const analyzeAndCompileReport = createStep({
   id: "analyze-and-compile-report",
   description: "Agent analyzes gathered data and compiles comprehensive weekly market research report",
@@ -1126,6 +1305,7 @@ const analyzeAndCompileReport = createStep({
     }),
     metricsGathered: z.boolean(),
     competitorTrends: z.any().optional(),
+    perCompetitorData: z.any(), // NEW: Structured per-competitor data
   }),
   
   outputSchema: z.object({
@@ -1253,6 +1433,21 @@ You are conducting the weekly Carbon Accounting Software market research for the
 - General News: 7 days (${inputData.dateStart} to ${inputData.dateEnd})
 
 You have been provided with comprehensive market intelligence from BOTH curated sources AND web searches.
+
+## 🎯 STRUCTURED PER-COMPETITOR DATA (PRIORITY - USE THIS FIRST!):
+
+We have pre-parsed the web search results into structured data for each competitor. **USE THIS DATA DIRECTLY for populating Competitor Spotlights sections**:
+
+${JSON.stringify(inputData.perCompetitorData, null, 2)}
+
+**HOW TO USE THIS DATA:**
+- For each competitor (watershed, persefoni, greenly, carbmee, osapiens, sweep, normative):
+  - **Strategic Moves** section → Use items from perCompetitorData[competitor].strategicMoves
+  - **Product Updates** section → Use items from perCompetitorData[competitor].productUpdates
+  - **Partnerships & Integrations** section → Use items from perCompetitorData[competitor].partnerships
+  - **User Feedback** section → Use items from perCompetitorData[competitor].userFeedback
+- If an array is empty [], write "_No [section name] this week._"
+- Citation numbers [1], [2], etc. are already included in the items
 
 ## WEB SEARCH RESULTS (Primary Intelligence):
 
@@ -1599,6 +1794,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   .then(searchUserFeedback as any) // Step 2.5.4: Search for user feedback with intelligent timespans
   .then(persistCompetitorMetrics as any)
   .then(calculateCompetitorTrends as any)
+  .then(parseCompetitorIntelligence as any) // Step 2.6: Parse web search results into structured per-competitor data
   .then(analyzeAndCompileReport as any)
   .then(exportToGoogleDocs as any)
   .then(updateReportMetadata as any)
