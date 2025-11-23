@@ -12,11 +12,18 @@ import { slackNotificationTool } from "../tools/slackNotificationTool";
 import { db } from "../storage/db.js";
 import { extractMetricsFromText, getAllCompetitorNames } from "../../utils/metricExtraction";
 import { OpenAI } from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 // Configure OpenAI with Replit AI Integrations
 const openaiClient = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+});
+
+// Configure Anthropic with Replit AI Integrations  
+const anthropicClient = new Anthropic({
+  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
 });
 
 const workflowInputSchema = z.object({});
@@ -1117,7 +1124,7 @@ const calculateCompetitorTrends = createStep({
 // Step 2.6: Parse Web Search Results into Structured Per-Competitor Data
 const parseCompetitorIntelligence = createStep({
   id: "parse-competitor-intelligence",
-  description: "Uses GPT-4o to parse web search results and curated data into structured per-competitor information for easy report population",
+  description: "Uses Claude Sonnet 4.5 to parse Perplexity/SerpAPI search results into structured per-competitor information (primary source), with curated data as supplementary context",
   
   inputSchema: z.object({
     runId: z.string(),
@@ -1148,18 +1155,9 @@ const parseCompetitorIntelligence = createStep({
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('📋 [Step 2.6] Parsing all data sources into structured per-competitor information...');
+    logger?.info('📋 [Step 2.6] Parsing Perplexity/SerpAPI search results into structured per-competitor data...');
     
-    // Load curated data from database
-    logger?.info('💾 [Step 2.6] Loading curated data from database...');
-    const sources = await db.getReportSources(inputData.runId);
-    
-    if (!sources) {
-      logger?.error('❌ [Step 2.6] No curated data found for runId:', { runId: inputData.runId });
-      throw new Error(`Curated data not found for runId: ${inputData.runId}`);
-    }
-    
-    // Extract web search answers
+    // Extract web search answers (PRIMARY SOURCE - clean, structured data from Perplexity/SerpAPI)
     const broadPulseAnswer = inputData.webSearchResults.broadPulseSearch?.answer || '';
     const targetedAnswer = inputData.webSearchResults.targetedFollowUpSearch?.answer || '';
     const broadCitations = inputData.webSearchResults.broadPulseSearch?.citations || [];
@@ -1171,87 +1169,84 @@ const parseCompetitorIntelligence = createStep({
       `[${i+1}] ${c.title || 'Untitled'} - ${c.url}`
     ).join('\n');
     
-    logger?.info('📊 [Step 2.6] Input data size:', {
+    logger?.info('📊 [Step 2.6] Using Perplexity/SerpAPI as primary source:', {
       broadPulseLength: broadPulseAnswer.length,
       targetedLength: targetedAnswer.length,
       citationsCount: allCitations.length,
-      curatedCompetitorItems: Array.isArray(sources.competitorData) ? sources.competitorData.length : 0,
-      curatedReviewItems: sources.reviewsData?.competitors?.length || 0,
     });
     
-    const parsingPrompt = `Parse ALL the following data sources about Carbon Accounting Software market into structured per-competitor information.
+    // Simplified parsing prompt focusing on clean Perplexity/SerpAPI answers
+    const parsingPrompt = `You are extracting structured competitor intelligence from Perplexity/SerpAPI search results about the Carbon Accounting Software market (November 2025).
 
-**DATA SOURCES:**
+**SEARCH RESULTS (PRIMARY SOURCE):**
 
-### 1. Web Search Results - Broad Market Pulse:
+### Search 1 - Broad Market Pulse:
 ${broadPulseAnswer}
 
-### 2. Web Search Results - Targeted Market Data:
+### Search 2 - Targeted Market Data:
 ${targetedAnswer}
 
-### 3. Curated Competitor Data (Newsrooms, Press Releases, Product Pages):
-${JSON.stringify(sources.competitorData || [], null, 2).substring(0, 20000)}
-
-### 4. User Reviews & Feedback Data:
-${JSON.stringify(sources.reviewsData || {}, null, 2).substring(0, 15000)}
-
-### 5. All Citations:
+### Citations:
 ${citationsText}
 
-**Your Task:**
+**YOUR TASK:**
 Extract information for each of these 7 competitors: Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative
 
-For each competitor, extract (if mentioned in ANY of the data sources above):
-1. **Strategic Moves**: Funding, acquisitions, major announcements, strategic partnerships
-2. **Product Updates**: New features, product launches, platform updates, November 2025 releases
-3. **Partnerships & Integrations**: New partnerships, technology integrations
-4. **User Feedback**: User sentiment, reviews, pros/cons from review data
+For each competitor found in the search results, extract:
+- **strategicMoves**: Funding rounds, acquisitions, major announcements (include citation [1], [2], etc.)
+- **productUpdates**: New features, product launches, platform updates (include citation)
+- **partnerships**: New partnerships, integrations, collaborations (include citation)
+- **userFeedback**: User sentiment, reviews, feedback mentioned (include citation)
 
-Return ONLY valid JSON in this exact format:
+**OUTPUT FORMAT:**
+Return ONLY valid JSON (no markdown, no explanations):
 {
   "watershed": {
-    "strategicMoves": ["funding round details with citation [1]", "acquisition details with citation [2]"],
-    "productUpdates": ["product update details with citation [3]"],
-    "partnerships": ["partnership details with citation [4]"],
-    "userFeedback": ["user feedback details from reviews"]
+    "strategicMoves": ["Persefoni secured $23M funding [4]", "..."],
+    "productUpdates": ["Q3 2025 updates with AI-accelerated reporting [1]", "..."],
+    "partnerships": ["Partnership with Microsoft [2]", "..."],
+    "userFeedback": ["Users praise comprehensive emissions tracking [5]", "..."]
   },
-  "persefoni": {
-    "strategicMoves": [],
-    "productUpdates": [],
-    "partnerships": [],
-    "userFeedback": []
-  },
-  ... (repeat for all 7 competitors)
+  "persefoni": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "greenly": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "carbmee": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "osapiens": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "sweep": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "normative": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] }
 }
 
-**IMPORTANT RULES:**
-- Include citation numbers [1], [2], etc. for web search items
-- For curated/review data, include the source type (e.g., "from Persefoni newsroom", "from G2 reviews")
-- If no information found for a competitor's category, use empty array []
-- Be specific and include dates when mentioned (e.g., "November 2025", "Q3 2025")
-- Keep each item concise but informative (1-2 sentences max)
-- Prioritize RECENT information from November 2025`;
+**RULES:**
+- Use empty array [] if no info found for a category
+- Include citation numbers [1], [2] in each item
+- Include dates when mentioned (e.g., "November 2025", "Q3 2025")
+- Be specific but concise (1-2 sentences per item)
+- Only extract factual information from the search results above`;
     
     try {
-      logger?.info('🤖 [Step 2.6] Calling GPT-5 to parse all data sources...');
+      logger?.info('🤖 [Step 2.6] Calling Claude Sonnet 4.5 to parse search results...');
       
-      const response = await openaiClient.chat.completions.create({
-        model: "gpt-5",
+      const response = await anthropicClient.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        temperature: 0.1,
         messages: [
-          {
-            role: "system",
-            content: "You are a data extraction specialist. Extract structured information from multiple data sources and return ONLY valid JSON. No markdown, no explanations.",
-          },
           {
             role: "user",
             content: parsingPrompt,
           },
         ],
-        temperature: 0.1,
-        response_format: { type: "json_object" },
       });
       
-      const parsedDataStr = response.choices[0]?.message?.content || "{}";
+      // Extract JSON from Claude's response
+      const responseText = response.content[0].type === 'text' ? response.content[0].text : '{}';
+      
+      // Parse JSON (Claude might wrap it in markdown, so extract it)
+      let parsedDataStr = responseText;
+      const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        parsedDataStr = jsonMatch[1];
+      }
+      
       const perCompetitorData = JSON.parse(parsedDataStr);
       
       logger?.info('✅ [Step 2.6] Successfully parsed per-competitor data:', {
@@ -1267,7 +1262,7 @@ Return ONLY valid JSON in this exact format:
         perCompetitorData,
       };
     } catch (error) {
-      logger?.error('❌ [Step 2.6] Failed to parse web search results:', {
+      logger?.error('❌ [Step 2.6] Failed to parse search results:', {
         error: error instanceof Error ? error.message : String(error),
       });
       
