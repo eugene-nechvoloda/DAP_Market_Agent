@@ -1281,14 +1281,7 @@ const parseCompetitorIntelligence = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-    }),
     metricsGathered: z.boolean(),
-    competitorTrends: z.any().optional(),
   }),
   
   outputSchema: z.object({
@@ -1303,8 +1296,19 @@ const parseCompetitorIntelligence = createStep({
     const logger = mastra?.getLogger();
     logger?.info('📋 [Step 2.6] Parsing per-competitor Perplexity/SerpAPI search results with Claude Sonnet 4.5...');
     
-    // Extract per-competitor search results (PRIMARY SOURCE)
-    const perCompetitorSearches = inputData.webSearchResults.perCompetitorSearches || {};
+    // Fetch web search results from database (stored in previous steps)
+    logger?.info('💾 [Step 2.6] Fetching web search results from database:', { runId: inputData.runId });
+    const sources = await db.getReportSources(inputData.runId);
+    
+    if (!sources || !sources.webSearchResults) {
+      logger?.warn('⚠️ [Step 2.6] No web search results found in database for runId:', { runId: inputData.runId });
+      logger?.warn('⚠️ [Step 2.6] Proceeding with empty search results (graceful degradation)');
+    } else {
+      logger?.info('✅ [Step 2.6] Web search results loaded from database');
+    }
+    
+    // Extract per-competitor search results (PRIMARY SOURCE) - default to empty if not available
+    const perCompetitorSearches = sources?.webSearchResults?.perCompetitorSearches || {};
     
     const competitors = [
       { name: "Watershed", slug: "watershed" },
@@ -1423,14 +1427,19 @@ Return ONLY valid JSON (no markdown, no explanations):
         ),
       });
       
-      // Save perCompetitorData to database to avoid passing large objects between workflow steps
-      logger?.info('💾 [Step 2.6] Saving web search results and per-competitor data to database...');
-      await db.updateWebSearchData(
-        inputData.runId,
-        inputData.webSearchResults,
-        perCompetitorData
-      );
-      logger?.info('✅ [Step 2.6] Saved web search results and per-competitor data to database');
+      // Save perCompetitorData to database ONLY if we have valid webSearchResults
+      // This prevents accidentally overwriting existing data with empty objects
+      if (sources && sources.webSearchResults) {
+        logger?.info('💾 [Step 2.6] Saving per-competitor data to database...');
+        await db.updateWebSearchData(
+          inputData.runId,
+          sources.webSearchResults,
+          perCompetitorData
+        );
+        logger?.info('✅ [Step 2.6] Saved per-competitor data to database');
+      } else {
+        logger?.warn('⚠️ [Step 2.6] Skipping database update - no valid webSearchResults to preserve');
+      }
       
       return {
         runId: inputData.runId,
@@ -1455,14 +1464,25 @@ Return ONLY valid JSON (no markdown, no explanations):
         normative: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
       };
       
-      // Save empty structure to database to avoid passing large objects between workflow steps
-      logger?.info('💾 [Step 2.6] Saving web search results and empty per-competitor data to database (error case)...');
-      await db.updateWebSearchData(
-        inputData.runId,
-        inputData.webSearchResults,
-        emptyStructure
-      );
-      logger?.info('✅ [Step 2.6] Saved web search results and empty per-competitor data to database');
+      // Save empty structure to database ONLY if we have valid webSearchResults
+      // This prevents accidentally overwriting existing data with empty objects
+      if (sources && sources.webSearchResults) {
+        logger?.info('💾 [Step 2.6] Saving empty per-competitor data to database (error case)...');
+        try {
+          await db.updateWebSearchData(
+            inputData.runId,
+            sources.webSearchResults,
+            emptyStructure
+          );
+          logger?.info('✅ [Step 2.6] Saved empty per-competitor data to database');
+        } catch (dbError) {
+          logger?.warn('⚠️ [Step 2.6] Failed to save empty data to database, continuing anyway:', {
+            error: dbError instanceof Error ? dbError.message : String(dbError),
+          });
+        }
+      } else {
+        logger?.warn('⚠️ [Step 2.6] Skipping database update (error case) - no valid webSearchResults to preserve');
+      }
       
       return {
         runId: inputData.runId,
@@ -1537,6 +1557,11 @@ const analyzeAndCompileReport = createStep({
     const allMetrics = await db.getAllLatestCompetitorMetrics(reportingWeekStart);
     logger?.info(`✅ [Step 3] Loaded metrics for ${allMetrics.length} competitors`);
     
+    // Load competitor trends from database
+    logger?.info('📈 [Step 3] Loading competitor trends from database...');
+    const competitorTrends = await getAllCompetitorTrends(reportingWeekStart);
+    logger?.info(`✅ [Step 3] Loaded trends for ${Object.keys(competitorTrends).length} competitors`);
+    
     // Format metrics for prompt with trend indicators
     const formatMetricWithTrend = (value: number | string | null | undefined, trend: any, unit: string = ''): string => {
       if (value === null || value === undefined) return 'Data not available';
@@ -1551,7 +1576,7 @@ const analyzeAndCompileReport = createStep({
     
     const metricsText = allMetrics.length > 0 
       ? allMetrics.map(m => {
-          const trends = inputData.competitorTrends?.[m.competitorSlug]?.trends || {};
+          const trends = competitorTrends?.[m.competitorSlug]?.trends || {};
           return `${m.competitorSlug}: ${m.revenueUsd ? formatMetricWithTrend(m.revenueUsd, trends.revenue, '$M') + ' revenue, ' : ''}${m.valuationUsd ? formatMetricWithTrend(m.valuationUsd, trends.valuation, '$M') + ' valuation, ' : ''}${m.fundingTotalUsd ? formatMetricWithTrend(m.fundingTotalUsd, trends.fundingTotal, '$M') + ' funding, ' : ''}${m.employeeCount ? formatMetricWithTrend(m.employeeCount, trends.employeeCount) + ' employees, ' : ''}${m.customerCount ? formatMetricWithTrend(m.customerCount, trends.customerCount) + ' customers, ' : ''}${m.userBase ? formatMetricWithTrend(m.userBase, trends.userBase) + ' users, ' : ''}${m.churnRate ? formatMetricWithTrend(m.churnRate, trends.churnRate, '%') + ' churn, ' : ''}${m.retentionRate ? formatMetricWithTrend(m.retentionRate, trends.retentionRate, '%') + ' retention, ' : ''}${m.userGrowthRate ? formatMetricWithTrend(m.userGrowthRate, trends.userGrowthRate, '%') + ' user growth' : ''}`;
         }).join('\n')
       : 'No competitor metrics available (will be populated after first run)';
