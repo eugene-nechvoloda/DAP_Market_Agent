@@ -6,6 +6,8 @@ The platform aims to provide automated, in-depth market analysis for the Carbon 
 
 ## Recent Changes
 
+**November 24, 2025 (Latest)**: Added dedicated market data and industry reports search step (`searchMarketDataAndReports`) to the workflow. This new step uses Perplexity/SerpAPI to search for market size, growth rates, CAGR, analyst forecasts (Forrester, Gartner), and industry reports. Uses intelligent timespans (current month for market data snapshots, general news timespan for industry reports). Results are stored in `webSearchResults.marketDataSearch` and `webSearchResults.industryReportsSearch` and fed to the agent for populating the "Overall Market Data" and "Recent Industry Reports & Analysis" sections of the report. This enhancement provides more comprehensive market intelligence beyond competitor-specific data.
+
 **November 24, 2025**: Fixed 504 Gateway Timeout issue in agent step by reducing `maxSteps` from 5 to 1 in `weeklyMarketResearchWorkflow.ts`. The agent now receives all necessary data pre-processed (per-competitor intelligence from Claude Sonnet 4.5, metrics from database, curated sources) in the prompt, eliminating the need for additional tool calls during report generation. This optimization reduces execution time from 2-3 minutes to under 60 seconds, preventing Inngest HTTP timeouts.
 
 # User Preferences
