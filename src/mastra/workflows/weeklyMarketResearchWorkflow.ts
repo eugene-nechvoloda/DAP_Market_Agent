@@ -856,15 +856,14 @@ const searchPerCompetitorIntelligence = createStep({
           mastra,
         });
         
-        // Trim citations
+        // Trim citations and answer to reduce Inngest payload size
         const trimmedResult = {
           success: searchResult.success,
           query: searchResult.query,
-          answer: searchResult.answer || '',
+          answer: (searchResult.answer || '').substring(0, 2000), // Limit to 2000 chars
           citations: searchResult.citations?.slice(0, 5).map(c => ({
-            title: c.title?.substring(0, 150) || '',
+            title: c.title?.substring(0, 100) || '',
             url: c.url || '',
-            snippet: c.snippet || '',
           })) || [],
           error: searchResult.error,
         };
@@ -1417,7 +1416,7 @@ Return ONLY valid JSON (no markdown, no explanations):
       logger?.info('🤖 [Step 2.6] Calling Claude Sonnet 4.5 to parse search results...');
       
       const response = await anthropicClient.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-5-20250929",
         max_tokens: 4096,
         temperature: 0.1,
         messages: [
