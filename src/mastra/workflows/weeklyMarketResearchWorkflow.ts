@@ -1713,7 +1713,7 @@ Generate the complete markdown report now using the web search results as your p
       {
         resourceId: "weekly-research",
         threadId: `weekly-research-${inputData.runId}`, // Use unique runId instead of dateEnd to avoid memory conflicts
-        maxSteps: 5, // Allow agent to complete tool calls (up to 3) AND generate final report text
+        maxSteps: 1, // Limit tool calls - all data already provided in prompt (per-competitor intelligence, metrics, curated sources)
       }
     );
     
