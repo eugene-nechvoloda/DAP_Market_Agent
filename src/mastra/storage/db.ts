@@ -262,6 +262,20 @@ export class DatabaseService {
       ]
     );
   }
+  
+  async updateWebSearchData(runId: string, webSearchResults: any, perCompetitorData: any): Promise<void> {
+    await this.pool.query(
+      `UPDATE report_sources 
+       SET web_search_results = $2,
+           per_competitor_data = $3
+       WHERE run_id = $1`,
+      [
+        runId,
+        JSON.stringify(webSearchResults),
+        JSON.stringify(perCompetitorData)
+      ]
+    );
+  }
 
   async getReportSources(runId: string): Promise<ReportSourcesRecord | null> {
     const result = await this.pool.query(
