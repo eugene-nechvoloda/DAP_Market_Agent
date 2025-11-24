@@ -1081,12 +1081,7 @@ const persistCompetitorMetrics = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-    }),
+    reportingWeekStart: z.string(),
     metricsGathered: z.boolean(),
   }),
   
@@ -1210,7 +1205,7 @@ const persistCompetitorMetrics = createStep({
       dateStart: inputData.dateStart,
       dateEnd: inputData.dateEnd,
       weekRangeLabel: inputData.weekRangeLabel,
-      webSearchResults: inputData.webSearchResults,
+      reportingWeekStart: inputData.reportingWeekStart,
       metricsGathered: storedCount > 0,
     };
   },
@@ -1226,12 +1221,7 @@ const calculateCompetitorTrends = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-    }),
+    reportingWeekStart: z.string(),
     metricsGathered: z.boolean(),
   }),
   
@@ -1240,14 +1230,7 @@ const calculateCompetitorTrends = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-    }),
     metricsGathered: z.boolean(),
-    competitorTrends: z.any(),
   }),
   
   execute: async ({ inputData, mastra }) => {
@@ -1258,22 +1241,20 @@ const calculateCompetitorTrends = createStep({
     if (!inputData.metricsGathered) {
       logger?.warn('⚠️ [Step 2.5.5] No metrics gathered, skipping trend calculation');
       return {
-        ...inputData,
-        competitorTrends: null,
+        runId: inputData.runId,
+        dateStart: inputData.dateStart,
+        dateEnd: inputData.dateEnd,
+        weekRangeLabel: inputData.weekRangeLabel,
+        metricsGathered: false,
       };
     }
     
-    // Calculate reporting week start
-    const dateEnd = new Date(inputData.dateEnd);
-    const dayOfWeek = dateEnd.getDay();
-    const daysToMonday = (dayOfWeek + 6) % 7;
-    const reportingWeekStart = new Date(dateEnd);
-    reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
-    reportingWeekStart.setHours(0, 0, 0, 0);
+    // Use reporting week start from input
+    const reportingWeekStart = new Date(inputData.reportingWeekStart);
     
     logger?.info(`📅 [Step 2.5.5] Reporting week start: ${reportingWeekStart.toISOString().split('T')[0]}`);
     
-    // Get all competitor trends
+    // Get all competitor trends (stored in database, not returned in workflow output)
     const competitorTrends = await getAllCompetitorTrends(reportingWeekStart);
     
     // Log trend summary
@@ -1281,8 +1262,11 @@ const calculateCompetitorTrends = createStep({
     logger?.info(`✅ [Step 2.5.5] Calculated trends for ${trendsCount} competitors`);
     
     return {
-      ...inputData,
-      competitorTrends,
+      runId: inputData.runId,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      weekRangeLabel: inputData.weekRangeLabel,
+      metricsGathered: true,
     };
   },
 });
@@ -1312,15 +1296,7 @@ const parseCompetitorIntelligence = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-    }),
     metricsGathered: z.boolean(),
-    competitorTrends: z.any().optional(),
-    perCompetitorData: z.any(), // Structured data keyed by competitor
   }),
   
   execute: async ({ inputData, mastra }) => {
