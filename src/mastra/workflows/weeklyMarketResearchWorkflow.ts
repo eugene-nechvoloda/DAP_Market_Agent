@@ -1423,9 +1423,21 @@ Return ONLY valid JSON (no markdown, no explanations):
         ),
       });
       
+      // Save perCompetitorData to database to avoid passing large objects between workflow steps
+      logger?.info('💾 [Step 2.6] Saving web search results and per-competitor data to database...');
+      await db.updateWebSearchData(
+        inputData.runId,
+        inputData.webSearchResults,
+        perCompetitorData
+      );
+      logger?.info('✅ [Step 2.6] Saved web search results and per-competitor data to database');
+      
       return {
-        ...inputData,
-        perCompetitorData,
+        runId: inputData.runId,
+        dateStart: inputData.dateStart,
+        dateEnd: inputData.dateEnd,
+        weekRangeLabel: inputData.weekRangeLabel,
+        metricsGathered: inputData.metricsGathered,
       };
     } catch (error) {
       logger?.error('❌ [Step 2.6] Failed to parse search results:', {
@@ -1443,9 +1455,21 @@ Return ONLY valid JSON (no markdown, no explanations):
         normative: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
       };
       
+      // Save empty structure to database to avoid passing large objects between workflow steps
+      logger?.info('💾 [Step 2.6] Saving web search results and empty per-competitor data to database (error case)...');
+      await db.updateWebSearchData(
+        inputData.runId,
+        inputData.webSearchResults,
+        emptyStructure
+      );
+      logger?.info('✅ [Step 2.6] Saved web search results and empty per-competitor data to database');
+      
       return {
-        ...inputData,
-        perCompetitorData: emptyStructure,
+        runId: inputData.runId,
+        dateStart: inputData.dateStart,
+        dateEnd: inputData.dateEnd,
+        weekRangeLabel: inputData.weekRangeLabel,
+        metricsGathered: inputData.metricsGathered,
       };
     }
   },
@@ -1460,13 +1484,7 @@ const analyzeAndCompileReport = createStep({
     dateStart: z.string(),
     dateEnd: z.string(),
     weekRangeLabel: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
     metricsGathered: z.boolean(),
-    competitorTrends: z.any().optional(),
-    perCompetitorData: z.any(), // NEW: Structured per-competitor data
   }),
   
   outputSchema: z.object({
@@ -1495,6 +1513,16 @@ const analyzeAndCompileReport = createStep({
       competitorDataSize: JSON.stringify(sources.competitorData).length,
       industryDataSize: JSON.stringify(sources.industryData).length,
       reviewsDataSize: JSON.stringify(sources.reviewsData).length,
+    });
+    
+    // Extract webSearchResults and perCompetitorData from database sources
+    const webSearchResults = sources.webSearchResults || { broadPulseSearch: {}, targetedFollowUpSearch: {} };
+    const perCompetitorData = sources.perCompetitorData || {};
+    
+    logger?.info('✅ [Step 3] Web search results and per-competitor data loaded from database:', {
+      hasWebSearchResults: !!sources.webSearchResults,
+      hasPerCompetitorData: !!sources.perCompetitorData,
+      perCompetitorDataKeys: Object.keys(perCompetitorData).length,
     });
     
     // Load competitor metrics from database
@@ -1599,7 +1627,7 @@ You have been provided with comprehensive market intelligence from BOTH curated 
 
 We have pre-parsed the web search results into structured data for each competitor. **USE THIS DATA DIRECTLY for populating Competitor Spotlights sections**:
 
-${JSON.stringify(inputData.perCompetitorData, null, 2)}
+${JSON.stringify(perCompetitorData, null, 2)}
 
 **HOW TO USE THIS DATA:**
 - For each competitor (watershed, persefoni, greenly, carbmee, osapiens, sweep, normative):
@@ -1614,13 +1642,13 @@ ${JSON.stringify(inputData.perCompetitorData, null, 2)}
 
 ### Broad Market Pulse Search:
 **Query**: Carbon accounting software news this week
-**Answer**: ${inputData.webSearchResults.broadPulseSearch.answer || 'No answer available'}
-**Citations**: ${JSON.stringify(inputData.webSearchResults.broadPulseSearch.citations || [], null, 2)}
+**Answer**: ${webSearchResults.broadPulseSearch?.answer || 'No answer available'}
+**Citations**: ${JSON.stringify(webSearchResults.broadPulseSearch?.citations || [], null, 2)}
 
 ### Targeted Market Data Search:
 **Query**: Carbon accounting software market size, growth, investment trends
-**Answer**: ${inputData.webSearchResults.targetedFollowUpSearch.answer || 'No answer available'}
-**Citations**: ${JSON.stringify(inputData.webSearchResults.targetedFollowUpSearch.citations || [], null, 2)}
+**Answer**: ${webSearchResults.targetedFollowUpSearch?.answer || 'No answer available'}
+**Citations**: ${JSON.stringify(webSearchResults.targetedFollowUpSearch?.citations || [], null, 2)}
 
 ## CURATED SOURCE DATA (Structured with Bounded Summaries):
 
