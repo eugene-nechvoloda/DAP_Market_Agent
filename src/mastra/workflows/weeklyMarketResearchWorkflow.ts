@@ -842,7 +842,7 @@ const searchPerCompetitorIntelligence = createStep({
     
     // Search for each competitor in parallel (webSearchTool has built-in rate limiting)
     const searchPromises = competitors.map(async (competitor) => {
-      const query = `${competitor.name} carbon accounting software latest news funding product updates partnerships user reviews ${dateRange}`;
+      const query = `${competitor.name} carbon accounting software latest news, funding, product updates, launches, release notes, press releases, new features, partnerships, user reviews ${dateRange}`;
       
       logger?.info(`🔍 [Step 2.5.4a] Searching for ${competitor.name}:`, { query });
       
