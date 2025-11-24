@@ -33,6 +33,8 @@ export interface ReportSourcesRecord {
   competitorData: any;
   industryData: any;
   reviewsData: any;
+  webSearchResults?: any;
+  perCompetitorData?: any;
   createdAt: Date;
 }
 
@@ -240,15 +242,24 @@ export class DatabaseService {
     };
   }
 
-  async saveReportSources(runId: string, competitorData: any, industryData: any, reviewsData: any): Promise<void> {
+  async saveReportSources(runId: string, competitorData: any, industryData: any, reviewsData: any, webSearchResults?: any, perCompetitorData?: any): Promise<void> {
     await this.pool.query(
-      `INSERT INTO report_sources (run_id, competitor_data, industry_data, reviews_data)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO report_sources (run_id, competitor_data, industry_data, reviews_data, web_search_results, per_competitor_data)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (run_id) DO UPDATE SET
          competitor_data = EXCLUDED.competitor_data,
          industry_data = EXCLUDED.industry_data,
-         reviews_data = EXCLUDED.reviews_data`,
-      [runId, JSON.stringify(competitorData), JSON.stringify(industryData), JSON.stringify(reviewsData)]
+         reviews_data = EXCLUDED.reviews_data,
+         web_search_results = COALESCE(EXCLUDED.web_search_results, report_sources.web_search_results),
+         per_competitor_data = COALESCE(EXCLUDED.per_competitor_data, report_sources.per_competitor_data)`,
+      [
+        runId, 
+        JSON.stringify(competitorData), 
+        JSON.stringify(industryData), 
+        JSON.stringify(reviewsData),
+        webSearchResults ? JSON.stringify(webSearchResults) : null,
+        perCompetitorData ? JSON.stringify(perCompetitorData) : null
+      ]
     );
   }
 
@@ -266,6 +277,8 @@ export class DatabaseService {
       competitorData: typeof row.competitor_data === 'string' ? JSON.parse(row.competitor_data) : row.competitor_data,
       industryData: typeof row.industry_data === 'string' ? JSON.parse(row.industry_data) : row.industry_data,
       reviewsData: typeof row.reviews_data === 'string' ? JSON.parse(row.reviews_data) : row.reviews_data,
+      webSearchResults: row.web_search_results ? (typeof row.web_search_results === 'string' ? JSON.parse(row.web_search_results) : row.web_search_results) : null,
+      perCompetitorData: row.per_competitor_data ? (typeof row.per_competitor_data === 'string' ? JSON.parse(row.per_competitor_data) : row.per_competitor_data) : null,
       createdAt: row.created_at,
     };
   }

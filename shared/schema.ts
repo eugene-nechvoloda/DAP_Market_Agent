@@ -150,3 +150,17 @@ export const industrySources = pgTable('industry_sources', {
   // Index for category-based filtering
   categoryIdx: index('idx_industry_sources_category').on(table.category),
 }));
+
+// Report sources cache table for storing curated data, web search results, and parsed data per workflow run
+export const reportSources = pgTable('report_sources', {
+  id: serial('id').primaryKey(),
+  runId: varchar('run_id', { length: 255 }).notNull().unique(),
+  competitorData: jsonb('competitor_data'),
+  industryData: jsonb('industry_data'),
+  reviewsData: jsonb('reviews_data'),
+  webSearchResults: jsonb('web_search_results'), // Stores all web search results including perCompetitorSearches
+  perCompetitorData: jsonb('per_competitor_data'), // Stores Claude-parsed structured data
+  createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
+}, (table) => ({
+  runIdIdx: uniqueIndex('idx_report_sources_run_id').on(table.runId),
+}));
