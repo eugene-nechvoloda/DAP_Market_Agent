@@ -263,18 +263,97 @@ export class DatabaseService {
     );
   }
   
-  async updateWebSearchData(runId: string, webSearchResults: any, perCompetitorData: any): Promise<void> {
-    await this.pool.query(
-      `UPDATE report_sources 
-       SET web_search_results = $2,
-           per_competitor_data = $3
-       WHERE run_id = $1`,
-      [
-        runId,
-        JSON.stringify(webSearchResults),
-        JSON.stringify(perCompetitorData)
-      ]
-    );
+  /**
+   * Update web search data with merge behavior to preserve accumulated research data
+   * @param runId - The workflow run ID
+   * @param webSearchResults - New web search results to merge (pass undefined to keep existing)
+   * @param perCompetitorData - New per-competitor data to merge (pass undefined to keep existing)
+   * @param overwrite - If true, completely replaces existing data instead of merging (default: false)
+   */
+  async updateWebSearchData(
+    runId: string, 
+    webSearchResults?: any, 
+    perCompetitorData?: any,
+    overwrite: boolean = false
+  ): Promise<void> {
+    // Use a transaction with row locking to prevent concurrent lost updates
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Fetch existing record with row lock
+      const result = await client.query(
+        'SELECT web_search_results, per_competitor_data FROM report_sources WHERE run_id = $1 FOR UPDATE',
+        [runId]
+      );
+      
+      const existingRow = result.rows[0];
+      let existing: any = null;
+      
+      if (existingRow) {
+        existing = {
+          webSearchResults: existingRow.web_search_results ? 
+            (typeof existingRow.web_search_results === 'string' ? 
+              JSON.parse(existingRow.web_search_results) : 
+              existingRow.web_search_results) : 
+            null,
+          perCompetitorData: existingRow.per_competitor_data ?
+            (typeof existingRow.per_competitor_data === 'string' ?
+              JSON.parse(existingRow.per_competitor_data) :
+              existingRow.per_competitor_data) :
+            null,
+        };
+      }
+      
+      let finalWebSearchResults: any;
+      let finalPerCompetitorData: any;
+      
+      if (overwrite || !existing) {
+        // First call or explicit overwrite - use new data as-is
+        finalWebSearchResults = webSearchResults ?? null;
+        finalPerCompetitorData = perCompetitorData ?? null;
+      } else {
+        // Merge with existing data (shallow merge preserves all keys)
+        // Only merge if new data is provided (not undefined), otherwise keep existing
+        finalWebSearchResults = webSearchResults !== undefined ? {
+          ...(existing.webSearchResults || {}),
+          ...(webSearchResults || {}),
+        } : existing.webSearchResults;
+        
+        finalPerCompetitorData = perCompetitorData !== undefined ? {
+          ...(existing.perCompetitorData || {}),
+          ...(perCompetitorData || {}),
+        } : existing.perCompetitorData;
+      }
+      
+      // Build dynamic UPDATE to only modify provided fields
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+      
+      if (webSearchResults !== undefined) {
+        updates.push(`web_search_results = $${paramIndex++}`);
+        values.push(finalWebSearchResults ? JSON.stringify(finalWebSearchResults) : null);
+      }
+      
+      if (perCompetitorData !== undefined) {
+        updates.push(`per_competitor_data = $${paramIndex++}`);
+        values.push(finalPerCompetitorData ? JSON.stringify(finalPerCompetitorData) : null);
+      }
+      
+      if (updates.length > 0) {
+        values.push(runId);
+        const updateQuery = `UPDATE report_sources SET ${updates.join(', ')} WHERE run_id = $${paramIndex}`;
+        await client.query(updateQuery, values);
+      }
+      
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async getReportSources(runId: string): Promise<ReportSourcesRecord | null> {
