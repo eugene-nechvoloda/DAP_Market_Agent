@@ -840,10 +840,8 @@ const searchPerCompetitorIntelligence = createStep({
       { name: "Normative", slug: "normative" },
     ];
     
-    const perCompetitorSearches: Record<string, any> = {};
-    
-    // Search for each competitor individually (sequential to avoid rate limits)
-    for (const competitor of competitors) {
+    // Search for each competitor in parallel (webSearchTool has built-in rate limiting)
+    const searchPromises = competitors.map(async (competitor) => {
       const query = `${competitor.name} carbon accounting software latest news funding product updates partnerships user reviews ${dateRange}`;
       
       logger?.info(`🔍 [Step 2.5.4a] Searching for ${competitor.name}:`, { query });
@@ -871,29 +869,36 @@ const searchPerCompetitorIntelligence = createStep({
           error: searchResult.error,
         };
         
-        perCompetitorSearches[competitor.slug] = trimmedResult;
-        
         logger?.info(`✅ [Step 2.5.4a] ${competitor.name} search completed:`, {
           success: trimmedResult.success,
           citationsCount: trimmedResult.citations.length,
           answerLength: trimmedResult.answer.length,
         });
         
-        // Rate limit: wait 1 second between searches to avoid overwhelming Perplexity
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        return { slug: competitor.slug, result: trimmedResult };
       } catch (error) {
         logger?.error(`❌ [Step 2.5.4a] Failed to search for ${competitor.name}:`, {
           error: error instanceof Error ? error.message : String(error),
         });
         
-        perCompetitorSearches[competitor.slug] = {
-          success: false,
-          query,
-          answer: '',
-          citations: [],
-          error: error instanceof Error ? error.message : String(error),
+        return {
+          slug: competitor.slug,
+          result: {
+            success: false,
+            query,
+            answer: '',
+            citations: [],
+            error: error instanceof Error ? error.message : String(error),
+          },
         };
       }
+    });
+    
+    const searchResults = await Promise.all(searchPromises);
+    const perCompetitorSearches: Record<string, any> = {};
+    
+    for (const { slug, result } of searchResults) {
+      perCompetitorSearches[slug] = result;
     }
     
     logger?.info('✅ [Step 2.5.4a] All per-competitor searches completed:', {
