@@ -905,6 +905,35 @@ const searchPerCompetitorIntelligence = createStep({
       successful: Object.values(perCompetitorSearches).filter((s: any) => s.success).length,
     });
     
+    // CRITICAL: Save per-competitor search results to database immediately
+    // This ensures parseCompetitorIntelligence can access them even if subsequent steps fail
+    const webSearchResultsToSave = {
+      broadPulseSearch: inputData.webSearchResults.broadPulseSearch,
+      targetedFollowUpSearch: inputData.webSearchResults.targetedFollowUpSearch,
+      perCompetitorSearches: perCompetitorSearches, // Explicitly add the new data
+    };
+    
+    // Verify the structure before saving
+    logger?.info('💾 [Step 2.5.4a] Preparing to save web search results:', {
+      hasBroadPulse: !!webSearchResultsToSave.broadPulseSearch,
+      hasTargetedFollowUp: !!webSearchResultsToSave.targetedFollowUpSearch,
+      hasPerCompetitorSearches: !!webSearchResultsToSave.perCompetitorSearches,
+      perCompetitorCount: Object.keys(webSearchResultsToSave.perCompetitorSearches || {}).length,
+      perCompetitorKeys: Object.keys(webSearchResultsToSave.perCompetitorSearches || {}),
+    });
+    
+    try {
+      await db.updateWebSearchData(
+        inputData.runId,
+        webSearchResultsToSave,
+        undefined // Don't update perCompetitorData yet - will be filled by parseCompetitorIntelligence step
+      );
+      logger?.info('✅ [Step 2.5.4a] Successfully saved per-competitor search results to database');
+    } catch (error) {
+      logger?.error('❌ [Step 2.5.4a] Failed to save search results to database:', error);
+      // Continue anyway - data is still in workflow chain
+    }
+    
     return {
       runId: inputData.runId,
       dateStart: inputData.dateStart,
@@ -969,6 +998,7 @@ const searchUserFeedback = createStep({
     webSearchResults: z.object({
       broadPulseSearch: z.any(),
       targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()), // CRITICAL: Must pass through to preserve data
       userFeedbackSearch: z.any().optional(),
     }),
     fundingMetrics: z.array(z.any()),
@@ -1037,7 +1067,9 @@ const searchUserFeedback = createStep({
       currentMonth: inputData.currentMonth,
       reasoning: inputData.reasoning,
       webSearchResults: {
-        ...inputData.webSearchResults,
+        broadPulseSearch: inputData.webSearchResults.broadPulseSearch,
+        targetedFollowUpSearch: inputData.webSearchResults.targetedFollowUpSearch,
+        perCompetitorSearches: inputData.webSearchResults.perCompetitorSearches, // CRITICAL: Explicitly pass through
         userFeedbackSearch: trimmedFeedbackSearch,
       },
       fundingMetrics: inputData.fundingMetrics,
@@ -1199,6 +1231,9 @@ const persistCompetitorMetrics = createStep({
     }
     
     logger?.info(`✅ [Step 2.5.5] Stored metrics for ${storedCount}/${allMetrics.length} competitors`);
+    
+    // Note: webSearchResults is already saved to database by searchPerCompetitorIntelligence (Step 2.5.4a)
+    // No need to save again here to avoid overwriting data with empty perCompetitorData
     
     return {
       runId: inputData.runId,
