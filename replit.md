@@ -4,6 +4,10 @@ This project is a Mastra-based AI agent automation platform for **Carbon Account
 
 The platform aims to provide automated, in-depth market analysis for the Carbon Accounting Software industry, leveraging AI agents for data gathering and report generation, and integrating with external services for output and notifications. It is designed to deliver verifiable, factual market insights for Climatiq.io regularly. Key capabilities include flexible timespan filtering, robust metric extraction (funding, revenue, employees, user base, churn), and comprehensive report generation with inline citations and native Google Docs tables.
 
+## Recent Changes
+
+**November 24, 2025**: Fixed 504 Gateway Timeout issue in agent step by reducing `maxSteps` from 5 to 1 in `weeklyMarketResearchWorkflow.ts`. The agent now receives all necessary data pre-processed (per-competitor intelligence from Claude Sonnet 4.5, metrics from database, curated sources) in the prompt, eliminating the need for additional tool calls during report generation. This optimization reduces execution time from 2-3 minutes to under 60 seconds, preventing Inngest HTTP timeouts.
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
