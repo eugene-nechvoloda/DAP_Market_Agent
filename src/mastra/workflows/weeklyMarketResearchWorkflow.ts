@@ -1080,6 +1080,168 @@ const searchUserFeedback = createStep({
   },
 });
 
+// Step 2.5.4c: Search for market data and industry reports
+const searchMarketDataAndReports = createStep({
+  id: "search-market-data-and-reports",
+  description: "Search for overall market data, growth rates, and industry reports using Perplexity/SerpAPI with intelligent timespans",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    reasoning: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
+      userFeedbackSearch: z.any().optional(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateStart: z.string(),
+    dateEnd: z.string(),
+    weekRangeLabel: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    reasoning: z.string(),
+    webSearchResults: z.object({
+      broadPulseSearch: z.any(),
+      targetedFollowUpSearch: z.any(),
+      perCompetitorSearches: z.record(z.any()),
+      userFeedbackSearch: z.any().optional(),
+      marketDataSearch: z.any().optional(),
+      industryReportsSearch: z.any().optional(),
+    }),
+    fundingMetrics: z.array(z.any()),
+    revenueMetrics: z.array(z.any()),
+    customerMetrics: z.array(z.any()),
+    reportingWeekStart: z.string(),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('📊 [Step 2.5.4c] Searching for market data and industry reports...');
+    logger?.info('🧠 [Step 2.5.4c] Using GPT-5 date logic:', inputData.reasoning);
+    
+    // Format intelligent date range for market data (use current month for snapshot data)
+    const dateEnd = new Date(inputData.dateEnd);
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const currentMonth = monthNames[dateEnd.getMonth()];
+    const currentYear = dateEnd.getFullYear();
+    
+    // Search 1: Market data (market size, growth rate, CAGR, investment trends, analyst forecasts)
+    const marketDataQuery = `Carbon accounting software market size growth rate ${currentMonth} ${currentYear}, investment trends, CAGR analyst reports, Forrester Gartner climate tech sustainability ESG market forecast predictions`;
+    
+    logger?.info('📊 [Step 2.5.4c] Searching for market data:', { query: marketDataQuery });
+    
+    const marketDataSearch = await webSearchTool.execute({
+      context: {
+        query: marketDataQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    logger?.info('✅ [Step 2.5.4c] Market data search completed:', {
+      success: marketDataSearch.success,
+      citationsCount: marketDataSearch.citations?.length || 0,
+    });
+    
+    // Trim market data search results
+    const trimmedMarketDataSearch = {
+      success: marketDataSearch.success,
+      query: marketDataSearch.query,
+      answer: marketDataSearch.answer || '',
+      citations: marketDataSearch.citations?.slice(0, 5).map(c => ({
+        title: c.title?.substring(0, 150) || '',
+        url: c.url || '',
+      })) || [],
+      error: marketDataSearch.error,
+    };
+    
+    // Format intelligent date range for industry reports (use general news timespan for recent reports)
+    const generalStart = new Date(inputData.generalNewsDateStart);
+    const startMonth = monthNames[generalStart.getMonth()];
+    const reportDateRange = `${startMonth} ${generalStart.getDate()}-${currentMonth !== startMonth ? currentMonth + ' ' : ''}${dateEnd.getDate()} ${currentYear}`;
+    
+    // Search 2: Industry reports and analysis
+    const industryReportsQuery = `Carbon accounting software industry reports ${reportDateRange}, industry analysis, analyst reviews, market research, sustainability reporting standards updates, climate tech industry trends`;
+    
+    logger?.info('📈 [Step 2.5.4c] Searching for industry reports:', { query: industryReportsQuery });
+    
+    const industryReportsSearch = await webSearchTool.execute({
+      context: {
+        query: industryReportsQuery,
+        maxResults: 5,
+      },
+      runtimeContext,
+      mastra,
+    });
+    
+    logger?.info('✅ [Step 2.5.4c] Industry reports search completed:', {
+      success: industryReportsSearch.success,
+      citationsCount: industryReportsSearch.citations?.length || 0,
+    });
+    
+    // Trim industry reports search results
+    const trimmedIndustryReportsSearch = {
+      success: industryReportsSearch.success,
+      query: industryReportsSearch.query,
+      answer: industryReportsSearch.answer || '',
+      citations: industryReportsSearch.citations?.slice(0, 5).map(c => ({
+        title: c.title?.substring(0, 150) || '',
+        url: c.url || '',
+      })) || [],
+      error: industryReportsSearch.error,
+    };
+    
+    // Return all data for downstream steps
+    return {
+      runId: inputData.runId,
+      dateStart: inputData.dateStart,
+      dateEnd: inputData.dateEnd,
+      weekRangeLabel: inputData.weekRangeLabel,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      reasoning: inputData.reasoning,
+      webSearchResults: {
+        broadPulseSearch: inputData.webSearchResults.broadPulseSearch,
+        targetedFollowUpSearch: inputData.webSearchResults.targetedFollowUpSearch,
+        perCompetitorSearches: inputData.webSearchResults.perCompetitorSearches,
+        userFeedbackSearch: inputData.webSearchResults.userFeedbackSearch,
+        marketDataSearch: trimmedMarketDataSearch,
+        industryReportsSearch: trimmedIndustryReportsSearch,
+      },
+      fundingMetrics: inputData.fundingMetrics,
+      revenueMetrics: inputData.revenueMetrics,
+      customerMetrics: inputData.customerMetrics,
+      reportingWeekStart: inputData.reportingWeekStart,
+    };
+  },
+});
+
 // Step 2.5.5: Persist all metrics to database
 const persistCompetitorMetrics = createStep({
   id: "persist-competitor-metrics",
@@ -1101,6 +1263,8 @@ const persistCompetitorMetrics = createStep({
       targetedFollowUpSearch: z.any(),
       perCompetitorSearches: z.record(z.any()),
       userFeedbackSearch: z.any().optional(),
+      marketDataSearch: z.any().optional(),
+      industryReportsSearch: z.any().optional(),
     }),
     fundingMetrics: z.array(z.any()),
     revenueMetrics: z.array(z.any()),
@@ -1710,6 +1874,21 @@ ${JSON.stringify(perCompetitorData, null, 2)}
 **Answer**: ${webSearchResults.targetedFollowUpSearch?.answer || 'No answer available'}
 **Citations**: ${JSON.stringify(webSearchResults.targetedFollowUpSearch?.citations || [], null, 2)}
 
+### Market Data Search Results:
+**Query**: ${webSearchResults.marketDataSearch?.query || 'Not performed'}
+**Answer**: ${webSearchResults.marketDataSearch?.answer || 'No market data available'}
+**Citations**: ${JSON.stringify(webSearchResults.marketDataSearch?.citations || [], null, 2)}
+
+### Industry Reports Search Results:
+**Query**: ${webSearchResults.industryReportsSearch?.query || 'Not performed'}
+**Answer**: ${webSearchResults.industryReportsSearch?.answer || 'No industry reports available'}
+**Citations**: ${JSON.stringify(webSearchResults.industryReportsSearch?.citations || [], null, 2)}
+
+### User Reviews Search Results:
+**Query**: ${webSearchResults.userFeedbackSearch?.query || 'Not performed'}
+**Answer**: ${webSearchResults.userFeedbackSearch?.answer || 'No user feedback available'}
+**Citations**: ${JSON.stringify(webSearchResults.userFeedbackSearch?.citations || [], null, 2)}
+
 ## CURATED SOURCE DATA (Structured with Bounded Summaries):
 
 ### Competitor News Data (${competitorCount} items covering ${competitorsWithData.length}/7 competitors):
@@ -2042,6 +2221,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   .then(searchCustomerMetrics as any)
   .then(searchPerCompetitorIntelligence as any) // Step 2.5.4a: Per-competitor Perplexity/SerpAPI searches
   .then(searchUserFeedback as any) // Step 2.5.4b: Search for user feedback with intelligent timespans
+  .then(searchMarketDataAndReports as any) // Step 2.5.4c: Search for market data and industry reports
   .then(persistCompetitorMetrics as any)
   .then(calculateCompetitorTrends as any)
   .then(parseCompetitorIntelligence as any) // Step 2.6: Parse Perplexity/SerpAPI results with Claude Sonnet 4.5

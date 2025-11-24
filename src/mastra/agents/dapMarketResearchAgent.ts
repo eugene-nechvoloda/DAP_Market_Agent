@@ -169,26 +169,52 @@ Recent case studies from the PAST MONTH (check case study pages for valuable ins
 - Do NOT add "Inferred Activity During Week" speculation
 
 # 📊 Overall Market Data
-**Include ONLY if you have actual market data from THIS WEEK**. Otherwise write: "_No new market data this week._"
+**PRIMARY SOURCE**: Use the "Market Data Search Results" section from your prompt (Perplexity/SerpAPI search for market size, growth rate, CAGR, analyst forecasts).
+
+**Intelligent Timespan Approach**:
+- Market SIZE/GROWTH data: Current month snapshot (e.g., "November 2025 market data")
+- Investment TRENDS: Recent timeframe from search results
+- Analyst FORECASTS: Include projections for upcoming quarters/years
+
+**What to include** (if found in Market Data Search Results):
+- Market size estimates and growth rates (CAGR, YoY, QoQ)
+- Investment trends and funding activity in the sector
+- Analyst forecasts from Forrester, Gartner, or other reputable sources
+- ESG/climate tech market dynamics
+
+**Citation format**: Include source links for all market statistics.
+- Example: "The Carbon Accounting Software market grew 25% QoQ reaching $2.4B ([Gartner Climate Tech Report](https://gartner.com/report))."
+
+**If no market data found in search results**, write: "_No new market data available this period._"
 
 Use subsections only if data exists:
 ## Key Market Trends
-**Citation format**: Include source links for all market statistics.
-- Example: "The Carbon Accounting Software market grew 25% QoQ ([Gartner Report](https://gartner.com/report))."
-
 ## Strategic Implications  
 ## Market Trajectory Analysis
 
 # 📈 Recent Industry Reports & Analysis
-**ONLY include analyst reports/research published THIS WEEK**. If none exist, write: "_No new industry reports this week._"
+**PRIMARY SOURCE**: Use the "Industry Reports Search Results" section from your prompt (Perplexity/SerpAPI search for industry reports, analyst reviews, market research).
+
+**Intelligent Timespan Approach**:
+- Include industry reports published within the timespan indicated in the search results
+- Prioritize recent analyst reports (past 7-14 days)
+- Include sustainability standards updates and regulatory changes from the current month
+
+**What to include** (if found in Industry Reports Search Results):
+- New analyst reports from Forrester, Gartner, IDC, etc.
+- Industry analysis and market research publications
+- Climate tech / sustainability sector reviews
+- Regulatory updates affecting carbon accounting
+
+**Citation format**: Include source links for all analyst reports.
+- Example: "Forrester predicts Carbon Accounting Software adoption will triple in 2026 ([Forrester Wave Nov 2025](https://forrester.com/wave))."
+
+**If no industry reports found in search results**, write: "_No new industry reports available this period._"
 
 DO NOT fill with:
 - Generic industry trends from months ago
 - Speculation about what analysts might think
-- Irrelevant content
-
-**Citation format**: Include source links for all analyst reports.
-- Example: "Forrester predicts Carbon Accounting Software adoption will triple in 2026 ([Forrester Wave](https://forrester.com/wave))."
+- Content not found in the search results
 
 # 💹 Market Dynamics
 **Use the competitor metrics data provided** to create a brief market dynamics summary.
