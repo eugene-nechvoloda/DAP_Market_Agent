@@ -86,7 +86,7 @@ export const industryReportsResearchTool = createTool({
         
         const response = await fetch(industrySource.url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; CarbonAccountingMarketResearch/1.0)',
+            'User-Agent': 'Mozilla/5.0 (compatible; DAPMarketResearch/1.0)',
           },
         });
         
@@ -109,7 +109,7 @@ export const industryReportsResearchTool = createTool({
         // The agent will extract market trends, investment activity, and filter by date
         reports.push({
           source: industrySource.source,
-          title: `${industrySource.source} - Carbon Accounting Market Analysis`,
+          title: `${industrySource.source} - Digital Adoption Platform Market Analysis`,
           summary: cleanText.substring(0, 5000), // First 5000 chars for agent analysis
           keyInsights: [], // Agent will populate this
           url: industrySource.url,

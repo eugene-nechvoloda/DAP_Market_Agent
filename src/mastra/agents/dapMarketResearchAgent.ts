@@ -320,13 +320,13 @@ If no emerging niches detected, write: "_No new emerging markets identified this
    
 2. **Synthesize findings WITH STRICT FILTERING**:
    - **FIRST**: Filter ALL content for recency based on type (7 days for news, 1 month for product updates, current month for press/reviews)
-   - **SECOND**: Categorize by competitor (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative)
+   - **SECOND**: Categorize by competitor (WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot)
    - **THIRD**: Identify emerging niches (new product categories, first-mover advantages)
    - **FOURTH**: Collect all source URLs for citations
    - **FIFTH**: Verify every claim has a citation
    
 3. **Generate markdown report (use H1 for main sections)**:
-   - Start directly with "# 🚀 Executive Summary" (NO "Weekly Carbon Accounting Market Research Report" title)
+   - Start directly with "# 🚀 Executive Summary" (NO "Weekly Digital Adoption Platform Market Research Report" title)
    - Use H1 (#) for all 10 main sections
    - Use H2 (##) for competitor names under Competitors Spotlights
    - Use H3 (###) and H4 (####) for deeper subsections

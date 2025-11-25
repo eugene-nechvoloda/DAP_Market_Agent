@@ -1510,13 +1510,13 @@ const parseCompetitorIntelligence = createStep({
     const perCompetitorSearches = sources?.webSearchResults?.perCompetitorSearches || {};
     
     const competitors = [
-      { name: "Watershed", slug: "watershed" },
-      { name: "Persefoni", slug: "persefoni" },
-      { name: "Greenly", slug: "greenly" },
-      { name: "carbmee", slug: "carbmee" },
-      { name: "osapiens", slug: "osapiens" },
-      { name: "Sweep", slug: "sweep" },
-      { name: "Normative", slug: "normative" },
+      { name: "WalkMe", slug: "walkme" },
+      { name: "Pendo", slug: "pendo" },
+      { name: "Appcues", slug: "appcues" },
+      { name: "Whatfix", slug: "whatfix" },
+      { name: "UserGuiding", slug: "userguiding" },
+      { name: "Chameleon", slug: "chameleon" },
+      { name: "Userpilot", slug: "userpilot" },
     ];
     
     // Build comprehensive prompt with all per-competitor searches
@@ -1553,13 +1553,13 @@ const parseCompetitorIntelligence = createStep({
     });
     
     // Simplified parsing prompt focusing on PER-COMPETITOR Perplexity/SerpAPI answers
-    const parsingPrompt = `You are extracting structured competitor intelligence from per-competitor Perplexity/SerpAPI search results about the Carbon Accounting Software market (November 2025).
+    const parsingPrompt = `You are extracting structured competitor intelligence from per-competitor Perplexity/SerpAPI search results about the Digital Adoption Platform market (November 2025).
 
 **PER-COMPETITOR SEARCH RESULTS (PRIMARY SOURCE):**
 ${competitorDataText}
 
 **YOUR TASK:**
-Extract information for each of these 7 competitors based on THEIR SPECIFIC search results above: Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative
+Extract information for each of these 7 competitors based on THEIR SPECIFIC search results above: WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot
 
 For each competitor found in the search results, extract:
 - **strategicMoves**: Funding rounds, acquisitions, major announcements (include citation [1], [2], etc.)
@@ -1570,18 +1570,18 @@ For each competitor found in the search results, extract:
 **OUTPUT FORMAT:**
 Return ONLY valid JSON (no markdown, no explanations):
 {
-  "watershed": {
-    "strategicMoves": ["Persefoni secured $23M funding [4]", "..."],
-    "productUpdates": ["Q3 2025 updates with AI-accelerated reporting [1]", "..."],
-    "partnerships": ["Partnership with Microsoft [2]", "..."],
-    "userFeedback": ["Users praise comprehensive emissions tracking [5]", "..."]
+  "walkme": {
+    "strategicMoves": ["WalkMe secured $40M Series F funding [4]", "..."],
+    "productUpdates": ["Q3 2025 updates with AI-powered guidance [1]", "..."],
+    "partnerships": ["Partnership with Salesforce [2]", "..."],
+    "userFeedback": ["Users praise comprehensive onboarding workflows [5]", "..."]
   },
-  "persefoni": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "greenly": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "carbmee": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "osapiens": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "sweep": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "normative": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] }
+  "pendo": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "appcues": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "whatfix": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "userguiding": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "chameleon": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
+  "userpilot": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] }
 }
 
 **RULES:**
@@ -1654,13 +1654,13 @@ Return ONLY valid JSON (no markdown, no explanations):
       
       // Return empty structure on error
       const emptyStructure = {
-        watershed: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        persefoni: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        greenly: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        carbmee: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        osapiens: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        sweep: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        normative: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        walkme: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        pendo: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        appcues: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        whatfix: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        userguiding: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        chameleon: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        userpilot: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
       };
       
       // Save empty structure to database ONLY if we have valid webSearchResults
@@ -1815,7 +1815,7 @@ const analyzeAndCompileReport = createStep({
     };
     
     // Ensure all competitors are represented with data summary
-    const allCompetitors = ['watershed', 'persefoni', 'greenly', 'carbmee', 'osapiens', 'sweep', 'normative'];
+    const allCompetitors = ['walkme', 'pendo', 'appcues', 'whatfix', 'userguiding', 'chameleon', 'userpilot'];
     const competitorDataMap = new Map();
     if (Array.isArray(sources.competitorData)) {
       sources.competitorData.forEach((item: any) => {
@@ -1838,7 +1838,7 @@ const analyzeAndCompileReport = createStep({
     });
     
     const prompt = `
-You are conducting the weekly Carbon Accounting Software market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
+You are conducting the weekly Digital Adoption Platform market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
 
 **FLEXIBLE TIMESPAN PARAMETERS FOR CONTENT FILTERING**:
 - Current Calendar Month: ${currentMonth} (use for press releases and user reviews)
@@ -1854,7 +1854,7 @@ We have pre-parsed the web search results into structured data for each competit
 ${JSON.stringify(perCompetitorData, null, 2)}
 
 **HOW TO USE THIS DATA:**
-- For each competitor (watershed, persefoni, greenly, carbmee, osapiens, sweep, normative):
+- For each competitor (walkme, pendo, appcues, whatfix, userguiding, chameleon, userpilot):
   - **Strategic Moves** section → Use items from perCompetitorData[competitor].strategicMoves
   - **Product Updates** section → Use items from perCompetitorData[competitor].productUpdates
   - **Partnerships & Integrations** section → Use items from perCompetitorData[competitor].partnerships
@@ -1925,8 +1925,8 @@ You MUST include ALL of the following sections in your report. If data is missin
 
 ✅ **REQUIRED SECTIONS**:
 - Executive Summary (ALWAYS required)
-- Recent Carbon Accounting Market News (ALWAYS required - write "_No significant market news this week._" if empty)
-- Competitor Spotlights for ALL 7 competitors (Watershed, Persefoni, Greenly, carbmee, osapiens, Sweep, Normative) - ALWAYS required, write "_No updates found for [competitor]._" if no data
+- Recent Digital Adoption Platform Market News (ALWAYS required - write "_No significant market news this week._" if empty)
+- Competitor Spotlights for ALL 7 competitors (WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot) - ALWAYS required, write "_No updates found for [competitor]._" if no data
 - User Sentiment & Reviews (ALWAYS required - ${reviewsCount} reviews provided, MUST summarize ALL)
 - Industry Trends & Emerging Themes (ALWAYS required)
 - Market Opportunities (ALWAYS required)
@@ -1945,8 +1945,8 @@ You MUST include ALL of the following sections in your report. If data is missin
 - Additional tool calls are OPTIONAL and only needed for specific gaps (e.g., missing user sentiment)
 - You have a budget of up to 3 tool calls if needed, but the provided data should be sufficient
 - Include ALL citations from web searches in your Sources & Citations section
-- Focus on actionable insights for Climatiq.io's product strategy
-- **Example**: If generating a report on Nov 21, include Watershed's CDP partnership announced on Nov 20, Greenly's EcoPilot from earlier in November, etc.
+- Focus on actionable insights for our product strategy
+- **Example**: If generating a report on Nov 21, include WalkMe's enterprise partnership announced on Nov 20, Pendo's AI features from earlier in November, etc.
 
 Generate the complete markdown report now using the web search results as your primary source and ensuring ALL ${competitorCount + reviewsCount + industryCount} curated data items are analyzed.
 `;
@@ -1988,7 +1988,7 @@ Generate the complete markdown report now using the web search results as your p
     
     // Save report to database immediately to avoid Inngest step output size limit
     logger?.info('💾 [Step 3] Saving report to database...');
-    const title = `Carbon Accounting Market Research Report - Week of ${inputData.weekRangeLabel}`;
+    const title = `Digital Adoption Platform Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const savedReport = await db.saveReport({
       runId: inputData.runId, // Idempotent writes using unique workflow run identifier
@@ -2063,7 +2063,7 @@ const exportToGoogleDocs = createStep({
       };
     }
     
-    const title = `Carbon Accounting Market Research Report - Week of ${inputData.weekRangeLabel}`;
+    const title = `Digital Adoption Platform Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const result = await googleDocsExportTool.execute({
       context: {
@@ -2167,7 +2167,7 @@ const sendSlackNotification = createStep({
     // Construct web version URL (assumes standard Replit deployment URL structure)
     const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${inputData.reportId}`;
     
-    const message = `🔔 *Weekly Carbon Accounting Market Research Report*
+    const message = `🔔 *Weekly Digital Adoption Platform Market Research Report*
 
 ${inputData.summary}`;
     
