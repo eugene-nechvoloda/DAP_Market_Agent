@@ -300,7 +300,7 @@ export async function getMarketTrends(currentWeekStart: Date): Promise<{
  * Get all competitors' latest metrics with trends
  */
 export async function getAllCompetitorTrends(currentWeekStart: Date) {
-  const competitors = ['watershed', 'persefoni', 'greenly', 'carbmee', 'osapiens', 'sweep', 'normative'];
+  const competitors = ['walkme', 'pendo', 'appcues', 'whatfix', 'userguiding', 'chameleon', 'userpilot'];
 
   const results = await Promise.all(
     competitors.map((slug) => getCompetitorTrends(slug, currentWeekStart))
