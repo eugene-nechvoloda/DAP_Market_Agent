@@ -4,11 +4,11 @@
  * Database seeding script for Digital Adoption Platform (DAP) market research sources
  * 
  * This script:
- * 1. Clears existing competitor and industry sources (from previous carbon accounting setup)
- * 2. Seeds DAP competitor sources (WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot)
- * 3. Seeds DAP industry sources (Gartner, G2, Product-Led Alliance, etc.)
+ * 1. Deactivates existing competitor sources (from previous 7-competitor setup)
+ * 2. Seeds DAP competitor sources (WalkMe, Whatfix, Pendo, Appcues, Apty - 5 competitors)
+ * 3. Uses user-specified URLs with explicit category metadata
  * 
- * Run with: npm run seed-dap-sources
+ * Run with: tsx scripts/seed-dap-sources.ts
  */
 
 import pg from 'pg';
@@ -40,53 +40,28 @@ async function seedDatabase() {
   });
 
   try {
-    console.log('🔄 Starting DAP sources database seeding...\n');
+    console.log('🔄 Starting DAP sources database seeding (5 competitors)...\n');
 
-    // 1. Clear existing sources
-    console.log('🗑️  Step 1: Clearing existing sources...');
-    const deleteCompetitorResult = await pool.query('DELETE FROM competitor_sources');
-    const deleteIndustryResult = await pool.query('DELETE FROM industry_sources');
-    console.log(`   ✅ Deleted ${deleteCompetitorResult.rowCount} competitor sources`);
-    console.log(`   ✅ Deleted ${deleteIndustryResult.rowCount} industry sources\n`);
+    // 1. Deactivate existing sources (preserve historical data, don't delete)
+    console.log('🔒 Step 1: Deactivating existing competitor sources...');
+    const deactivateResult = await pool.query('UPDATE competitor_sources SET is_active = false WHERE is_active = true');
+    console.log(`   ✅ Deactivated ${deactivateResult.rowCount} competitor sources (preserved for historical queries)\n`);
 
-    // 2. Seed competitor sources
-    console.log('📊 Step 2: Seeding DAP competitor sources...');
+    // 2. Seed competitor sources with explicit categories
+    console.log('📊 Step 2: Seeding DAP competitor sources (5 competitors with user-specified URLs)...');
     let competitorCount = 0;
 
     for (const [slug, competitor] of Object.entries(COMPETITOR_SOURCES)) {
-      console.log(`   🔹 Processing ${competitor.name}...`);
+      console.log(`   🔹 Processing ${competitor.name} (${competitor.urls.length} sources)...`);
       
-      for (const url of competitor.urls) {
-        // Determine category and source name from URL
-        let category = 'blog';
-        let sourceName = 'Blog';
-        let timeFilter = '7days';
-
-        if (url.includes('/blog')) {
-          category = 'blog';
-          sourceName = 'Blog';
-          timeFilter = '7days';
-        } else if (url.includes('/customers') || url.includes('/case-studies')) {
-          category = 'case_studies';
-          sourceName = 'Case Studies';
-          timeFilter = '1month';
-        } else if (url.includes('/press') || url.includes('/newsroom')) {
-          category = 'press';
-          sourceName = 'Press Releases';
-          timeFilter = 'current_month';
-        } else if (url.includes('/product') || url.includes('/features')) {
-          category = 'product_updates';
-          sourceName = 'Product Updates';
-          timeFilter = '1month';
-        }
-
+      for (const source of competitor.urls) {
         const row: CompetitorSourceRow = {
           competitorSlug: slug,
-          sourceName,
-          url,
-          category,
+          sourceName: source.sourceName,
+          url: source.url,
+          category: source.category,
           isActive: true,
-          timeFilter,
+          timeFilter: source.timeFilter,
         };
 
         await pool.query(
@@ -96,28 +71,14 @@ async function seedDatabase() {
           [row.competitorSlug, row.sourceName, row.url, row.category, row.isActive, row.timeFilter]
         );
 
+        console.log(`      ✓ ${source.sourceName} (${source.category}, ${source.timeFilter})`);
         competitorCount++;
       }
     }
 
-    // Add G2 review URLs for each competitor
-    console.log('   🔹 Adding G2 review URLs...');
-    for (const [slug, competitor] of Object.entries(COMPETITOR_SOURCES)) {
-      const g2Url = `https://www.g2.com/products/${slug}/reviews`;
-      
-      await pool.query(
-        `INSERT INTO competitor_sources 
-         (competitor_slug, source_name, url, category, is_active, time_filter) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [slug, 'G2 Reviews', g2Url, 'reviews', true, 'current_month']
-      );
+    console.log(`\n   ✅ Seeded ${competitorCount} competitor sources\n`);
 
-      competitorCount++;
-    }
-
-    console.log(`   ✅ Seeded ${competitorCount} competitor sources\n`);
-
-    // 3. Seed industry sources
+    // 3. Seed industry sources (upsert to avoid duplicates)
     console.log('📰 Step 3: Seeding DAP industry sources...');
     let industryCount = 0;
 
@@ -129,7 +90,7 @@ async function seedDatabase() {
         category = 'reports';
       } else if (source.name.includes('News') || source.name.includes('SaaS')) {
         category = 'news';
-      } else if (source.name.includes('Alliance') || source.name.includes('Insider')) {
+      } else if (source.name.includes('Alliance') || source.name.includes('Insider') || source.name.includes('UserOnboard')) {
         category = 'research';
       } else {
         category = 'research';
@@ -168,15 +129,33 @@ async function seedDatabase() {
     console.log('🔍 Step 4: Verifying seeded data...');
     const competitorSourcesResult = await pool.query('SELECT COUNT(*) FROM competitor_sources WHERE is_active = true');
     const industrySourcesResult = await pool.query('SELECT COUNT(*) FROM industry_sources WHERE is_active = true');
+    const deactivatedCount = await pool.query('SELECT COUNT(*) FROM competitor_sources WHERE is_active = false');
     
     console.log(`   ✅ Active competitor sources: ${competitorSourcesResult.rows[0].count}`);
-    console.log(`   ✅ Active industry sources: ${industrySourcesResult.rows[0].count}\n`);
+    console.log(`   ✅ Active industry sources: ${industrySourcesResult.rows[0].count}`);
+    console.log(`   📦 Deactivated (historical) sources: ${deactivatedCount.rows[0].count}\n`);
 
-    console.log('🎉 DAP sources seeding completed successfully!\n');
+    // 5. Show breakdown by category
+    console.log('📋 Step 5: Source breakdown by category...');
+    const categoryBreakdown = await pool.query(`
+      SELECT category, COUNT(*) as count 
+      FROM competitor_sources 
+      WHERE is_active = true 
+      GROUP BY category 
+      ORDER BY count DESC
+    `);
+    
+    console.log('   Competitor source categories:');
+    for (const row of categoryBreakdown.rows) {
+      console.log(`      - ${row.category}: ${row.count}`);
+    }
+
+    console.log('\n🎉 DAP sources seeding completed successfully!\n');
     console.log('📋 Summary:');
-    console.log(`   - 7 DAP competitors: WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot`);
-    console.log(`   - ${competitorCount} total competitor sources (including G2 reviews)`);
+    console.log(`   - 5 DAP competitors: WalkMe, Whatfix, Pendo, Appcues, Apty`);
+    console.log(`   - ${competitorCount} total competitor sources`);
     console.log(`   - ${industryCount} industry sources`);
+    console.log(`   - Categories: news, case_studies, analyst_reports, changelog, g2_reviews, gartner_reviews, gartner_likes_dislikes`);
     console.log('\n✅ Database is ready for DAP market research!\n');
 
   } catch (error) {

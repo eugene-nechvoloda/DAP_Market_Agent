@@ -1,18 +1,23 @@
 export const COMPETITORS = [
   'WalkMe',
+  'Whatfix',
   'Pendo',
   'Appcues',
-  'Whatfix',
-  'UserGuiding',
-  'Chameleon',
-  'Userpilot'
+  'Apty'
 ] as const;
 
 export type Competitor = typeof COMPETITORS[number];
 
+export interface CompetitorSourceWithCategory {
+  url: string;
+  category: 'news' | 'case_studies' | 'analyst_reports' | 'changelog' | 'g2_reviews' | 'gartner_reviews' | 'gartner_likes_dislikes' | 'product_updates';
+  timeFilter: '7days' | '1month' | 'current_month' | 'quarter';
+  sourceName: string;
+}
+
 export interface CompetitorSource {
   name: string;
-  urls: string[];
+  urls: CompetitorSourceWithCategory[];
 }
 
 export interface IndustrySource {
@@ -25,64 +30,164 @@ export const COMPETITOR_SOURCES: Record<string, CompetitorSource> = {
   walkme: {
     name: 'WalkMe',
     urls: [
-      'https://www.walkme.com/blog/',
-      'https://www.walkme.com/customers/',
-      'https://www.walkme.com/press-releases/',
-      'https://www.walkme.com/product/'
-    ]
-  },
-  pendo: {
-    name: 'Pendo',
-    urls: [
-      'https://www.pendo.io/blog/',
-      'https://www.pendo.io/customers/',
-      'https://www.pendo.io/newsroom/',
-      'https://www.pendo.io/product/'
-    ]
-  },
-  appcues: {
-    name: 'Appcues',
-    urls: [
-      'https://www.appcues.com/blog',
-      'https://www.appcues.com/customers',
-      'https://www.appcues.com/press',
-      'https://www.appcues.com/product'
+      {
+        url: 'https://www.walkme.com/news/',
+        category: 'news',
+        timeFilter: 'current_month',
+        sourceName: 'WalkMe News'
+      },
+      {
+        url: 'https://www.walkme.com/customer-stories/',
+        category: 'case_studies',
+        timeFilter: '1month',
+        sourceName: 'Customer Stories'
+      },
+      {
+        url: 'https://www.g2.com/products/walkme/reviews',
+        category: 'g2_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'G2 Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/walkme/product/walkme-digital-adoption-platform/reviews',
+        category: 'gartner_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/walkme/product/walkme-digital-adoption-platform/likes-dislikes',
+        category: 'gartner_likes_dislikes',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Likes & Dislikes'
+      }
     ]
   },
   whatfix: {
     name: 'Whatfix',
     urls: [
-      'https://whatfix.com/blog/',
-      'https://whatfix.com/customers/',
-      'https://whatfix.com/newsroom/',
-      'https://whatfix.com/product/'
+      {
+        url: 'https://whatfix.com/newsroom/',
+        category: 'news',
+        timeFilter: 'current_month',
+        sourceName: 'Newsroom'
+      },
+      {
+        url: 'https://whatfix.com/resources/case-studies/',
+        category: 'case_studies',
+        timeFilter: '1month',
+        sourceName: 'Case Studies'
+      },
+      {
+        url: 'https://whatfix.com/resources/analyst-reports/',
+        category: 'analyst_reports',
+        timeFilter: 'quarter',
+        sourceName: 'Analyst Reports'
+      },
+      {
+        url: 'https://www.g2.com/products/whatfix/reviews',
+        category: 'g2_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'G2 Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/whatfix/product/whatfix-digital-adoption-platform/reviews',
+        category: 'gartner_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/whatfix/product/whatfix-digital-adoption-platform/likes-dislikes',
+        category: 'gartner_likes_dislikes',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Likes & Dislikes'
+      }
     ]
   },
-  userguiding: {
-    name: 'UserGuiding',
+  pendo: {
+    name: 'Pendo',
     urls: [
-      'https://userguiding.com/blog/',
-      'https://userguiding.com/case-studies/',
-      'https://userguiding.com/press/',
-      'https://userguiding.com/features/'
+      {
+        url: 'https://www.pendo.io/new/',
+        category: 'product_updates',
+        timeFilter: '1month',
+        sourceName: 'What\'s New'
+      },
+      {
+        url: 'https://www.pendo.io/customers/',
+        category: 'case_studies',
+        timeFilter: '1month',
+        sourceName: 'Customer Stories'
+      },
+      {
+        url: 'https://www.g2.com/products/pendo-io-pendo/reviews',
+        category: 'g2_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'G2 Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/pendo/product/pendo/reviews',
+        category: 'gartner_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/pendo/product/pendo/likes-dislikes',
+        category: 'gartner_likes_dislikes',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Likes & Dislikes'
+      }
     ]
   },
-  chameleon: {
-    name: 'Chameleon',
+  appcues: {
+    name: 'Appcues',
     urls: [
-      'https://www.chameleon.io/blog',
-      'https://www.chameleon.io/customers',
-      'https://www.chameleon.io/press',
-      'https://www.chameleon.io/product'
+      {
+        url: 'https://feedback.appcues.com/changelog',
+        category: 'changelog',
+        timeFilter: '1month',
+        sourceName: 'Changelog'
+      },
+      {
+        url: 'https://www.g2.com/products/appcues/reviews',
+        category: 'g2_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'G2 Reviews'
+      }
     ]
   },
-  userpilot: {
-    name: 'Userpilot',
+  apty: {
+    name: 'Apty',
     urls: [
-      'https://userpilot.com/blog/',
-      'https://userpilot.com/case-studies/',
-      'https://userpilot.com/press/',
-      'https://userpilot.com/features/'
+      {
+        url: 'https://apty.ai/newsroom/',
+        category: 'news',
+        timeFilter: 'current_month',
+        sourceName: 'Newsroom'
+      },
+      {
+        url: 'https://apty.ai/digital-adoption-case-studies/',
+        category: 'case_studies',
+        timeFilter: '1month',
+        sourceName: 'Case Studies'
+      },
+      {
+        url: 'https://www.g2.com/products/apty/reviews',
+        category: 'g2_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'G2 Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/apty/product/apty/reviews',
+        category: 'gartner_reviews',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Reviews'
+      },
+      {
+        url: 'https://www.gartner.com/reviews/market/digital-adoption-platforms/vendor/apty/product/apty/likes-dislikes',
+        category: 'gartner_likes_dislikes',
+        timeFilter: 'current_month',
+        sourceName: 'Gartner Likes & Dislikes'
+      }
     ]
   }
 };
@@ -127,13 +232,10 @@ export function getAllCompetitorNames(): string[] {
 export function getCompetitorSlug(name: string): string {
   const slugMap: Record<string, string> = {
     'walkme': 'walkme',
+    'whatfix': 'whatfix',
     'pendo': 'pendo',
     'appcues': 'appcues',
-    'whatfix': 'whatfix',
-    'userguiding': 'userguiding',
-    'user guiding': 'userguiding',
-    'chameleon': 'chameleon',
-    'userpilot': 'userpilot',
+    'apty': 'apty',
   };
   
   const normalized = name.toLowerCase().trim();

@@ -144,12 +144,10 @@ Extract metrics for ALL competitors mentioned in the search results. Return empt
 export function getCompetitorSlug(name: string): string {
   const slugMap: Record<string, string> = {
     'walkme': 'walkme',
+    'whatfix': 'whatfix',
     'pendo': 'pendo',
     'appcues': 'appcues',
-    'whatfix': 'whatfix',
-    'userguiding': 'userguiding',
-    'chameleon': 'chameleon',
-    'userpilot': 'userpilot',
+    'apty': 'apty',
   };
 
   const normalized = name.toLowerCase().trim();
@@ -162,12 +160,10 @@ export function getCompetitorSlug(name: string): string {
 export function getAllCompetitorSlugs(): string[] {
   return [
     'walkme',
+    'whatfix',
     'pendo',
     'appcues',
-    'whatfix',
-    'userguiding',
-    'chameleon',
-    'userpilot',
+    'apty',
   ];
 }
 
@@ -177,11 +173,9 @@ export function getAllCompetitorSlugs(): string[] {
 export function getAllCompetitorNames(): string[] {
   return [
     'WalkMe',
+    'Whatfix',
     'Pendo',
     'Appcues',
-    'Whatfix',
-    'UserGuiding',
-    'Chameleon',
-    'Userpilot',
+    'Apty',
   ];
 }
