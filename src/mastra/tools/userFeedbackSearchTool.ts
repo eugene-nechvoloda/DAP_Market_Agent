@@ -3,12 +3,10 @@ import { z } from "zod";
 
 const COMPETITORS = [
   "WalkMe",
+  "Whatfix",
   "Pendo",
   "Appcues",
-  "Whatfix",
-  "UserGuiding",
-  "Chameleon",
-  "Userpilot",
+  "Apty",
 ];
 
 export const userFeedbackSearchTool = createTool({

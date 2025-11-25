@@ -95,7 +95,7 @@ export const userReviewsResearchTool = createTool({
         
         const sharedSnippet = searchResult.answer.substring(0, 5000);
         
-        const competitorNames = ['WalkMe', 'Pendo', 'Appcues', 'Whatfix', 'UserGuiding', 'Chameleon', 'Userpilot'];
+        const competitorNames = ['WalkMe', 'Whatfix', 'Pendo', 'Appcues', 'Apty'];
         for (const company of competitorNames) {
           const slug = company.toLowerCase();
           const g2Url = g2UrlsMap.get(slug) || `https://www.g2.com/products/${slug}/reviews`;

@@ -333,7 +333,7 @@ const performWebSearches = createStep({
     
     // Search 1: Broad weekly market pulse (using intelligent general news timespan)
     logger?.info('🔍 [Step 2.1] Executing broad weekly market pulse search...');
-    const broadPulseQuery = `Digital adoption platform news ${dateRange}: WalkMe Pendo Appcues Whatfix UserGuiding Chameleon Userpilot funding acquisitions product launches partnerships industry trends market analysis`;
+    const broadPulseQuery = `Digital adoption platform news ${dateRange}: WalkMe Whatfix Pendo Appcues Apty funding acquisitions product launches partnerships industry trends market analysis`;
     
     logger?.info('📝 [Step 2.1] Query with intelligent timespan:', broadPulseQuery);
     
@@ -832,12 +832,10 @@ const searchPerCompetitorIntelligence = createStep({
     // List of competitors
     const competitors = [
       { name: "WalkMe", slug: "walkme" },
+      { name: "Whatfix", slug: "whatfix" },
       { name: "Pendo", slug: "pendo" },
       { name: "Appcues", slug: "appcues" },
-      { name: "Whatfix", slug: "whatfix" },
-      { name: "UserGuiding", slug: "userguiding" },
-      { name: "Chameleon", slug: "chameleon" },
-      { name: "Userpilot", slug: "userpilot" },
+      { name: "Apty", slug: "apty" },
     ];
     
     // Search for each competitor in parallel (webSearchTool has built-in rate limiting)
@@ -1511,12 +1509,10 @@ const parseCompetitorIntelligence = createStep({
     
     const competitors = [
       { name: "WalkMe", slug: "walkme" },
+      { name: "Whatfix", slug: "whatfix" },
       { name: "Pendo", slug: "pendo" },
       { name: "Appcues", slug: "appcues" },
-      { name: "Whatfix", slug: "whatfix" },
-      { name: "UserGuiding", slug: "userguiding" },
-      { name: "Chameleon", slug: "chameleon" },
-      { name: "Userpilot", slug: "userpilot" },
+      { name: "Apty", slug: "apty" },
     ];
     
     // Build comprehensive prompt with all per-competitor searches
@@ -1559,7 +1555,7 @@ const parseCompetitorIntelligence = createStep({
 ${competitorDataText}
 
 **YOUR TASK:**
-Extract information for each of these 7 competitors based on THEIR SPECIFIC search results above: WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot
+Extract information for each of these 5 competitors based on THEIR SPECIFIC search results above: WalkMe, Whatfix, Pendo, Appcues, Apty
 
 For each competitor found in the search results, extract:
 - **strategicMoves**: Funding rounds, acquisitions, major announcements (include citation [1], [2], etc.)
@@ -1578,10 +1574,7 @@ Return ONLY valid JSON (no markdown, no explanations):
   },
   "pendo": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
   "appcues": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "whatfix": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "userguiding": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "chameleon": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
-  "userpilot": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] }
+  "apty": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] }
 }
 
 **RULES:**
@@ -1657,10 +1650,7 @@ Return ONLY valid JSON (no markdown, no explanations):
         walkme: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
         pendo: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
         appcues: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        whatfix: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        userguiding: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        chameleon: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        userpilot: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
+        apty: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
       };
       
       // Save empty structure to database ONLY if we have valid webSearchResults
@@ -1815,7 +1805,7 @@ const analyzeAndCompileReport = createStep({
     };
     
     // Ensure all competitors are represented with data summary
-    const allCompetitors = ['walkme', 'pendo', 'appcues', 'whatfix', 'userguiding', 'chameleon', 'userpilot'];
+    const allCompetitors = ['walkme', 'whatfix', 'pendo', 'appcues', 'apty'];
     const competitorDataMap = new Map();
     if (Array.isArray(sources.competitorData)) {
       sources.competitorData.forEach((item: any) => {
@@ -1854,7 +1844,7 @@ We have pre-parsed the web search results into structured data for each competit
 ${JSON.stringify(perCompetitorData, null, 2)}
 
 **HOW TO USE THIS DATA:**
-- For each competitor (walkme, pendo, appcues, whatfix, userguiding, chameleon, userpilot):
+- For each competitor (walkme, whatfix, pendo, appcues, apty):
   - **Strategic Moves** section → Use items from perCompetitorData[competitor].strategicMoves
   - **Product Updates** section → Use items from perCompetitorData[competitor].productUpdates
   - **Partnerships & Integrations** section → Use items from perCompetitorData[competitor].partnerships
@@ -1926,7 +1916,7 @@ You MUST include ALL of the following sections in your report. If data is missin
 ✅ **REQUIRED SECTIONS**:
 - Executive Summary (ALWAYS required)
 - Recent Digital Adoption Platform Market News (ALWAYS required - write "_No significant market news this week._" if empty)
-- Competitor Spotlights for ALL 7 competitors (WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot) - ALWAYS required, write "_No updates found for [competitor]._" if no data
+- Competitor Spotlights for ALL 5 competitors (WalkMe, Whatfix, Pendo, Appcues, Apty) - ALWAYS required, write "_No updates found for [competitor]._" if no data
 - User Sentiment & Reviews (ALWAYS required - ${reviewsCount} reviews provided, MUST summarize ALL)
 - Industry Trends & Emerging Themes (ALWAYS required)
 - Market Opportunities (ALWAYS required)

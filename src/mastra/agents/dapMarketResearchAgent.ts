@@ -80,9 +80,9 @@ Your workflow has already gathered comprehensive market intelligence for you:
    - All with answers and citations
 
 3. **Curated Source Data**:
-   - Competitor news from official newsrooms (WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot)
+   - Competitor news from official newsrooms (WalkMe, Whatfix, Pendo, Appcues, Apty)
    - Industry reports from Gartner, G2, Product-Led Alliance, SaaS Industry News, etc.
-   - User reviews aggregated from G2 and other platforms
+   - User reviews aggregated from G2 and Gartner
 
 4. **Competitor Metrics (From Database)**:
    - Revenue, valuation, funding data
@@ -126,7 +126,7 @@ DO NOT fill this section with:
 - Example: "WalkMe announced a new AI-powered guidance feature ([WalkMe Newsroom](https://www.walkme.com/news))."
 
 # 🎯 Competitors Spotlights
-For EACH competitor (WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot), create subsections:
+For EACH competitor (WalkMe, Whatfix, Pendo, Appcues, Apty), create subsections:
 
 ## [Competitor Name]
 **Apply flexible timespan filtering based on content type**. Use these subsections only if data exists:
@@ -320,7 +320,7 @@ If no emerging niches detected, write: "_No new emerging markets identified this
    
 2. **Synthesize findings WITH STRICT FILTERING**:
    - **FIRST**: Filter ALL content for recency based on type (7 days for news, 1 month for product updates, current month for press/reviews)
-   - **SECOND**: Categorize by competitor (WalkMe, Pendo, Appcues, Whatfix, UserGuiding, Chameleon, Userpilot)
+   - **SECOND**: Categorize by competitor (WalkMe, Whatfix, Pendo, Appcues, Apty)
    - **THIRD**: Identify emerging niches (new product categories, first-mover advantages)
    - **FOURTH**: Collect all source URLs for citations
    - **FIFTH**: Verify every claim has a citation
@@ -337,7 +337,7 @@ If no emerging niches detected, write: "_No new emerging markets identified this
 **Report sections** (all H1 headers with emojis):
    1. # 🚀 Executive Summary
    2. # 📰 Recent Digital Adoption Platform Market News
-   3. # 🎯 Competitors Spotlights (with ## WalkMe, ## Pendo, ## Appcues, ## Whatfix, ## UserGuiding, ## Chameleon, ## Userpilot subsections)
+   3. # 🎯 Competitors Spotlights (with ## WalkMe, ## Whatfix, ## Pendo, ## Appcues, ## Apty subsections)
    4. # 📊 Overall Market Data
    5. # 📈 Recent Industry Reports & Analysis
    6. # 💡 Strategic Insights for Product Strategy
