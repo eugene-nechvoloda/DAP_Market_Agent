@@ -6,7 +6,7 @@ import { webSearchTool } from "./webSearchTool";
 export const userReviewsResearchTool = createTool({
   id: "user-reviews-research-tool",
   description:
-    "Fetches G2 review URLs from database and attempts to scrape user reviews from G2.com and other review platforms for Carbon Accounting Software competitors. Uses intelligent calendar-month filtering for current month reviews. Falls back to web search if scraping fails due to dynamic content loading.",
+    "Fetches G2 review URLs from database and attempts to scrape user reviews from G2.com and other review platforms for Digital Adoption Platform competitors. Uses intelligent calendar-month filtering for current month reviews. Falls back to web search if scraping fails due to dynamic content loading.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reviews (YYYY-MM-DD format)"),
@@ -80,7 +80,7 @@ export const userReviewsResearchTool = createTool({
         return slug.charAt(0).toUpperCase() + slug.slice(1);
       }).join(", ");
       
-      const query = `G2 reviews user feedback ${context.currentMonth} for carbon accounting software: ${competitorList}. Include pros cons ratings customer experience for each competitor`;
+      const query = `G2 reviews user feedback ${context.currentMonth} for digital adoption platforms: ${competitorList}. Include pros cons ratings customer experience for each competitor`;
       
       logger?.info(`🔍 [userReviewsResearchTool] Batched web search query:`, { query });
       
@@ -95,7 +95,7 @@ export const userReviewsResearchTool = createTool({
         
         const sharedSnippet = searchResult.answer.substring(0, 5000);
         
-        const competitorNames = ['Watershed', 'Persefoni', 'Greenly', 'carbmee', 'osapiens', 'Sweep', 'Normative'];
+        const competitorNames = ['WalkMe', 'Pendo', 'Appcues', 'Whatfix', 'UserGuiding', 'Chameleon', 'Userpilot'];
         for (const company of competitorNames) {
           const slug = company.toLowerCase();
           const g2Url = g2UrlsMap.get(slug) || `https://www.g2.com/products/${slug}/reviews`;

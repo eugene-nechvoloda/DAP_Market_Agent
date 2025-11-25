@@ -333,7 +333,7 @@ const performWebSearches = createStep({
     
     // Search 1: Broad weekly market pulse (using intelligent general news timespan)
     logger?.info('🔍 [Step 2.1] Executing broad weekly market pulse search...');
-    const broadPulseQuery = `Carbon accounting software news ${dateRange}: Watershed Persefoni Greenly carbmee osapiens Sweep Normative funding acquisitions product launches partnerships industry trends market analysis`;
+    const broadPulseQuery = `Digital adoption platform news ${dateRange}: WalkMe Pendo Appcues Whatfix UserGuiding Chameleon Userpilot funding acquisitions product launches partnerships industry trends market analysis`;
     
     logger?.info('📝 [Step 2.1] Query with intelligent timespan:', broadPulseQuery);
     
@@ -353,7 +353,7 @@ const performWebSearches = createStep({
     
     // Search 2: Targeted follow-up (market data focus - current month context)
     logger?.info('🔍 [Step 2.2] Executing targeted follow-up search...');
-    const targetedQuery = `Carbon accounting software market size growth rate as of ${inputData.currentMonth}, investment trends, CAGR analyst reports, Forrester/Gartner climate tech sustainability ESG market forecast`;
+    const targetedQuery = `Digital adoption platform market size growth rate as of ${inputData.currentMonth}, investment trends, CAGR analyst reports, Forrester/Gartner SaaS product analytics user onboarding market forecast`;
     
     logger?.info('📝 [Step 2.2] Query with current month context:', targetedQuery);
     
@@ -489,7 +489,7 @@ const searchFundingMetrics = createStep({
     const pressDateRange = `${pressStartMonth} ${pressStart.getDate()}-${pressEndMonth !== pressStartMonth ? pressEndMonth + ' ' : ''}${pressEnd.getDate()} ${pressEnd.getFullYear()}`;
     
     const competitorNames = getAllCompetitorNames();
-    const fundingQuery = `${competitorNames.join(' OR ')} carbon accounting software funding rounds (Series A B C investment, TechCrunch/Crunchbase) ${pressDateRange}, valuation, revenue as of ${inputData.currentMonth}`;
+    const fundingQuery = `${competitorNames.join(' OR ')} digital adoption platform funding rounds (Series A B C investment, TechCrunch/Crunchbase) ${pressDateRange}, valuation, revenue as of ${inputData.currentMonth}`;
     
     logger?.info('📝 [Step 2.5.1] Query with intelligent timespan:', fundingQuery);
     
@@ -599,7 +599,7 @@ const searchRevenueMetrics = createStep({
     logger?.info('🧠 [Step 2.5.2] Using GPT-5 date logic:', inputData.reasoning);
     
     const competitorNames = getAllCompetitorNames();
-    const revenueQuery = `${competitorNames.join(' OR ')} carbon accounting software revenue, ARR, annual recurring employees headcount, company size as of ${inputData.currentMonth}`;
+    const revenueQuery = `${competitorNames.join(' OR ')} digital adoption platform revenue, ARR, annual recurring employees headcount, company size as of ${inputData.currentMonth}`;
     
     logger?.info('📝 [Step 2.5.2] Query with current month context:', revenueQuery);
     
@@ -710,7 +710,7 @@ const searchCustomerMetrics = createStep({
     logger?.info('🧠 [Step 2.5.3] Using GPT-5 date logic:', inputData.reasoning);
     
     const competitorNames = getAllCompetitorNames();
-    const customerQuery = `${competitorNames.join(' OR ')} carbon accounting software customers client count user base active users churn rate retention rate user growth as of ${inputData.currentMonth}`;
+    const customerQuery = `${competitorNames.join(' OR ')} digital adoption platform customers client count user base active users churn rate retention rate user growth as of ${inputData.currentMonth}`;
     
     logger?.info('📝 [Step 2.5.3] Query with current month context:', customerQuery);
     
@@ -831,18 +831,18 @@ const searchPerCompetitorIntelligence = createStep({
     
     // List of competitors
     const competitors = [
-      { name: "Watershed", slug: "watershed" },
-      { name: "Persefoni", slug: "persefoni" },
-      { name: "Greenly", slug: "greenly" },
-      { name: "carbmee", slug: "carbmee" },
-      { name: "osapiens", slug: "osapiens" },
-      { name: "Sweep", slug: "sweep" },
-      { name: "Normative", slug: "normative" },
+      { name: "WalkMe", slug: "walkme" },
+      { name: "Pendo", slug: "pendo" },
+      { name: "Appcues", slug: "appcues" },
+      { name: "Whatfix", slug: "whatfix" },
+      { name: "UserGuiding", slug: "userguiding" },
+      { name: "Chameleon", slug: "chameleon" },
+      { name: "Userpilot", slug: "userpilot" },
     ];
     
     // Search for each competitor in parallel (webSearchTool has built-in rate limiting)
     const searchPromises = competitors.map(async (competitor) => {
-      const query = `${competitor.name} carbon accounting software latest news, funding, product updates, launches, release notes, press releases, new features, partnerships, user reviews ${dateRange}`;
+      const query = `${competitor.name} digital adoption platform latest news, funding, product updates, launches, release notes, press releases, new features, partnerships, user reviews ${dateRange}`;
       
       logger?.info(`🔍 [Step 2.5.4a] Searching for ${competitor.name}:`, { query });
       
@@ -1021,7 +1021,7 @@ const searchUserFeedback = createStep({
     const reviewsDateRange = `${reviewsStartMonth} ${reviewsStart.getDate()}-${reviewsEndMonth !== reviewsStartMonth ? reviewsEndMonth + ' ' : ''}${reviewsEnd.getDate()} ${reviewsEnd.getFullYear()}`;
     
     const competitorNames = getAllCompetitorNames();
-    const feedbackQuery = `${competitorNames.join(' OR ')} carbon accounting software recent real users feedback/review ${reviewsDateRange}`;
+    const feedbackQuery = `${competitorNames.join(' OR ')} digital adoption platform recent real users feedback/review ${reviewsDateRange}`;
     
     logger?.info('📝 [Step 2.5.4] Query with intelligent timespan:', feedbackQuery);
     
@@ -1147,7 +1147,7 @@ const searchMarketDataAndReports = createStep({
     const currentYear = dateEnd.getFullYear();
     
     // Search 1: Market data (market size, growth rate, CAGR, investment trends, analyst forecasts)
-    const marketDataQuery = `Carbon accounting software market size growth rate ${currentMonth} ${currentYear}, investment trends, CAGR analyst reports, Forrester Gartner climate tech sustainability ESG market forecast predictions`;
+    const marketDataQuery = `Digital adoption platform market size growth rate ${currentMonth} ${currentYear}, investment trends, CAGR analyst reports, Forrester Gartner SaaS product analytics user onboarding market forecast predictions`;
     
     logger?.info('📊 [Step 2.5.4c] Searching for market data:', { query: marketDataQuery });
     
@@ -1183,7 +1183,7 @@ const searchMarketDataAndReports = createStep({
     const reportDateRange = `${startMonth} ${generalStart.getDate()}-${currentMonth !== startMonth ? currentMonth + ' ' : ''}${dateEnd.getDate()} ${currentYear}`;
     
     // Search 2: Industry reports and analysis
-    const industryReportsQuery = `Carbon accounting software industry reports ${reportDateRange}, industry analysis, analyst reviews, market research, sustainability reporting standards updates, climate tech industry trends`;
+    const industryReportsQuery = `Digital adoption platform industry reports ${reportDateRange}, industry analysis, analyst reviews, market research, product-led growth trends, SaaS onboarding industry trends`;
     
     logger?.info('📈 [Step 2.5.4c] Searching for industry reports:', { query: industryReportsQuery });
     

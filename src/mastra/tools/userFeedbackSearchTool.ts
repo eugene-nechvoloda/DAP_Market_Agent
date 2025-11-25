@@ -2,19 +2,19 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 const COMPETITORS = [
-  "Watershed",
-  "Persefoni",
-  "Greenly",
-  "carbmee",
-  "osapiens",
-  "Sweep",
-  "Normative",
+  "WalkMe",
+  "Pendo",
+  "Appcues",
+  "Whatfix",
+  "UserGuiding",
+  "Chameleon",
+  "Userpilot",
 ];
 
 export const userFeedbackSearchTool = createTool({
   id: "user-feedback-search-tool",
   description:
-    "Performs keyword-based web searches to find user feedback, reviews, and opinions about Carbon Accounting Software competitors from forums, Reddit, Twitter, LinkedIn, and other platforms. Complements G2 reviews with broader user sentiment from the web.",
+    "Performs keyword-based web searches to find user feedback, reviews, and opinions about Digital Adoption Platform competitors from forums, Reddit, Twitter, LinkedIn, and other platforms. Complements G2 reviews with broader user sentiment from the web.",
   
   inputSchema: z.object({
     competitor: z.string().describe("Competitor name to search feedback for"),
@@ -42,7 +42,7 @@ export const userFeedbackSearchTool = createTool({
     
     // Construct search queries to find user feedback
     const searchQueries = [
-      `"${context.competitor}" carbon accounting reviews`,
+      `"${context.competitor}" digital adoption platform reviews`,
       `"${context.competitor}" user experience feedback`,
       `"${context.competitor}" vs alternatives reddit`,
     ];

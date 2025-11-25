@@ -135,10 +135,10 @@ export const competitorSources = pgTable('competitor_sources', {
   categoryIdx: index('idx_competitor_sources_category').on(table.category),
 }));
 
-// Industry research sources table for tracking general carbon accounting industry data sources
+// Industry research sources table for tracking general DAP industry data sources
 export const industrySources = pgTable('industry_sources', {
   id: serial('id').primaryKey(),
-  sourceName: text('source_name').notNull(), // e.g., "GHG Protocol", "Carbon Brief", "CDP"
+  sourceName: text('source_name').notNull(), // e.g., "Gartner DAP", "G2 DAP Category", "Product-Led Alliance"
   url: text('url').notNull().unique(), // Unique constraint to prevent duplicates
   description: text('description'), // Optional description of what this source provides
   category: text('category').notNull(), // standards, news, reports, policy, research
