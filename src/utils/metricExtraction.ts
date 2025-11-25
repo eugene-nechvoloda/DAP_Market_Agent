@@ -53,12 +53,12 @@ EXTRACTION RULES:
 7. Extract user growth rates as percentages (e.g., "15% user growth" → 15, "grew users by 20%" → 20)
 8. Include source context and dates when available
 9. Return null for any metric not found (do NOT guess or estimate)
-10. Use competitor slug format: lowercase, hyphens (e.g., "Greenly" → "greenly")
+10. Use competitor slug format: lowercase, hyphens (e.g., "WalkMe" → "walkme")
 
 OUTPUT FORMAT (JSON array):
 [
   {
-    "competitorSlug": "greenly",
+    "competitorSlug": "pendo",
     "revenueUsd": 50000000,
     "revenueRange": "$40M-$60M",
     "valuationUsd": 2000000000,
@@ -73,7 +73,7 @@ OUTPUT FORMAT (JSON array):
     "userBase": 10000,
     "userGrowthRate": 15,
     "sourceUrls": ["https://techcrunch.com/..."],
-    "rawContext": "Greenly raised $50M in Series C funding with 1,000 customers and 10,000 active users, growing at 15% YoY..."
+    "rawContext": "Pendo raised $50M in Series C funding with 1,000 customers and 10,000 active users, growing at 15% YoY..."
   }
 ]
 
@@ -143,14 +143,13 @@ Extract metrics for ALL competitors mentioned in the search results. Return empt
  */
 export function getCompetitorSlug(name: string): string {
   const slugMap: Record<string, string> = {
-    'watershed': 'watershed',
-    'persefoni': 'persefoni',
-    'greenly': 'greenly',
-    'carbmee': 'carbmee',
-    'carbmee eis': 'carbmee',
-    'osapiens': 'osapiens',
-    'sweep': 'sweep',
-    'normative': 'normative',
+    'walkme': 'walkme',
+    'pendo': 'pendo',
+    'appcues': 'appcues',
+    'whatfix': 'whatfix',
+    'userguiding': 'userguiding',
+    'chameleon': 'chameleon',
+    'userpilot': 'userpilot',
   };
 
   const normalized = name.toLowerCase().trim();
@@ -162,13 +161,13 @@ export function getCompetitorSlug(name: string): string {
  */
 export function getAllCompetitorSlugs(): string[] {
   return [
-    'watershed',
-    'persefoni',
-    'greenly',
-    'carbmee',
-    'osapiens',
-    'sweep',
-    'normative',
+    'walkme',
+    'pendo',
+    'appcues',
+    'whatfix',
+    'userguiding',
+    'chameleon',
+    'userpilot',
   ];
 }
 
@@ -177,12 +176,12 @@ export function getAllCompetitorSlugs(): string[] {
  */
 export function getAllCompetitorNames(): string[] {
   return [
-    'Watershed',
-    'Persefoni',
-    'Greenly',
-    'carbmee',
-    'osapiens',
-    'Sweep',
-    'Normative',
+    'WalkMe',
+    'Pendo',
+    'Appcues',
+    'Whatfix',
+    'UserGuiding',
+    'Chameleon',
+    'Userpilot',
   ];
 }

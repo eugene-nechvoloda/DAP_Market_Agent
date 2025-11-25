@@ -3,33 +3,33 @@ import { z } from "zod";
 
 const INDUSTRY_SOURCES = [
   {
-    source: "Forrester",
-    url: "https://www.forrester.com/allSearch?query=carbon%20accounting&activeTab=blogs&sortOrder=desc&publishedSinceInDays=30&sortType=relevance&accessOnly=false&isFuzzyNeeded=true",
+    source: "Gartner Digital Adoption Platforms",
+    url: "https://www.gartner.com/reviews/market/digital-adoption-platforms",
     type: "industry_report",
   },
   {
-    source: "TechCrunch Climate",
-    url: "https://techcrunch.com/category/climate/",
+    source: "G2 Digital Adoption Platform Category",
+    url: "https://www.g2.com/categories/digital-adoption-platforms",
     type: "industry_report",
   },
   {
-    source: "VentureBeat Climate Tech",
-    url: "https://venturebeat.com/category/ai/climate-tech/",
+    source: "Product-Led Alliance",
+    url: "https://productled.com/blog",
     type: "industry_report",
   },
   {
-    source: "GreenBiz",
-    url: "https://www.greenbiz.com/collections/carbon-management",
+    source: "SaaS Industry News",
+    url: "https://www.saastr.com/blog/",
     type: "industry_report",
   },
   {
-    source: "Climate Tech VC",
-    url: "https://climatetechvc.substack.com/",
+    source: "UserOnboard",
+    url: "https://www.useronboard.com/blog/",
     type: "industry_report",
   },
   {
-    source: "Carbon Credits",
-    url: "https://carbon-pulse.com/category/international/",
+    source: "Product Management Insider",
+    url: "https://www.productmanagementinsider.com/",
     type: "industry_report",
   },
 ];
@@ -37,7 +37,7 @@ const INDUSTRY_SOURCES = [
 export const industryReportsResearchTool = createTool({
   id: "industry-reports-research-tool",
   description:
-    "Analyzes industry reports and analyst content from Forrester, TechCrunch Climate, VentureBeat Climate Tech, GreenBiz, Climate Tech VC, and Carbon Credits to identify current Carbon Accounting Software market trends, growth data, investment activity, and emerging opportunities in climate tech and sustainability.",
+    "Analyzes industry reports and analyst content from Gartner, G2, Product-Led Alliance, SaaS Industry News, UserOnboard, and Product Management Insider to identify current Digital Adoption Platform market trends, growth data, investment activity, and emerging opportunities in SaaS and product-led growth.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering reports (YYYY-MM-DD format)"),

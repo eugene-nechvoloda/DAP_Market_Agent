@@ -5,7 +5,7 @@ import { db } from "../storage/db.js";
 export const competitorNewsResearchTool = createTool({
   id: "competitor-news-research-tool",
   description:
-    "Fetches competitor sources from database (newsrooms, newsletters, case studies, press releases, insights pages) for all 7 Carbon Accounting Software competitors. Uses intelligent timespan filtering based on content type: 7-day for general news, 1-month for product updates/case studies, current calendar month for press releases. Scrapes and extracts recent updates, announcements, and company news.",
+    "Fetches competitor sources from database (newsrooms, newsletters, case studies, press releases, insights pages) for all 7 Digital Adoption Platform competitors. Uses intelligent timespan filtering based on content type: 7-day for general news, 1-month for product updates/case studies, current calendar month for press releases. Scrapes and extracts recent updates, announcements, and company news.",
   
   inputSchema: z.object({
     dateStart: z.string().describe("Start date for filtering news (YYYY-MM-DD format) - general news 7-day window"),
