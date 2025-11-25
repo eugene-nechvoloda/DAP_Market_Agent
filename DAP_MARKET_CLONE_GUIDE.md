@@ -12,17 +12,15 @@
 
 ### A. Define DAP Competitors (shared/constants.ts)
 
-Replace the COMPETITORS array with 7 DAP companies:
+Replace the COMPETITORS array with 5 DAP companies:
 
 ```typescript
 export const COMPETITORS = [
   'WalkMe',
-  'Pendo',
-  'Appcues', 
   'Whatfix',
-  'UserGuiding',
-  'Chameleon',
-  'Userpilot'
+  'Pendo',
+  'Appcues',
+  'Apty'
 ] as const;
 ```
 
@@ -68,31 +66,13 @@ export const COMPETITOR_SOURCES: Record<string, CompetitorSource> = {
       'https://whatfix.com/product/'
     ]
   },
-  userguiding: {
-    name: 'UserGuiding',
+  apty: {
+    name: 'Apty',
     urls: [
-      'https://userguiding.com/blog/',
-      'https://userguiding.com/case-studies/',
-      'https://userguiding.com/press/',
-      'https://userguiding.com/features/'
-    ]
-  },
-  chameleon: {
-    name: 'Chameleon',
-    urls: [
-      'https://www.chameleon.io/blog',
-      'https://www.chameleon.io/customers',
-      'https://www.chameleon.io/press',
-      'https://www.chameleon.io/product'
-    ]
-  },
-  userpilot: {
-    name: 'Userpilot',
-    urls: [
-      'https://userpilot.com/blog/',
-      'https://userpilot.com/case-studies/',
-      'https://userpilot.com/press/',
-      'https://userpilot.com/features/'
+      'https://www.apty.io/blog',
+      'https://www.apty.io/resources/case-studies',
+      'https://www.apty.io/about-us/newsroom',
+      'https://www.apty.io/platform'
     ]
   }
 };
@@ -245,7 +225,7 @@ const industryReportsQuery = `Digital adoption platform industry reports ${repor
 ```markdown
 # Overview
 
-This project is a Mastra-based AI agent automation platform for **Digital Adoption Platform Market Research**. It automatically researches 7 key competitors and analyzes industry trends from 6 major research sources, aggregates user reviews, generates comprehensive weekly reports using GPT-5, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
+This project is a Mastra-based AI agent automation platform for **Digital Adoption Platform Market Research**. It automatically researches 5 key competitors and analyzes industry trends from 6 major research sources, aggregates user reviews, generates comprehensive weekly reports using GPT-5, exports them to Google Docs, and sends Slack notifications. The system runs every Monday at 8:00 AM CET.
 
 The platform aims to provide automated, in-depth market analysis for the Digital Adoption Platform industry, leveraging AI agents for data gathering and report generation...
 ```
@@ -378,7 +358,7 @@ After making all changes:
 
 This is essentially a "search and replace" operation where you swap:
 - **Market**: Carbon Accounting → Digital Adoption Platform
-- **Competitors**: 7 carbon companies → 7 DAP companies  
+- **Competitors**: 7 carbon companies → 5 DAP companies (WalkMe, Whatfix, Pendo, Appcues, Apty)
 - **Industry focus**: Climate/sustainability → SaaS/product adoption
 - **Keywords**: emissions, carbon, climate → onboarding, adoption, analytics
 
