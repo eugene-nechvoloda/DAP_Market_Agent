@@ -75,3 +75,8 @@ waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "automations"
+
+[userenv]
+
+[userenv.production]
+NODE_OPTIONS = "--max-old-space-size=4096"
