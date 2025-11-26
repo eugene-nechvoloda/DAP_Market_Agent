@@ -67,6 +67,16 @@ const determineIntelligentTimespans = createStep({
     
     const now = new Date();
     const dateEnd = now.toISOString().split('T')[0];
+    
+    const recentReport = await db.hasRecentReport(dateEnd, 5);
+    if (recentReport.exists) {
+      logger?.info('⏭️ [Step 1] Skipping: A report for this date was already generated recently', {
+        existingReportId: recentReport.reportId,
+        googleDocsUrl: recentReport.googleDocsUrl,
+      });
+      throw new Error(`SKIP_DUPLICATE: Report already exists (ID: ${recentReport.reportId}). Skipping duplicate workflow run.`);
+    }
+    
     const dayOfMonth = now.getDate();
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const currentMonthName = monthNames[now.getMonth()];
