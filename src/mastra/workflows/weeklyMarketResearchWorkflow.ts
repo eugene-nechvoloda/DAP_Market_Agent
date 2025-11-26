@@ -2,25 +2,21 @@ import { createStep, createWorkflow } from "../inngest";
 import { z } from "zod";
 import { dapMarketResearchAgent } from "../agents/dapMarketResearchAgent";
 import { getAllCompetitorTrends } from "../../utils/trendCalculation";
-import { competitorNewsResearchTool } from "../tools/competitorNewsResearchTool";
-import { industryReportsResearchTool } from "../tools/industryReportsResearchTool";
-import { userReviewsResearchTool } from "../tools/userReviewsResearchTool";
 import { webSearchTool } from "../tools/webSearchTool";
 import { webFetchTool } from "../tools/webFetchTool";
 import { googleDocsExportTool } from "../tools/googleDocsExportTool";
 import { slackNotificationTool } from "../tools/slackNotificationTool";
 import { db } from "../storage/db.js";
 import { extractMetricsFromText, getAllCompetitorNames } from "../../utils/metricExtraction";
+import { COMPETITOR_SOURCES, INDUSTRY_SOURCES, CompetitorSource } from "../../../shared/constants";
 import { OpenAI } from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 
-// Configure OpenAI with Replit AI Integrations
 const openaiClient = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
-// Configure Anthropic with Replit AI Integrations  
 const anthropicClient = new Anthropic({
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
@@ -28,31 +24,32 @@ const anthropicClient = new Anthropic({
 
 const workflowInputSchema = z.object({});
 
-// Step 0: Intelligent Timespan Determination using GPT-5
+const timespanOutputSchema = z.object({
+  runId: z.string(),
+  generalNewsDateStart: z.string(),
+  productUpdatesDateStart: z.string(),
+  reviewsDateStart: z.string(),
+  pressReleasesDateStart: z.string(),
+  dateEnd: z.string(),
+  currentMonth: z.string(),
+  productUpdatesLookback: z.string(),
+  reasoning: z.string(),
+});
+
+// ============================================================================
+// STEP 1: DETERMINE INTELLIGENT TIMESPANS (GPT-5)
+// ============================================================================
 const determineIntelligentTimespans = createStep({
   id: "determine-intelligent-timespans",
   description: "Uses GPT-5 to intelligently determine date ranges for different content types based on current date context",
   
   inputSchema: workflowInputSchema,
-  
-  outputSchema: z.object({
-    runId: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    reasoning: z.string(),
-  }),
+  outputSchema: timespanOutputSchema,
   
   execute: async ({ mastra, runId }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🧠 [Step 0] Determining intelligent date ranges using GPT-5...');
-    
-    // Use workflow execution runId from context (NOT Date.now()) to ensure consistency across all steps
-    logger?.info('📋 [Step 0] Using workflow run ID from context:', { runId });
+    logger?.info('🧠 [Step 1] Determining intelligent date ranges using GPT-5...');
+    logger?.info('📋 [Step 1] Using workflow run ID from context:', { runId });
     
     const now = new Date();
     const dateEnd = now.toISOString().split('T')[0];
@@ -61,13 +58,12 @@ const determineIntelligentTimespans = createStep({
     const currentMonthName = monthNames[now.getMonth()];
     const currentYear = now.getFullYear();
     
-    // Get previous month name
     const prevMonthDate = new Date(now);
     prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
     const previousMonthName = monthNames[prevMonthDate.getMonth()];
     const previousMonthYear = prevMonthDate.getFullYear();
     
-    logger?.info(`📅 [Step 0] Current date context: ${currentMonthName} ${dayOfMonth}, ${currentYear}`);
+    logger?.info(`📅 [Step 1] Current date context: ${currentMonthName} ${dayOfMonth}, ${currentYear}`);
     
     const prompt = `You are a market research analyst determining intelligent date ranges for different content types in a weekly market research report.
 
@@ -126,7 +122,7 @@ Return your decision as structured data with:
       const resultText = response.choices[0]?.message?.content || "{}";
       const timespans = JSON.parse(resultText);
       
-      logger?.info('✅ [Step 0] GPT-5 determined intelligent timespans:', timespans);
+      logger?.info('✅ [Step 1] GPT-5 determined intelligent timespans:', timespans);
       
       return {
         runId,
@@ -140,10 +136,8 @@ Return your decision as structured data with:
         reasoning: timespans.reasoning,
       };
     } catch (error) {
-      logger?.error('❌ [Step 0] Failed to determine intelligent timespans, falling back to defaults:', error);
+      logger?.error('❌ [Step 1] Failed to determine intelligent timespans, falling back to defaults:', error);
       
-      // Fallback to sensible defaults if GPT-5 fails
-      const now = new Date();
       const sevenDaysAgo = new Date(now);
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -163,47 +157,35 @@ Return your decision as structured data with:
   },
 });
 
-const gatherMarketData = createStep({
-  id: "gather-market-data",
-  description: "Gathers market data from competitor newsrooms, industry reports, and user reviews using GPT-5 determined date ranges",
+// ============================================================================
+// STEP 2: GATHER COMPETITORS DATA (URL SCRAPING)
+// ============================================================================
+const gatherCompetitorsData = createStep({
+  id: "gather-competitors-data",
+  description: "Scrapes competitor newsrooms, case studies, changelogs, and product updates from curated URLs",
   
-  inputSchema: z.object({
-    runId: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    reasoning: z.string(),
-  }),
+  inputSchema: timespanOutputSchema,
   
   outputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
     reasoning: z.string(),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
   }),
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🚀 [Step 1] Starting market data gathering with GPT-5 determined timespans...');
-    logger?.info('🧠 [Step 1] GPT-5 Reasoning:', inputData.reasoning);
+    logger?.info('🏢 [Step 2] Scraping competitor URLs (newsrooms, case studies, changelogs)...');
     
-    // Use the most general date start (general news) for overall week range
-    const dateStartStr = inputData.generalNewsDateStart;
-    const dateEndStr = inputData.dateEnd;
-    
-    // Format week range label for document title
-    const dateStart = new Date(dateStartStr);
-    const dateEnd = new Date(dateEndStr);
+    const dateEnd = new Date(inputData.dateEnd);
+    const dateStart = new Date(inputData.generalNewsDateStart);
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const startMonth = monthNames[dateStart.getMonth()];
     const endMonth = monthNames[dateEnd.getMonth()];
@@ -211,119 +193,277 @@ const gatherMarketData = createStep({
       ? `${startMonth} ${dateStart.getDate()}-${dateEnd.getDate()}, ${dateEnd.getFullYear()}`
       : `${startMonth} ${dateStart.getDate()}, ${dateStart.getFullYear()}-${endMonth} ${dateEnd.getDate()}, ${dateEnd.getFullYear()}`;
     
-    logger?.info('📅 [Step 1] Using intelligent date ranges:', { 
-      generalNews: `${inputData.generalNewsDateStart} to ${dateEndStr}`,
-      productUpdates: `${inputData.productUpdatesDateStart} to ${dateEndStr}`,
-      reviews: `${inputData.reviewsDateStart} to ${dateEndStr}`,
-      pressReleases: `${inputData.pressReleasesDateStart} to ${dateEndStr}`,
-      currentMonth: inputData.currentMonth,
-    });
+    const competitorScrapedData: Record<string, any> = {};
     
-    // Gather data from all sources using intelligent timespans
-    logger?.info('🏢 [Step 1] Gathering competitor news...');
-    const competitorData = await competitorNewsResearchTool.execute({
-      context: { 
-        dateStart: inputData.generalNewsDateStart, // General news uses 7-day window
-        dateEnd: dateEndStr,
-        currentMonth: inputData.currentMonth,
-        productUpdatesLookback: inputData.productUpdatesLookback,
-        productUpdatesDateStart: inputData.productUpdatesDateStart, // Product updates use longer timespan
-        pressReleasesDateStart: inputData.pressReleasesDateStart, // Press releases use current month
-        reviewsDateStart: inputData.reviewsDateStart, // Reviews use current month
-      },
-      runtimeContext,
-      mastra,
-    });
+    const categoriesToScrape = ['news', 'case_studies', 'changelog', 'product_updates', 'analyst_reports'];
     
-    logger?.info('📊 [Step 1] Gathering industry reports...');
-    const industryData = await industryReportsResearchTool.execute({
-      context: { 
-        dateStart: inputData.generalNewsDateStart, 
-        dateEnd: dateEndStr 
-      },
-      runtimeContext,
-      mastra,
-    });
+    for (const [slug, source] of Object.entries(COMPETITOR_SOURCES)) {
+      logger?.info(`📰 [Step 2] Scraping ${source.name}...`);
+      competitorScrapedData[slug] = { name: source.name, items: [] };
+      
+      for (const urlConfig of source.urls) {
+        if (!categoriesToScrape.includes(urlConfig.category)) continue;
+        
+        let dateFilter: string;
+        switch (urlConfig.timeFilter) {
+          case '7days': dateFilter = inputData.generalNewsDateStart; break;
+          case 'current_month': dateFilter = inputData.pressReleasesDateStart; break;
+          case '1month': dateFilter = inputData.productUpdatesDateStart; break;
+          case 'quarter': dateFilter = inputData.productUpdatesDateStart; break;
+          default: dateFilter = inputData.generalNewsDateStart;
+        }
+        
+        try {
+          const fetchResult = await webFetchTool.execute({
+            context: { url: urlConfig.url },
+            runtimeContext,
+            mastra,
+          });
+          
+          if (fetchResult.success && fetchResult.content) {
+            competitorScrapedData[slug].items.push({
+              category: urlConfig.category,
+              sourceName: urlConfig.sourceName,
+              url: urlConfig.url,
+              content: fetchResult.content.substring(0, 8000),
+              dateFilter,
+              timeFilter: urlConfig.timeFilter,
+            });
+            logger?.info(`✅ [Step 2] Scraped ${urlConfig.sourceName} for ${source.name}`);
+          }
+        } catch (error) {
+          logger?.warn(`⚠️ [Step 2] Failed to scrape ${urlConfig.url}:`, error);
+        }
+      }
+      
+      logger?.info(`📊 [Step 2] ${source.name}: ${competitorScrapedData[slug].items.length} sources scraped`);
+    }
     
-    logger?.info('⭐ [Step 1] Gathering user reviews...');
-    const reviewsData = await userReviewsResearchTool.execute({
-      context: { 
-        dateStart: inputData.reviewsDateStart, // Use reviews-specific date range
-        dateEnd: dateEndStr,
-        currentMonth: inputData.currentMonth,
-      },
-      runtimeContext,
-      mastra,
-    });
+    logger?.info('✅ [Step 2] Competitor URL scraping complete');
     
-    logger?.info('✅ [Step 1] Market data gathering complete');
-    
-    // Save curated data to database to avoid Inngest step output size limits
-    logger?.info('💾 [Step 1] Saving curated data to database:', {
-      competitorDataSize: JSON.stringify(competitorData).length,
-      industryDataSize: JSON.stringify(industryData).length,
-      reviewsDataSize: JSON.stringify(reviewsData).length,
-    });
-    
-    await db.saveReportSources(inputData.runId, competitorData, industryData, reviewsData);
-    logger?.info('✅ [Step 1] Curated data saved to database');
-    
-    // Return metadata including intelligent timespan info for downstream search queries
     return {
       runId: inputData.runId,
-      dateStart: dateStartStr,
-      dateEnd: dateEndStr,
-      weekRangeLabel,
+      dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
       generalNewsDateStart: inputData.generalNewsDateStart,
       productUpdatesDateStart: inputData.productUpdatesDateStart,
       reviewsDateStart: inputData.reviewsDateStart,
       pressReleasesDateStart: inputData.pressReleasesDateStart,
-      currentMonth: inputData.currentMonth,
       reasoning: inputData.reasoning,
+      weekRangeLabel,
+      competitorScrapedData,
     };
   },
 });
 
-const performWebSearches = createStep({
-  id: "perform-web-searches",
-  description: "Performs two web searches for comprehensive market intelligence using GPT-5 intelligent timespans",
+// ============================================================================
+// STEP 3: INDUSTRY REPORTS/ARTICLES SCRAPING
+// ============================================================================
+const gatherIndustryData = createStep({
+  id: "gather-industry-data",
+  description: "Scrapes 6 industry source URLs (Gartner, G2, ProductLed, SaaStr, etc.)",
   
   inputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
     reasoning: z.string(),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
   }),
   
   outputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
     reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
   }),
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🔍 [Step 2] Performing web searches for market intelligence with intelligent timespans...');
-    logger?.info('🧠 [Step 2] Using GPT-5 date logic:', inputData.reasoning);
+    logger?.info('📊 [Step 3] Scraping industry source URLs...');
     
-    // Format intelligent date range for general news search (use generalNewsDateStart)
+    const industryScrapedData: any[] = [];
+    
+    for (const source of INDUSTRY_SOURCES) {
+      logger?.info(`📰 [Step 3] Scraping ${source.name}...`);
+      
+      try {
+        const fetchResult = await webFetchTool.execute({
+          context: { url: source.url },
+          runtimeContext,
+          mastra,
+        });
+        
+        if (fetchResult.success && fetchResult.content) {
+          industryScrapedData.push({
+            name: source.name,
+            url: source.url,
+            description: source.description,
+            content: fetchResult.content.substring(0, 8000),
+            dateFilter: inputData.generalNewsDateStart,
+          });
+          logger?.info(`✅ [Step 3] Scraped ${source.name}`);
+        }
+      } catch (error) {
+        logger?.warn(`⚠️ [Step 3] Failed to scrape ${source.url}:`, error);
+      }
+    }
+    
+    logger?.info(`✅ [Step 3] Industry scraping complete: ${industryScrapedData.length} sources`);
+    
+    return {
+      ...inputData,
+      industryScrapedData,
+    };
+  },
+});
+
+// ============================================================================
+// STEP 4: REAL USER REVIEWS (G2/GARTNER SCRAPING)
+// ============================================================================
+const gatherUserReviews = createStep({
+  id: "gather-user-reviews",
+  description: "Scrapes G2 and Gartner review URLs for all competitors",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    reasoning: z.string(),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    reasoning: z.string(),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('⭐ [Step 4] Scraping G2 and Gartner review URLs...');
+    
+    const reviewsScrapedData: Record<string, any> = {};
+    const reviewCategories = ['g2_reviews', 'gartner_reviews', 'gartner_likes_dislikes'];
+    
+    for (const [slug, source] of Object.entries(COMPETITOR_SOURCES)) {
+      logger?.info(`⭐ [Step 4] Scraping reviews for ${source.name}...`);
+      reviewsScrapedData[slug] = { name: source.name, reviews: [] };
+      
+      for (const urlConfig of source.urls) {
+        if (!reviewCategories.includes(urlConfig.category)) continue;
+        
+        try {
+          const fetchResult = await webFetchTool.execute({
+            context: { url: urlConfig.url },
+            runtimeContext,
+            mastra,
+          });
+          
+          if (fetchResult.success && fetchResult.content) {
+            reviewsScrapedData[slug].reviews.push({
+              category: urlConfig.category,
+              sourceName: urlConfig.sourceName,
+              url: urlConfig.url,
+              content: fetchResult.content.substring(0, 6000),
+              dateFilter: inputData.reviewsDateStart,
+            });
+            logger?.info(`✅ [Step 4] Scraped ${urlConfig.sourceName} for ${source.name}`);
+          }
+        } catch (error) {
+          logger?.warn(`⚠️ [Step 4] Failed to scrape ${urlConfig.url}:`, error);
+        }
+      }
+      
+      logger?.info(`📊 [Step 4] ${source.name}: ${reviewsScrapedData[slug].reviews.length} review sources scraped`);
+    }
+    
+    logger?.info('✅ [Step 4] Review URL scraping complete');
+    
+    return {
+      ...inputData,
+      reviewsScrapedData,
+    };
+  },
+});
+
+// ============================================================================
+// STEP 5: GENERAL WEB SEARCH (Market Intelligence)
+// ============================================================================
+const performGeneralWebSearch = createStep({
+  id: "perform-general-web-search",
+  description: "Performs general market intelligence web search (strategic moves, M&A, partnerships)",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    reasoning: z.string(),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
+    productUpdatesDateStart: z.string(),
+    reviewsDateStart: z.string(),
+    pressReleasesDateStart: z.string(),
+    reasoning: z.string(),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+    generalWebSearch: z.any(),
+    perCompetitorSearches: z.record(z.any()),
+  }),
+  
+  execute: async ({ inputData, mastra, runtimeContext }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('🔍 [Step 5] Performing general market intelligence web search...');
+    
     const dateStart = new Date(inputData.generalNewsDateStart);
     const dateEnd = new Date(inputData.dateEnd);
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -331,505 +471,21 @@ const performWebSearches = createStep({
     const endMonth = monthNames[dateEnd.getMonth()];
     const dateRange = `${startMonth} ${dateStart.getDate()}-${endMonth !== startMonth ? endMonth + ' ' : ''}${dateEnd.getDate()} ${dateEnd.getFullYear()}`;
     
-    // Search 1: Broad weekly market pulse (using intelligent general news timespan)
-    logger?.info('🔍 [Step 2.1] Executing broad weekly market pulse search...');
-    const broadPulseQuery = `Digital adoption platform news ${dateRange}: WalkMe Whatfix Pendo Appcues Apty funding acquisitions product launches partnerships industry trends market analysis`;
+    const broadPulseQuery = `Digital adoption platform news ${dateRange}: WalkMe Whatfix Pendo Appcues Apty strategic moves acquisitions M&A partnerships industry trends market analysis`;
     
-    logger?.info('📝 [Step 2.1] Query with intelligent timespan:', broadPulseQuery);
+    logger?.info('📝 [Step 5] Query:', broadPulseQuery);
     
     const broadPulseSearch = await webSearchTool.execute({
-      context: {
-        query: broadPulseQuery,
-        maxResults: 5,
-      },
+      context: { query: broadPulseQuery, maxResults: 5 },
       runtimeContext,
       mastra,
     });
     
-    logger?.info('✅ [Step 2.1] Broad pulse search completed:', {
+    logger?.info('✅ [Step 5] Broad pulse search completed:', {
       success: broadPulseSearch.success,
       citationsCount: broadPulseSearch.citations?.length || 0,
     });
     
-    // Search 2: Targeted follow-up (market data focus - current month context)
-    logger?.info('🔍 [Step 2.2] Executing targeted follow-up search...');
-    const targetedQuery = `Digital adoption platform market size growth rate as of ${inputData.currentMonth}, investment trends, CAGR analyst reports, Forrester/Gartner SaaS product analytics user onboarding market forecast`;
-    
-    logger?.info('📝 [Step 2.2] Query with current month context:', targetedQuery);
-    
-    const targetedFollowUpSearch = await webSearchTool.execute({
-      context: {
-        query: targetedQuery,
-        maxResults: 5,
-      },
-      runtimeContext,
-      mastra,
-    });
-    
-    logger?.info('✅ [Step 2.2] Targeted follow-up search completed:', {
-      success: targetedFollowUpSearch.success,
-      citationsCount: targetedFollowUpSearch.citations?.length || 0,
-    });
-    
-    logger?.info('✅ [Step 2] Web searches complete');
-    
-    // Keep full answers for metric extraction but limit citations to reduce payload size
-    const trimCitations = (citations: any[]) => 
-      citations.slice(0, 5).map(c => ({
-        title: c.title?.substring(0, 150) || '',
-        url: c.url || '',
-        // Remove snippet to save space
-      }));
-    
-    const trimmedBroadPulse = {
-      success: broadPulseSearch.success,
-      query: broadPulseSearch.query,
-      answer: broadPulseSearch.answer || '', // Keep full answer for metric extraction
-      citations: trimCitations(broadPulseSearch.citations || []),
-      error: broadPulseSearch.error,
-    };
-    
-    const trimmedTargetedSearch = {
-      success: targetedFollowUpSearch.success,
-      query: targetedFollowUpSearch.query,
-      answer: targetedFollowUpSearch.answer || '', // Keep full answer for metric extraction
-      citations: trimCitations(targetedFollowUpSearch.citations || []),
-      error: targetedFollowUpSearch.error,
-    };
-    
-    logger?.info('📦 [Step 2] Prepared web search payloads for Inngest:', {
-      broadPulseAnswerLength: trimmedBroadPulse.answer.length,
-      targetedAnswerLength: trimmedTargetedSearch.answer.length,
-      totalCitations: (trimmedBroadPulse.citations?.length || 0) + (trimmedTargetedSearch.citations?.length || 0),
-    });
-    
-    return {
-      runId: inputData.runId,
-      dateStart: inputData.dateStart,
-      dateEnd: inputData.dateEnd,
-      weekRangeLabel: inputData.weekRangeLabel,
-      generalNewsDateStart: inputData.generalNewsDateStart,
-      productUpdatesDateStart: inputData.productUpdatesDateStart,
-      reviewsDateStart: inputData.reviewsDateStart,
-      pressReleasesDateStart: inputData.pressReleasesDateStart,
-      currentMonth: inputData.currentMonth,
-      reasoning: inputData.reasoning,
-      webSearchResults: {
-        broadPulseSearch: trimmedBroadPulse,
-        targetedFollowUpSearch: trimmedTargetedSearch,
-      },
-    };
-  },
-});
-
-// Step 2.5.1: Search for funding metrics
-const searchFundingMetrics = createStep({
-  id: "search-funding-metrics",
-  description: "Search for competitor funding and valuation data using GPT-5 intelligent timespans",
-  
-  inputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
-  }),
-  
-  outputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
-    fundingMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  execute: async ({ inputData, mastra, runtimeContext }) => {
-    const logger = mastra?.getLogger();
-    logger?.info('💸 [Step 2.5.1] Searching for funding and financial data with intelligent timespans...');
-    logger?.info('🧠 [Step 2.5.1] Using GPT-5 date logic:', inputData.reasoning);
-    
-    // Calculate reporting week start (Monday of the current week)
-    const dateEnd = new Date(inputData.dateEnd);
-    const dayOfWeek = dateEnd.getDay();
-    const daysToMonday = (dayOfWeek + 6) % 7;
-    const reportingWeekStart = new Date(dateEnd);
-    reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
-    reportingWeekStart.setHours(0, 0, 0, 0);
-    
-    logger?.info('📅 [Step 2.5.1] Reporting week start:', { 
-      reportingWeekStart: reportingWeekStart.toISOString().split('T')[0] 
-    });
-    
-    // Format intelligent date range for press releases (funding announcements)
-    const pressStart = new Date(inputData.pressReleasesDateStart);
-    const pressEnd = new Date(inputData.dateEnd);
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const pressStartMonth = monthNames[pressStart.getMonth()];
-    const pressEndMonth = monthNames[pressEnd.getMonth()];
-    const pressDateRange = `${pressStartMonth} ${pressStart.getDate()}-${pressEndMonth !== pressStartMonth ? pressEndMonth + ' ' : ''}${pressEnd.getDate()} ${pressEnd.getFullYear()}`;
-    
-    const competitorNames = getAllCompetitorNames();
-    const fundingQuery = `${competitorNames.join(' OR ')} digital adoption platform funding rounds (Series A B C investment, TechCrunch/Crunchbase) ${pressDateRange}, valuation, revenue as of ${inputData.currentMonth}`;
-    
-    logger?.info('📝 [Step 2.5.1] Query with intelligent timespan:', fundingQuery);
-    
-    const fundingSearch = await webSearchTool.execute({
-      context: {
-        query: fundingQuery,
-        maxResults: 5,
-      },
-      runtimeContext,
-      mastra,
-    });
-    
-    let fundingMetrics: any[] = [];
-    
-    if (fundingSearch.success && fundingSearch.answer) {
-      logger?.info('📝 [Step 2.5.1] Perplexity search successful:', {
-        answerLength: fundingSearch.answer.length,
-        answerPreview: fundingSearch.answer.substring(0, 300),
-        citationCount: fundingSearch.citations?.length || 0,
-        citations: fundingSearch.citations?.map((c: any) => c.url).slice(0, 3),
-      });
-      
-      logger?.info('📄 [Step 2.5.1] Fetching full article content from citations...');
-      const citationTexts: string[] = [fundingSearch.answer];
-      
-      const citationsToFetch = (fundingSearch.citations || []).slice(0, 3);
-      for (const citation of citationsToFetch) {
-        if (citation.url) {
-          try {
-            const fetchResult = await webFetchTool.execute({
-              context: { url: citation.url },
-              runtimeContext,
-              mastra,
-            });
-            if (fetchResult.success && fetchResult.content) {
-              citationTexts.push(fetchResult.content.substring(0, 5000));
-            }
-          } catch (error) {
-            logger?.warn(`⚠️ [Step 2.5.1] Failed to fetch ${citation.url}:`, error);
-          }
-        }
-      }
-      
-      const fullText = citationTexts.join('\n\n');
-      logger?.info(`📝 [Step 2.5.1] Collected ${fullText.length} characters for extraction`);
-      
-      fundingMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
-    }
-    
-    logger?.info(`✅ [Step 2.5.1] Extracted metrics for ${fundingMetrics.length} competitors`);
-    
-    return {
-      ...inputData,
-      fundingMetrics,
-      reportingWeekStart: reportingWeekStart.toISOString().split('T')[0],
-    };
-  },
-});
-
-// Step 2.5.2: Search for revenue and employee metrics
-const searchRevenueMetrics = createStep({
-  id: "search-revenue-metrics",
-  description: "Search for competitor revenue and employee data at running report date",
-  
-  inputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
-    fundingMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  outputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  execute: async ({ inputData, mastra, runtimeContext }) => {
-    const logger = mastra?.getLogger();
-    logger?.info('📊 [Step 2.5.2] Searching for revenue and employee data at running report date...');
-    logger?.info('🧠 [Step 2.5.2] Using GPT-5 date logic:', inputData.reasoning);
-    
-    const competitorNames = getAllCompetitorNames();
-    const revenueQuery = `${competitorNames.join(' OR ')} digital adoption platform revenue, ARR, annual recurring employees headcount, company size as of ${inputData.currentMonth}`;
-    
-    logger?.info('📝 [Step 2.5.2] Query with current month context:', revenueQuery);
-    
-    const revenueSearch = await webSearchTool.execute({
-      context: {
-        query: revenueQuery,
-        maxResults: 5,
-      },
-      runtimeContext,
-      mastra,
-    });
-    
-    let revenueMetrics: any[] = [];
-    
-    if (revenueSearch.success && revenueSearch.answer) {
-      logger?.info('📝 [Step 2.5.2] Perplexity search successful:', {
-        answerLength: revenueSearch.answer.length,
-        answerPreview: revenueSearch.answer.substring(0, 300),
-        citationCount: revenueSearch.citations?.length || 0,
-        citations: revenueSearch.citations?.map((c: any) => c.url).slice(0, 3),
-      });
-      
-      logger?.info('📄 [Step 2.5.2] Fetching full article content from citations...');
-      const citationTexts: string[] = [revenueSearch.answer];
-      
-      const citationsToFetch = (revenueSearch.citations || []).slice(0, 3);
-      for (const citation of citationsToFetch) {
-        if (citation.url) {
-          try {
-            const fetchResult = await webFetchTool.execute({
-              context: { url: citation.url },
-              runtimeContext,
-              mastra,
-            });
-            if (fetchResult.success && fetchResult.content) {
-              citationTexts.push(fetchResult.content.substring(0, 5000));
-            }
-          } catch (error) {
-            logger?.warn(`⚠️ [Step 2.5.2] Failed to fetch ${citation.url}:`, error);
-          }
-        }
-      }
-      
-      const fullText = citationTexts.join('\n\n');
-      logger?.info(`📝 [Step 2.5.2] Collected ${fullText.length} characters for extraction`);
-      
-      revenueMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
-    }
-    
-    logger?.info(`✅ [Step 2.5.2] Extracted metrics for ${revenueMetrics.length} competitors`);
-    
-    return {
-      ...inputData,
-      revenueMetrics,
-    };
-  },
-});
-
-// Step 2.5.3: Search for customer health metrics
-const searchCustomerMetrics = createStep({
-  id: "search-customer-metrics",
-  description: "Search for competitor customer count, churn, and retention data at running report date",
-  
-  inputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  outputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  execute: async ({ inputData, mastra, runtimeContext }) => {
-    const logger = mastra?.getLogger();
-    logger?.info('👥 [Step 2.5.3] Searching for customer base and churn data at running report date...');
-    logger?.info('🧠 [Step 2.5.3] Using GPT-5 date logic:', inputData.reasoning);
-    
-    const competitorNames = getAllCompetitorNames();
-    const customerQuery = `${competitorNames.join(' OR ')} digital adoption platform customers client count user base active users churn rate retention rate user growth as of ${inputData.currentMonth}`;
-    
-    logger?.info('📝 [Step 2.5.3] Query with current month context:', customerQuery);
-    
-    const customerSearch = await webSearchTool.execute({
-      context: {
-        query: customerQuery,
-        maxResults: 5,
-      },
-      runtimeContext,
-      mastra,
-    });
-    
-    let customerMetrics: any[] = [];
-    
-    if (customerSearch.success && customerSearch.answer) {
-      logger?.info('📝 [Step 2.5.3] Perplexity search successful:', {
-        answerLength: customerSearch.answer.length,
-        answerPreview: customerSearch.answer.substring(0, 300),
-        citationCount: customerSearch.citations?.length || 0,
-        citations: customerSearch.citations?.map((c: any) => c.url).slice(0, 3),
-      });
-      
-      logger?.info('📄 [Step 2.5.3] Fetching full article content from citations...');
-      const citationTexts: string[] = [customerSearch.answer];
-      
-      const citationsToFetch = (customerSearch.citations || []).slice(0, 3);
-      for (const citation of citationsToFetch) {
-        if (citation.url) {
-          try {
-            const fetchResult = await webFetchTool.execute({
-              context: { url: citation.url },
-              runtimeContext,
-              mastra,
-            });
-            if (fetchResult.success && fetchResult.content) {
-              citationTexts.push(fetchResult.content.substring(0, 5000));
-            }
-          } catch (error) {
-            logger?.warn(`⚠️ [Step 2.5.3] Failed to fetch ${citation.url}:`, error);
-          }
-        }
-      }
-      
-      const fullText = citationTexts.join('\n\n');
-      logger?.info(`📝 [Step 2.5.3] Collected ${fullText.length} characters for extraction`);
-      
-      customerMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
-    }
-    
-    logger?.info(`✅ [Step 2.5.3] Extracted metrics for ${customerMetrics.length} competitors`);
-    
-    return {
-      ...inputData,
-      customerMetrics,
-    };
-  },
-});
-
-// Step 2.5.4a: Per-Competitor Intelligence Searches
-const searchPerCompetitorIntelligence = createStep({
-  id: "search-per-competitor-intelligence",
-  description: "Search for detailed intelligence on each competitor individually using Perplexity/SerpAPI to ground parsing in factual per-competitor data",
-  
-  inputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-    }),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  outputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-    }),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  execute: async ({ inputData, mastra, runtimeContext }) => {
-    const logger = mastra?.getLogger();
-    logger?.info('🔍 [Step 2.5.4a] Searching for per-competitor intelligence...');
-    logger?.info('🧠 [Step 2.5.4a] Using GPT-5 date logic:', inputData.reasoning);
-    
-    // Format date range for current month (for recent news)
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const endDate = new Date(inputData.dateEnd);
-    const currentMonth = monthNames[endDate.getMonth()];
-    const currentYear = endDate.getFullYear();
-    const dateRange = `${currentMonth} ${currentYear}`;
-    
-    // List of competitors
     const competitors = [
       { name: "WalkMe", slug: "walkme" },
       { name: "Whatfix", slug: "whatfix" },
@@ -838,295 +494,277 @@ const searchPerCompetitorIntelligence = createStep({
       { name: "Apty", slug: "apty" },
     ];
     
-    // Search for each competitor in parallel (webSearchTool has built-in rate limiting)
     const searchPromises = competitors.map(async (competitor) => {
-      const query = `${competitor.name} digital adoption platform latest news, funding, product updates, launches, release notes, press releases, new features, partnerships, user reviews ${dateRange}`;
+      const query = `${competitor.name} digital adoption platform latest news ${dateRange}, product updates, launches, press releases, new features, partnerships`;
       
-      logger?.info(`🔍 [Step 2.5.4a] Searching for ${competitor.name}:`, { query });
+      logger?.info(`🔍 [Step 5] Per-competitor search for ${competitor.name}...`);
       
       try {
         const searchResult = await webSearchTool.execute({
-          context: {
-            query,
-            maxResults: 5,
-          },
+          context: { query, maxResults: 5 },
           runtimeContext,
           mastra,
-        });
-        
-        // Trim citations and answer to reduce Inngest payload size
-        const trimmedResult = {
-          success: searchResult.success,
-          query: searchResult.query,
-          answer: (searchResult.answer || '').substring(0, 2000), // Limit to 2000 chars
-          citations: searchResult.citations?.slice(0, 5).map(c => ({
-            title: c.title?.substring(0, 100) || '',
-            url: c.url || '',
-          })) || [],
-          error: searchResult.error,
-        };
-        
-        logger?.info(`✅ [Step 2.5.4a] ${competitor.name} search completed:`, {
-          success: trimmedResult.success,
-          citationsCount: trimmedResult.citations.length,
-          answerLength: trimmedResult.answer.length,
-        });
-        
-        return { slug: competitor.slug, result: trimmedResult };
-      } catch (error) {
-        logger?.error(`❌ [Step 2.5.4a] Failed to search for ${competitor.name}:`, {
-          error: error instanceof Error ? error.message : String(error),
         });
         
         return {
           slug: competitor.slug,
           result: {
-            success: false,
-            query,
-            answer: '',
-            citations: [],
-            error: error instanceof Error ? error.message : String(error),
+            success: searchResult.success,
+            query: searchResult.query,
+            answer: (searchResult.answer || '').substring(0, 2000),
+            citations: searchResult.citations?.slice(0, 5).map(c => ({
+              title: c.title?.substring(0, 100) || '',
+              url: c.url || '',
+            })) || [],
+            error: searchResult.error,
           },
+        };
+      } catch (error) {
+        logger?.error(`❌ [Step 5] Failed to search for ${competitor.name}:`, error);
+        return {
+          slug: competitor.slug,
+          result: { success: false, query, answer: '', citations: [], error: String(error) },
         };
       }
     });
     
     const searchResults = await Promise.all(searchPromises);
     const perCompetitorSearches: Record<string, any> = {};
-    
     for (const { slug, result } of searchResults) {
       perCompetitorSearches[slug] = result;
     }
     
-    logger?.info('✅ [Step 2.5.4a] All per-competitor searches completed:', {
+    logger?.info('✅ [Step 5] All per-competitor searches completed:', {
       total: Object.keys(perCompetitorSearches).length,
       successful: Object.values(perCompetitorSearches).filter((s: any) => s.success).length,
     });
     
-    // CRITICAL: Save per-competitor search results to database immediately
-    // This ensures parseCompetitorIntelligence can access them even if subsequent steps fail
-    const webSearchResultsToSave = {
-      broadPulseSearch: inputData.webSearchResults.broadPulseSearch,
-      targetedFollowUpSearch: inputData.webSearchResults.targetedFollowUpSearch,
-      perCompetitorSearches: perCompetitorSearches, // Explicitly add the new data
+    const trimmedBroadPulse = {
+      success: broadPulseSearch.success,
+      query: broadPulseSearch.query,
+      answer: broadPulseSearch.answer || '',
+      citations: (broadPulseSearch.citations || []).slice(0, 5).map(c => ({
+        title: c.title?.substring(0, 150) || '',
+        url: c.url || '',
+      })),
+      error: broadPulseSearch.error,
     };
     
-    // Verify the structure before saving
-    logger?.info('💾 [Step 2.5.4a] Preparing to save web search results:', {
-      hasBroadPulse: !!webSearchResultsToSave.broadPulseSearch,
-      hasTargetedFollowUp: !!webSearchResultsToSave.targetedFollowUpSearch,
-      hasPerCompetitorSearches: !!webSearchResultsToSave.perCompetitorSearches,
-      perCompetitorCount: Object.keys(webSearchResultsToSave.perCompetitorSearches || {}).length,
-      perCompetitorKeys: Object.keys(webSearchResultsToSave.perCompetitorSearches || {}),
-    });
-    
-    try {
-      await db.updateWebSearchData(
-        inputData.runId,
-        webSearchResultsToSave,
-        undefined // Don't update perCompetitorData yet - will be filled by parseCompetitorIntelligence step
-      );
-      logger?.info('✅ [Step 2.5.4a] Successfully saved per-competitor search results to database');
-    } catch (error) {
-      logger?.error('❌ [Step 2.5.4a] Failed to save search results to database:', error);
-      // Continue anyway - data is still in workflow chain
-    }
-    
     return {
-      runId: inputData.runId,
-      dateStart: inputData.dateStart,
-      dateEnd: inputData.dateEnd,
-      weekRangeLabel: inputData.weekRangeLabel,
-      generalNewsDateStart: inputData.generalNewsDateStart,
-      productUpdatesDateStart: inputData.productUpdatesDateStart,
-      reviewsDateStart: inputData.reviewsDateStart,
-      pressReleasesDateStart: inputData.pressReleasesDateStart,
-      currentMonth: inputData.currentMonth,
-      reasoning: inputData.reasoning,
-      webSearchResults: {
-        ...inputData.webSearchResults,
-        perCompetitorSearches,
-      },
-      fundingMetrics: inputData.fundingMetrics,
-      revenueMetrics: inputData.revenueMetrics,
-      customerMetrics: inputData.customerMetrics,
-      reportingWeekStart: inputData.reportingWeekStart,
+      ...inputData,
+      generalWebSearch: trimmedBroadPulse,
+      perCompetitorSearches,
     };
   },
 });
 
-// Step 2.5.4b: Search for user feedback and reviews
-const searchUserFeedback = createStep({
-  id: "search-user-feedback",
-  description: "Search for recent real user feedback and reviews with GPT-5 intelligent timespans",
+// ============================================================================
+// STEP 6: FINANCIAL WEB SEARCH (Revenue, ARR, Valuation, Funding)
+// ============================================================================
+const performFinancialWebSearch = createStep({
+  id: "perform-financial-web-search",
+  description: "Performs financial metrics web search (revenue, ARR, valuation, funding)",
   
   inputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
     reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-    }),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+    generalWebSearch: z.any(),
+    perCompetitorSearches: z.record(z.any()),
   }),
   
   outputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
     reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()), // CRITICAL: Must pass through to preserve data
-      userFeedbackSearch: z.any().optional(),
-    }),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+    generalWebSearch: z.any(),
+    perCompetitorSearches: z.record(z.any()),
+    financialWebSearch: z.any(),
     fundingMetrics: z.array(z.any()),
     revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
     reportingWeekStart: z.string(),
   }),
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💬 [Step 2.5.4] Searching for recent real user feedback and reviews...');
-    logger?.info('🧠 [Step 2.5.4] Using GPT-5 date logic:', inputData.reasoning);
+    logger?.info('💰 [Step 6] Performing financial metrics web search...');
     
-    // Format intelligent date range for reviews (use reviewsDateStart)
-    const reviewsStart = new Date(inputData.reviewsDateStart);
-    const reviewsEnd = new Date(inputData.dateEnd);
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const reviewsStartMonth = monthNames[reviewsStart.getMonth()];
-    const reviewsEndMonth = monthNames[reviewsEnd.getMonth()];
-    const reviewsDateRange = `${reviewsStartMonth} ${reviewsStart.getDate()}-${reviewsEndMonth !== reviewsStartMonth ? reviewsEndMonth + ' ' : ''}${reviewsEnd.getDate()} ${reviewsEnd.getFullYear()}`;
+    const dateEnd = new Date(inputData.dateEnd);
+    const dayOfWeek = dateEnd.getDay();
+    const daysToMonday = (dayOfWeek + 6) % 7;
+    const reportingWeekStart = new Date(dateEnd);
+    reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
+    reportingWeekStart.setHours(0, 0, 0, 0);
     
     const competitorNames = getAllCompetitorNames();
-    const feedbackQuery = `${competitorNames.join(' OR ')} digital adoption platform recent real users feedback/review ${reviewsDateRange}`;
     
-    logger?.info('📝 [Step 2.5.4] Query with intelligent timespan:', feedbackQuery);
+    const fundingQuery = `${competitorNames.join(' OR ')} digital adoption platform funding rounds Series investment valuation revenue ARR as of ${inputData.currentMonth}`;
     
-    const feedbackSearch = await webSearchTool.execute({
-      context: {
-        query: feedbackQuery,
-        maxResults: 5,
-      },
+    logger?.info('📝 [Step 6] Funding query:', fundingQuery);
+    
+    const fundingSearch = await webSearchTool.execute({
+      context: { query: fundingQuery, maxResults: 5 },
       runtimeContext,
       mastra,
     });
     
-    logger?.info('✅ [Step 2.5.4] User feedback search completed:', {
-      success: feedbackSearch.success,
-      citationsCount: feedbackSearch.citations?.length || 0,
+    let fundingMetrics: any[] = [];
+    
+    if (fundingSearch.success && fundingSearch.answer) {
+      logger?.info('📄 [Step 6] Fetching citation content for metric extraction...');
+      const citationTexts: string[] = [fundingSearch.answer];
+      
+      for (const citation of (fundingSearch.citations || []).slice(0, 3)) {
+        if (citation.url) {
+          try {
+            const fetchResult = await webFetchTool.execute({
+              context: { url: citation.url },
+              runtimeContext,
+              mastra,
+            });
+            if (fetchResult.success && fetchResult.content) {
+              citationTexts.push(fetchResult.content.substring(0, 5000));
+            }
+          } catch (error) {
+            logger?.warn(`⚠️ [Step 6] Failed to fetch ${citation.url}`);
+          }
+        }
+      }
+      
+      const fullText = citationTexts.join('\n\n');
+      fundingMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
+    }
+    
+    const revenueQuery = `${competitorNames.join(' OR ')} digital adoption platform revenue ARR annual recurring employees headcount company size as of ${inputData.currentMonth}`;
+    
+    logger?.info('📝 [Step 6] Revenue query:', revenueQuery);
+    
+    const revenueSearch = await webSearchTool.execute({
+      context: { query: revenueQuery, maxResults: 5 },
+      runtimeContext,
+      mastra,
     });
     
-    // Trim feedback search results similar to other searches
-    const trimCitations = (citations: any[]) => 
-      citations.slice(0, 5).map(c => ({
-        title: c.title?.substring(0, 150) || '',
-        url: c.url || '',
-      }));
+    let revenueMetrics: any[] = [];
     
-    const trimmedFeedbackSearch = {
-      success: feedbackSearch.success,
-      query: feedbackSearch.query,
-      answer: feedbackSearch.answer || '',
-      citations: trimCitations(feedbackSearch.citations || []),
-      error: feedbackSearch.error,
+    if (revenueSearch.success && revenueSearch.answer) {
+      const citationTexts: string[] = [revenueSearch.answer];
+      
+      for (const citation of (revenueSearch.citations || []).slice(0, 3)) {
+        if (citation.url) {
+          try {
+            const fetchResult = await webFetchTool.execute({
+              context: { url: citation.url },
+              runtimeContext,
+              mastra,
+            });
+            if (fetchResult.success && fetchResult.content) {
+              citationTexts.push(fetchResult.content.substring(0, 5000));
+            }
+          } catch (error) {
+            logger?.warn(`⚠️ [Step 6] Failed to fetch ${citation.url}`);
+          }
+        }
+      }
+      
+      const fullText = citationTexts.join('\n\n');
+      revenueMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
+    }
+    
+    logger?.info(`✅ [Step 6] Financial search complete: ${fundingMetrics.length} funding, ${revenueMetrics.length} revenue metrics`);
+    
+    const financialWebSearch = {
+      fundingSearch: {
+        success: fundingSearch.success,
+        query: fundingSearch.query,
+        answer: (fundingSearch.answer || '').substring(0, 1500),
+        citations: (fundingSearch.citations || []).slice(0, 5).map(c => ({ title: c.title?.substring(0, 100) || '', url: c.url || '' })),
+      },
+      revenueSearch: {
+        success: revenueSearch.success,
+        query: revenueSearch.query,
+        answer: (revenueSearch.answer || '').substring(0, 1500),
+        citations: (revenueSearch.citations || []).slice(0, 5).map(c => ({ title: c.title?.substring(0, 100) || '', url: c.url || '' })),
+      },
     };
     
-    // Return all intelligent timespan data for downstream steps
     return {
-      runId: inputData.runId,
-      dateStart: inputData.dateStart,
-      dateEnd: inputData.dateEnd,
-      weekRangeLabel: inputData.weekRangeLabel,
-      generalNewsDateStart: inputData.generalNewsDateStart,
-      productUpdatesDateStart: inputData.productUpdatesDateStart,
-      reviewsDateStart: inputData.reviewsDateStart,
-      pressReleasesDateStart: inputData.pressReleasesDateStart,
-      currentMonth: inputData.currentMonth,
-      reasoning: inputData.reasoning,
-      webSearchResults: {
-        broadPulseSearch: inputData.webSearchResults.broadPulseSearch,
-        targetedFollowUpSearch: inputData.webSearchResults.targetedFollowUpSearch,
-        perCompetitorSearches: inputData.webSearchResults.perCompetitorSearches, // CRITICAL: Explicitly pass through
-        userFeedbackSearch: trimmedFeedbackSearch,
-      },
-      fundingMetrics: inputData.fundingMetrics,
-      revenueMetrics: inputData.revenueMetrics,
-      customerMetrics: inputData.customerMetrics,
-      reportingWeekStart: inputData.reportingWeekStart,
+      ...inputData,
+      financialWebSearch,
+      fundingMetrics,
+      revenueMetrics,
+      reportingWeekStart: reportingWeekStart.toISOString().split('T')[0],
     };
   },
 });
 
-// Step 2.5.4c: Search for market data and industry reports
-const searchMarketDataAndReports = createStep({
-  id: "search-market-data-and-reports",
-  description: "Search for overall market data, growth rates, and industry reports using Perplexity/SerpAPI with intelligent timespans",
+// ============================================================================
+// STEP 7: STRATEGIC WEB SEARCH (Customer Base, Churn, Engagement)
+// ============================================================================
+const performStrategicWebSearch = createStep({
+  id: "perform-strategic-web-search",
+  description: "Performs strategic metrics web search (customer base, churn, user engagement)",
   
   inputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
     reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-    }),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+    generalWebSearch: z.any(),
+    perCompetitorSearches: z.record(z.any()),
+    financialWebSearch: z.any(),
     fundingMetrics: z.array(z.any()),
     revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
     reportingWeekStart: z.string(),
   }),
   
   outputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
     reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-      marketDataSearch: z.any().optional(),
-      industryReportsSearch: z.any().optional(),
-    }),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+    generalWebSearch: z.any(),
+    perCompetitorSearches: z.record(z.any()),
+    financialWebSearch: z.any(),
+    strategicWebSearch: z.any(),
     fundingMetrics: z.array(z.any()),
     revenueMetrics: z.array(z.any()),
     customerMetrics: z.array(z.any()),
@@ -1135,135 +773,106 @@ const searchMarketDataAndReports = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('📊 [Step 2.5.4c] Searching for market data and industry reports...');
-    logger?.info('🧠 [Step 2.5.4c] Using GPT-5 date logic:', inputData.reasoning);
+    logger?.info('🎯 [Step 7] Performing strategic metrics web search...');
     
-    // Format intelligent date range for market data (use current month for snapshot data)
-    const dateEnd = new Date(inputData.dateEnd);
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const currentMonth = monthNames[dateEnd.getMonth()];
-    const currentYear = dateEnd.getFullYear();
+    const competitorNames = getAllCompetitorNames();
     
-    // Search 1: Market data (market size, growth rate, CAGR, investment trends, analyst forecasts)
-    const marketDataQuery = `Digital adoption platform market size growth rate ${currentMonth} ${currentYear}, investment trends, CAGR analyst reports, Forrester Gartner SaaS product analytics user onboarding market forecast predictions`;
+    const customerQuery = `${competitorNames.join(' OR ')} digital adoption platform customers client count user base active users churn rate retention user growth as of ${inputData.currentMonth}`;
     
-    logger?.info('📊 [Step 2.5.4c] Searching for market data:', { query: marketDataQuery });
+    logger?.info('📝 [Step 7] Customer metrics query:', customerQuery);
+    
+    const customerSearch = await webSearchTool.execute({
+      context: { query: customerQuery, maxResults: 5 },
+      runtimeContext,
+      mastra,
+    });
+    
+    let customerMetrics: any[] = [];
+    
+    if (customerSearch.success && customerSearch.answer) {
+      const citationTexts: string[] = [customerSearch.answer];
+      
+      for (const citation of (customerSearch.citations || []).slice(0, 3)) {
+        if (citation.url) {
+          try {
+            const fetchResult = await webFetchTool.execute({
+              context: { url: citation.url },
+              runtimeContext,
+              mastra,
+            });
+            if (fetchResult.success && fetchResult.content) {
+              citationTexts.push(fetchResult.content.substring(0, 5000));
+            }
+          } catch (error) {
+            logger?.warn(`⚠️ [Step 7] Failed to fetch ${citation.url}`);
+          }
+        }
+      }
+      
+      const fullText = citationTexts.join('\n\n');
+      customerMetrics = await extractMetricsFromText(fullText, competitorNames, logger);
+    }
+    
+    const marketDataQuery = `Digital adoption platform market size growth rate CAGR as of ${inputData.currentMonth}, analyst reports Forrester Gartner, industry forecast, user onboarding market`;
+    
+    logger?.info('📝 [Step 7] Market data query:', marketDataQuery);
     
     const marketDataSearch = await webSearchTool.execute({
-      context: {
-        query: marketDataQuery,
-        maxResults: 5,
-      },
+      context: { query: marketDataQuery, maxResults: 5 },
       runtimeContext,
       mastra,
     });
     
-    logger?.info('✅ [Step 2.5.4c] Market data search completed:', {
-      success: marketDataSearch.success,
-      citationsCount: marketDataSearch.citations?.length || 0,
-    });
+    logger?.info(`✅ [Step 7] Strategic search complete: ${customerMetrics.length} customer metrics`);
     
-    // Trim market data search results
-    const trimmedMarketDataSearch = {
-      success: marketDataSearch.success,
-      query: marketDataSearch.query,
-      answer: marketDataSearch.answer || '',
-      citations: marketDataSearch.citations?.slice(0, 5).map(c => ({
-        title: c.title?.substring(0, 150) || '',
-        url: c.url || '',
-      })) || [],
-      error: marketDataSearch.error,
-    };
-    
-    // Format intelligent date range for industry reports (use general news timespan for recent reports)
-    const generalStart = new Date(inputData.generalNewsDateStart);
-    const startMonth = monthNames[generalStart.getMonth()];
-    const reportDateRange = `${startMonth} ${generalStart.getDate()}-${currentMonth !== startMonth ? currentMonth + ' ' : ''}${dateEnd.getDate()} ${currentYear}`;
-    
-    // Search 2: Industry reports and analysis
-    const industryReportsQuery = `Digital adoption platform industry reports ${reportDateRange}, industry analysis, analyst reviews, market research, product-led growth trends, SaaS onboarding industry trends`;
-    
-    logger?.info('📈 [Step 2.5.4c] Searching for industry reports:', { query: industryReportsQuery });
-    
-    const industryReportsSearch = await webSearchTool.execute({
-      context: {
-        query: industryReportsQuery,
-        maxResults: 5,
+    const strategicWebSearch = {
+      customerSearch: {
+        success: customerSearch.success,
+        query: customerSearch.query,
+        answer: (customerSearch.answer || '').substring(0, 1500),
+        citations: (customerSearch.citations || []).slice(0, 5).map(c => ({ title: c.title?.substring(0, 100) || '', url: c.url || '' })),
       },
-      runtimeContext,
-      mastra,
-    });
-    
-    logger?.info('✅ [Step 2.5.4c] Industry reports search completed:', {
-      success: industryReportsSearch.success,
-      citationsCount: industryReportsSearch.citations?.length || 0,
-    });
-    
-    // Trim industry reports search results
-    const trimmedIndustryReportsSearch = {
-      success: industryReportsSearch.success,
-      query: industryReportsSearch.query,
-      answer: industryReportsSearch.answer || '',
-      citations: industryReportsSearch.citations?.slice(0, 5).map(c => ({
-        title: c.title?.substring(0, 150) || '',
-        url: c.url || '',
-      })) || [],
-      error: industryReportsSearch.error,
+      marketDataSearch: {
+        success: marketDataSearch.success,
+        query: marketDataSearch.query,
+        answer: (marketDataSearch.answer || '').substring(0, 1500),
+        citations: (marketDataSearch.citations || []).slice(0, 5).map(c => ({ title: c.title?.substring(0, 100) || '', url: c.url || '' })),
+      },
     };
     
-    // Return all data for downstream steps
     return {
-      runId: inputData.runId,
-      dateStart: inputData.dateStart,
-      dateEnd: inputData.dateEnd,
-      weekRangeLabel: inputData.weekRangeLabel,
-      generalNewsDateStart: inputData.generalNewsDateStart,
-      productUpdatesDateStart: inputData.productUpdatesDateStart,
-      reviewsDateStart: inputData.reviewsDateStart,
-      pressReleasesDateStart: inputData.pressReleasesDateStart,
-      currentMonth: inputData.currentMonth,
-      productUpdatesLookback: inputData.productUpdatesLookback,
-      reasoning: inputData.reasoning,
-      webSearchResults: {
-        broadPulseSearch: inputData.webSearchResults.broadPulseSearch,
-        targetedFollowUpSearch: inputData.webSearchResults.targetedFollowUpSearch,
-        perCompetitorSearches: inputData.webSearchResults.perCompetitorSearches,
-        userFeedbackSearch: inputData.webSearchResults.userFeedbackSearch,
-        marketDataSearch: trimmedMarketDataSearch,
-        industryReportsSearch: trimmedIndustryReportsSearch,
-      },
-      fundingMetrics: inputData.fundingMetrics,
-      revenueMetrics: inputData.revenueMetrics,
-      customerMetrics: inputData.customerMetrics,
-      reportingWeekStart: inputData.reportingWeekStart,
+      ...inputData,
+      strategicWebSearch,
+      customerMetrics,
     };
   },
 });
 
-// Step 2.5.5: Persist all metrics to database
-const persistCompetitorMetrics = createStep({
-  id: "persist-competitor-metrics",
-  description: "Merge and persist all competitor metrics to database",
+// ============================================================================
+// STEP 8: MERGE DATA
+// ============================================================================
+const mergeAllData = createStep({
+  id: "merge-all-data",
+  description: "Merges all scraped and searched data into unified structure and saves to database",
   
   inputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
-    weekRangeLabel: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
     generalNewsDateStart: z.string(),
     productUpdatesDateStart: z.string(),
     reviewsDateStart: z.string(),
     pressReleasesDateStart: z.string(),
-    currentMonth: z.string(),
     reasoning: z.string(),
-    webSearchResults: z.object({
-      broadPulseSearch: z.any(),
-      targetedFollowUpSearch: z.any(),
-      perCompetitorSearches: z.record(z.any()),
-      userFeedbackSearch: z.any().optional(),
-      marketDataSearch: z.any().optional(),
-      industryReportsSearch: z.any().optional(),
-    }),
+    weekRangeLabel: z.string(),
+    competitorScrapedData: z.record(z.any()),
+    industryScrapedData: z.array(z.any()),
+    reviewsScrapedData: z.record(z.any()),
+    generalWebSearch: z.any(),
+    perCompetitorSearches: z.record(z.any()),
+    financialWebSearch: z.any(),
+    strategicWebSearch: z.any(),
     fundingMetrics: z.array(z.any()),
     revenueMetrics: z.array(z.any()),
     customerMetrics: z.array(z.any()),
@@ -1272,27 +881,58 @@ const persistCompetitorMetrics = createStep({
   
   outputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
     weekRangeLabel: z.string(),
     reportingWeekStart: z.string(),
-    metricsGathered: z.boolean(),
+    dataSaved: z.boolean(),
   }),
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💾 [Step 2.5.5] Merging and persisting competitor metrics...');
+    logger?.info('📦 [Step 8] Merging all scraped and searched data...');
     
-    // Merge all metrics by competitor slug
-    const allMetrics: any[] = [];
+    const competitorData = Object.entries(inputData.competitorScrapedData).flatMap(([slug, data]: [string, any]) =>
+      (data.items || []).map((item: any) => ({
+        competitorSlug: slug,
+        competitorName: data.name,
+        ...item,
+      }))
+    );
+    
+    const reviewsData = Object.entries(inputData.reviewsScrapedData).flatMap(([slug, data]: [string, any]) =>
+      (data.reviews || []).map((item: any) => ({
+        competitorSlug: slug,
+        competitorName: data.name,
+        ...item,
+      }))
+    );
+    
+    const webSearchResults = {
+      generalWebSearch: inputData.generalWebSearch,
+      perCompetitorSearches: inputData.perCompetitorSearches,
+      financialWebSearch: inputData.financialWebSearch,
+      strategicWebSearch: inputData.strategicWebSearch,
+    };
+    
+    logger?.info('💾 [Step 8] Saving merged data to database:', {
+      competitorDataCount: competitorData.length,
+      industryDataCount: inputData.industryScrapedData.length,
+      reviewsDataCount: reviewsData.length,
+    });
+    
+    await db.saveReportSources(inputData.runId, competitorData, inputData.industryScrapedData, reviewsData);
+    
+    await db.updateWebSearchData(inputData.runId, webSearchResults, undefined);
+    
     const metricsMap = new Map<string, any>();
     
-    // Add funding metrics
     for (const metric of inputData.fundingMetrics) {
       metricsMap.set(metric.competitorSlug, { ...metric });
     }
     
-    // Merge revenue metrics
     for (const metric of inputData.revenueMetrics) {
       const existing = metricsMap.get(metric.competitorSlug);
       if (existing) {
@@ -1302,7 +942,6 @@ const persistCompetitorMetrics = createStep({
       }
     }
     
-    // Merge customer metrics
     for (const metric of inputData.customerMetrics) {
       const existing = metricsMap.get(metric.competitorSlug);
       if (existing) {
@@ -1312,47 +951,13 @@ const persistCompetitorMetrics = createStep({
       }
     }
     
-    // Convert map to array
-    metricsMap.forEach(metric => allMetrics.push(metric));
-    
-    logger?.info(`📊 [Step 2.5.5] Merged metrics for ${allMetrics.length} competitors`, {
-      competitors: allMetrics.map(m => ({
-        slug: m.competitorSlug,
-        hasRevenue: !!m.revenueUsd,
-        revenue: m.revenueUsd,
-        hasValuation: !!m.valuationUsd,
-        valuation: m.valuationUsd,
-        hasFunding: !!m.fundingTotalUsd,
-        funding: m.fundingTotalUsd,
-        hasEmployees: !!m.employeeCount,
-        employees: m.employeeCount,
-        hasCustomers: !!m.customerCount,
-        customers: m.customerCount,
-        hasUserBase: !!m.userBase,
-        userBase: m.userBase,
-      })),
-    });
-    
-    // Store metrics in database
     const reportingWeekStart = new Date(inputData.reportingWeekStart);
     let storedCount = 0;
     
-    for (const metrics of allMetrics) {
+    for (const [slug, metrics] of metricsMap.entries()) {
       try {
-        logger?.info(`💾 [Step 2.5.5] Storing metrics for ${metrics.competitorSlug}:`, {
-          revenue: metrics.revenueUsd,
-          valuation: metrics.valuationUsd,
-          funding: metrics.fundingTotalUsd,
-          employees: metrics.employeeCount,
-          customers: metrics.customerCount,
-          churn: metrics.churnRate,
-          retention: metrics.retentionRate,
-          userBase: metrics.userBase,
-          userGrowth: metrics.userGrowthRate,
-        });
-        
         await db.saveCompetitorMetrics({
-          competitorSlug: metrics.competitorSlug,
+          competitorSlug: slug,
           reportingWeekStart,
           revenueUsd: metrics.revenueUsd,
           revenueRange: metrics.revenueRange,
@@ -1366,10 +971,7 @@ const persistCompetitorMetrics = createStep({
           lastRoundDate: metrics.lastRoundDate ? new Date(metrics.lastRoundDate) : null,
           investorCount: null,
           fundingRounds: null,
-          crunchbaseRawPayload: { 
-            sourceUrls: metrics.sourceUrls,
-            rawContext: metrics.rawContext 
-          },
+          crunchbaseRawPayload: { sourceUrls: metrics.sourceUrls, rawContext: metrics.rawContext },
           crunchbaseSuccess: true,
           organicTraffic: null,
           organicKeywords: null,
@@ -1388,124 +990,66 @@ const persistCompetitorMetrics = createStep({
         });
         storedCount++;
       } catch (error) {
-        logger?.error(`❌ [Step 2.5.5] Failed to store metrics for ${metrics.competitorSlug}:`, error);
+        logger?.error(`❌ [Step 8] Failed to store metrics for ${slug}:`, error);
       }
     }
     
-    logger?.info(`✅ [Step 2.5.5] Stored metrics for ${storedCount}/${allMetrics.length} competitors`);
-    
-    // Note: webSearchResults is already saved to database by searchPerCompetitorIntelligence (Step 2.5.4a)
-    // No need to save again here to avoid overwriting data with empty perCompetitorData
+    logger?.info(`✅ [Step 8] Data merge complete: ${storedCount} competitor metrics stored`);
     
     return {
       runId: inputData.runId,
-      dateStart: inputData.dateStart,
       dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      generalNewsDateStart: inputData.generalNewsDateStart,
       weekRangeLabel: inputData.weekRangeLabel,
       reportingWeekStart: inputData.reportingWeekStart,
-      metricsGathered: storedCount > 0,
+      dataSaved: true,
     };
   },
 });
 
-// Step 2.5.5: Calculate competitor trends
-const calculateCompetitorTrends = createStep({
-  id: "calculate-competitor-trends",
-  description: "Calculate trends by comparing current week's metrics vs previous week",
-  
-  inputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    reportingWeekStart: z.string(),
-    metricsGathered: z.boolean(),
-  }),
-  
-  outputSchema: z.object({
-    runId: z.string(),
-    dateStart: z.string(),
-    dateEnd: z.string(),
-    weekRangeLabel: z.string(),
-    metricsGathered: z.boolean(),
-  }),
-  
-  execute: async ({ inputData, mastra }) => {
-    const logger = mastra?.getLogger();
-    logger?.info('📊 [Step 2.5.5] Calculating competitor trends vs previous week...');
-    
-    // Skip trend calculation if no metrics were stored
-    if (!inputData.metricsGathered) {
-      logger?.warn('⚠️ [Step 2.5.5] No metrics gathered, skipping trend calculation');
-      return {
-        runId: inputData.runId,
-        dateStart: inputData.dateStart,
-        dateEnd: inputData.dateEnd,
-        weekRangeLabel: inputData.weekRangeLabel,
-        metricsGathered: false,
-      };
-    }
-    
-    // Use reporting week start from input
-    const reportingWeekStart = new Date(inputData.reportingWeekStart);
-    
-    logger?.info(`📅 [Step 2.5.5] Reporting week start: ${reportingWeekStart.toISOString().split('T')[0]}`);
-    
-    // Get all competitor trends (stored in database, not returned in workflow output)
-    const competitorTrends = await getAllCompetitorTrends(reportingWeekStart);
-    
-    // Log trend summary
-    const trendsCount = Object.keys(competitorTrends).length;
-    logger?.info(`✅ [Step 2.5.5] Calculated trends for ${trendsCount} competitors`);
-    
-    return {
-      runId: inputData.runId,
-      dateStart: inputData.dateStart,
-      dateEnd: inputData.dateEnd,
-      weekRangeLabel: inputData.weekRangeLabel,
-      metricsGathered: true,
-    };
-  },
-});
-
-// Step 2.6: Parse Web Search Results into Structured Per-Competitor Data
+// ============================================================================
+// STEP 9: PARSE COMPETITOR INTELLIGENCE (Claude + Guardrails)
+// ============================================================================
 const parseCompetitorIntelligence = createStep({
   id: "parse-competitor-intelligence",
-  description: "Uses Claude Sonnet 4.5 to parse Perplexity/SerpAPI search results into structured per-competitor information (primary source), with curated data as supplementary context",
+  description: "Uses Claude Sonnet 4.5 to parse search results into structured per-competitor information",
   
   inputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
     weekRangeLabel: z.string(),
-    metricsGathered: z.boolean(),
+    reportingWeekStart: z.string(),
+    dataSaved: z.boolean(),
   }),
   
   outputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
     weekRangeLabel: z.string(),
-    metricsGathered: z.boolean(),
+    reportingWeekStart: z.string(),
+    intelligenceParsed: z.boolean(),
   }),
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('📋 [Step 2.6] Parsing per-competitor Perplexity/SerpAPI search results with Claude Sonnet 4.5...');
+    logger?.info('📋 [Step 9] Parsing per-competitor search results with Claude Sonnet 4.5...');
     
-    // Fetch web search results from database (stored in previous steps)
-    logger?.info('💾 [Step 2.6] Fetching web search results from database:', { runId: inputData.runId });
     const sources = await db.getReportSources(inputData.runId);
     
     if (!sources || !sources.webSearchResults) {
-      logger?.warn('⚠️ [Step 2.6] No web search results found in database for runId:', { runId: inputData.runId });
-      logger?.warn('⚠️ [Step 2.6] Proceeding with empty search results (graceful degradation)');
-    } else {
-      logger?.info('✅ [Step 2.6] Web search results loaded from database');
+      logger?.warn('⚠️ [Step 9] No web search results found in database');
+      return { ...inputData, intelligenceParsed: false };
     }
     
-    // Extract per-competitor search results (PRIMARY SOURCE) - default to empty if not available
-    const perCompetitorSearches = sources?.webSearchResults?.perCompetitorSearches || {};
+    const perCompetitorSearches = sources.webSearchResults.perCompetitorSearches || {};
     
     const competitors = [
       { name: "WalkMe", slug: "walkme" },
@@ -1515,10 +1059,8 @@ const parseCompetitorIntelligence = createStep({
       { name: "Apty", slug: "apty" },
     ];
     
-    // Build comprehensive prompt with all per-competitor searches
     let competitorDataText = '';
     let citationCounter = 1;
-    const allCitations: any[] = [];
     
     for (const competitor of competitors) {
       const searchData = perCompetitorSearches[competitor.slug];
@@ -1526,12 +1068,10 @@ const parseCompetitorIntelligence = createStep({
         competitorDataText += `\n## ${competitor.name}\n`;
         competitorDataText += `**Search Result:**\n${searchData.answer}\n\n`;
         
-        // Add citations for this competitor
         if (searchData.citations && searchData.citations.length > 0) {
           competitorDataText += `**Sources:**\n`;
           for (const citation of searchData.citations) {
             competitorDataText += `[${citationCounter}] ${citation.title} - ${citation.url}\n`;
-            allCitations.push({ ...citation, number: citationCounter });
             citationCounter++;
           }
           competitorDataText += '\n';
@@ -1542,22 +1082,15 @@ const parseCompetitorIntelligence = createStep({
       }
     }
     
-    logger?.info('📊 [Step 2.6] Per-competitor search data prepared:', {
-      totalCitations: allCitations.length,
-      competitorsWithData: competitors.filter(c => perCompetitorSearches[c.slug]?.success).length,
-      dataLength: competitorDataText.length,
-    });
-    
-    // Simplified parsing prompt focusing on PER-COMPETITOR Perplexity/SerpAPI answers
-    const parsingPrompt = `You are extracting structured competitor intelligence from per-competitor Perplexity/SerpAPI search results about the Digital Adoption Platform market (November 2025).
+    const parsingPrompt = `You are extracting structured competitor intelligence from per-competitor search results about the Digital Adoption Platform market (${inputData.currentMonth}).
 
-**PER-COMPETITOR SEARCH RESULTS (PRIMARY SOURCE):**
+**PER-COMPETITOR SEARCH RESULTS:**
 ${competitorDataText}
 
 **YOUR TASK:**
-Extract information for each of these 5 competitors based on THEIR SPECIFIC search results above: WalkMe, Whatfix, Pendo, Appcues, Apty
+Extract information for each of these 5 competitors: WalkMe, Whatfix, Pendo, Appcues, Apty
 
-For each competitor found in the search results, extract:
+For each competitor, extract:
 - **strategicMoves**: Funding rounds, acquisitions, major announcements (include citation [1], [2], etc.)
 - **productUpdates**: New features, product launches, platform updates (include citation)
 - **partnerships**: New partnerships, integrations, collaborations (include citation)
@@ -1572,6 +1105,7 @@ Return ONLY valid JSON (no markdown, no explanations):
     "partnerships": ["Partnership with Salesforce [2]", "..."],
     "userFeedback": ["Users praise comprehensive onboarding workflows [5]", "..."]
   },
+  "whatfix": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
   "pendo": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
   "appcues": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] },
   "apty": { "strategicMoves": [], "productUpdates": [], "partnerships": [], "userFeedback": [] }
@@ -1580,29 +1114,19 @@ Return ONLY valid JSON (no markdown, no explanations):
 **RULES:**
 - Use empty array [] if no info found for a category
 - Include citation numbers [1], [2] in each item
-- Include dates when mentioned (e.g., "November 2025", "Q3 2025")
-- Be specific but concise (1-2 sentences per item)
-- Only extract factual information from the search results above`;
-    
+- Include dates when mentioned
+- Be specific but concise`;
+
     try {
-      logger?.info('🤖 [Step 2.6] Calling Claude Sonnet 4.5 to parse search results...');
-      
       const response = await anthropicClient.messages.create({
         model: "claude-sonnet-4-5-20250929",
         max_tokens: 4096,
         temperature: 0.1,
-        messages: [
-          {
-            role: "user",
-            content: parsingPrompt,
-          },
-        ],
+        messages: [{ role: "user", content: parsingPrompt }],
       });
       
-      // Extract JSON from Claude's response
       const responseText = response.content[0].type === 'text' ? response.content[0].text : '{}';
       
-      // Parse JSON (Claude might wrap it in markdown, so extract it)
       let parsedDataStr = responseText;
       const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
       if (jsonMatch) {
@@ -1611,89 +1135,84 @@ Return ONLY valid JSON (no markdown, no explanations):
       
       const perCompetitorData = JSON.parse(parsedDataStr);
       
-      logger?.info('✅ [Step 2.6] Successfully parsed per-competitor data:', {
+      logger?.info('✅ [Step 9] Successfully parsed per-competitor data:', {
         competitorsCovered: Object.keys(perCompetitorData).length,
-        totalItems: Object.values(perCompetitorData).reduce((sum: number, comp: any) => 
-          sum + (comp.strategicMoves?.length || 0) + (comp.productUpdates?.length || 0) + 
-          (comp.partnerships?.length || 0) + (comp.userFeedback?.length || 0), 0
-        ),
       });
       
-      // Save perCompetitorData to database ONLY if we have valid webSearchResults
-      // This prevents accidentally overwriting existing data with empty objects
-      if (sources && sources.webSearchResults) {
-        logger?.info('💾 [Step 2.6] Saving per-competitor data to database...');
-        await db.updateWebSearchData(
-          inputData.runId,
-          sources.webSearchResults,
-          perCompetitorData
-        );
-        logger?.info('✅ [Step 2.6] Saved per-competitor data to database');
-      } else {
-        logger?.warn('⚠️ [Step 2.6] Skipping database update - no valid webSearchResults to preserve');
-      }
+      await db.updateWebSearchData(inputData.runId, sources.webSearchResults, perCompetitorData);
       
-      return {
-        runId: inputData.runId,
-        dateStart: inputData.dateStart,
-        dateEnd: inputData.dateEnd,
-        weekRangeLabel: inputData.weekRangeLabel,
-        metricsGathered: inputData.metricsGathered,
-      };
+      return { ...inputData, intelligenceParsed: true };
     } catch (error) {
-      logger?.error('❌ [Step 2.6] Failed to parse search results:', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      
-      // Return empty structure on error
-      const emptyStructure = {
-        walkme: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        pendo: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        appcues: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-        apty: { strategicMoves: [], productUpdates: [], partnerships: [], userFeedback: [] },
-      };
-      
-      // Save empty structure to database ONLY if we have valid webSearchResults
-      // This prevents accidentally overwriting existing data with empty objects
-      if (sources && sources.webSearchResults) {
-        logger?.info('💾 [Step 2.6] Saving empty per-competitor data to database (error case)...');
-        try {
-          await db.updateWebSearchData(
-            inputData.runId,
-            sources.webSearchResults,
-            emptyStructure
-          );
-          logger?.info('✅ [Step 2.6] Saved empty per-competitor data to database');
-        } catch (dbError) {
-          logger?.warn('⚠️ [Step 2.6] Failed to save empty data to database, continuing anyway:', {
-            error: dbError instanceof Error ? dbError.message : String(dbError),
-          });
-        }
-      } else {
-        logger?.warn('⚠️ [Step 2.6] Skipping database update (error case) - no valid webSearchResults to preserve');
-      }
-      
-      return {
-        runId: inputData.runId,
-        dateStart: inputData.dateStart,
-        dateEnd: inputData.dateEnd,
-        weekRangeLabel: inputData.weekRangeLabel,
-        metricsGathered: inputData.metricsGathered,
-      };
+      logger?.error('❌ [Step 9] Failed to parse search results:', error);
+      return { ...inputData, intelligenceParsed: false };
     }
   },
 });
 
+// ============================================================================
+// STEP 10: CALCULATE COMPETITOR TRENDS
+// ============================================================================
+const calculateCompetitorTrends = createStep({
+  id: "calculate-competitor-trends",
+  description: "Calculate trends by comparing current week's metrics vs previous week",
+  
+  inputSchema: z.object({
+    runId: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
+    weekRangeLabel: z.string(),
+    reportingWeekStart: z.string(),
+    intelligenceParsed: z.boolean(),
+  }),
+  
+  outputSchema: z.object({
+    runId: z.string(),
+    dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
+    weekRangeLabel: z.string(),
+    trendsCalculated: z.boolean(),
+  }),
+  
+  execute: async ({ inputData, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('📊 [Step 10] Calculating competitor trends vs previous week...');
+    
+    const reportingWeekStart = new Date(inputData.reportingWeekStart);
+    const competitorTrends = await getAllCompetitorTrends(reportingWeekStart);
+    
+    logger?.info(`✅ [Step 10] Calculated trends for ${Object.keys(competitorTrends).length} competitors`);
+    
+    return {
+      runId: inputData.runId,
+      dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      weekRangeLabel: inputData.weekRangeLabel,
+      trendsCalculated: true,
+    };
+  },
+});
+
+// ============================================================================
+// STEP 11: ANALYZE AND COMPILE REPORT (GPT-5)
+// ============================================================================
 const analyzeAndCompileReport = createStep({
   id: "analyze-and-compile-report",
   description: "Agent analyzes gathered data and compiles comprehensive weekly market research report",
   
   inputSchema: z.object({
     runId: z.string(),
-    dateStart: z.string(),
     dateEnd: z.string(),
+    currentMonth: z.string(),
+    productUpdatesLookback: z.string(),
+    generalNewsDateStart: z.string(),
     weekRangeLabel: z.string(),
-    metricsGathered: z.boolean(),
+    trendsCalculated: z.boolean(),
   }),
   
   outputSchema: z.object({
@@ -1707,35 +1226,18 @@ const analyzeAndCompileReport = createStep({
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
-    logger?.info('🤖 [Step 3] Agent analyzing market data and compiling report...');
+    logger?.info('🤖 [Step 11] Agent analyzing market data and compiling report...');
     
-    // Load curated data from database using runId
-    logger?.info('💾 [Step 3] Loading curated data from database:', { runId: inputData.runId });
     const sources = await db.getReportSources(inputData.runId);
     
     if (!sources) {
-      logger?.error('❌ [Step 3] No curated data found for runId:', { runId: inputData.runId });
+      logger?.error('❌ [Step 11] No curated data found for runId:', { runId: inputData.runId });
       throw new Error(`Curated data not found for runId: ${inputData.runId}`);
     }
     
-    logger?.info('✅ [Step 3] Curated data loaded:', {
-      competitorDataSize: JSON.stringify(sources.competitorData).length,
-      industryDataSize: JSON.stringify(sources.industryData).length,
-      reviewsDataSize: JSON.stringify(sources.reviewsData).length,
-    });
-    
-    // Extract webSearchResults and perCompetitorData from database sources
-    const webSearchResults = sources.webSearchResults || { broadPulseSearch: {}, targetedFollowUpSearch: {} };
+    const webSearchResults = sources.webSearchResults || {};
     const perCompetitorData = sources.perCompetitorData || {};
     
-    logger?.info('✅ [Step 3] Web search results and per-competitor data loaded from database:', {
-      hasWebSearchResults: !!sources.webSearchResults,
-      hasPerCompetitorData: !!sources.perCompetitorData,
-      perCompetitorDataKeys: Object.keys(perCompetitorData).length,
-    });
-    
-    // Load competitor metrics from database
-    logger?.info('💰 [Step 3] Loading competitor metrics from database...');
     const dateEnd = new Date(inputData.dateEnd);
     const dayOfWeek = dateEnd.getDay();
     const daysToMonday = (dayOfWeek + 6) % 7;
@@ -1744,272 +1246,142 @@ const analyzeAndCompileReport = createStep({
     reportingWeekStart.setHours(0, 0, 0, 0);
     
     const allMetrics = await db.getAllLatestCompetitorMetrics(reportingWeekStart);
-    logger?.info(`✅ [Step 3] Loaded metrics for ${allMetrics.length} competitors`);
-    
-    // Load competitor trends from database
-    logger?.info('📈 [Step 3] Loading competitor trends from database...');
     const competitorTrends = await getAllCompetitorTrends(reportingWeekStart);
-    logger?.info(`✅ [Step 3] Loaded trends for ${Object.keys(competitorTrends).length} competitors`);
     
-    // Format metrics for prompt with trend indicators
-    const formatMetricWithTrend = (value: number | string | null | undefined, trend: any, unit: string = ''): string => {
-      if (value === null || value === undefined) return 'Data not available';
-      const numValue = typeof value === 'string' ? parseFloat(value) : value;
-      if (isNaN(numValue)) return 'Data not available';
-      const valueStr = unit === '$M' ? `$${(numValue / 1000000).toFixed(1)}M` : 
-                       unit === '%' ? `${numValue}%` :
-                       numValue.toString();
-      const trendStr = trend?.formattedChange || '';
-      return trendStr ? `${valueStr} ${trendStr}` : valueStr;
+    const competitorCount = sources.competitorData?.length || 0;
+    const industryCount = sources.industryData?.length || 0;
+    const reviewsCount = sources.reviewsData?.length || 0;
+    
+    const createBoundedSummary = (data: any[], maxLength: number) => {
+      if (!data || data.length === 0) return "No data available";
+      const text = JSON.stringify(data, null, 2);
+      return text.length > maxLength ? text.substring(0, maxLength) + '...[truncated]' : text;
     };
     
-    const metricsText = allMetrics.length > 0 
-      ? allMetrics.map(m => {
-          const trends = competitorTrends?.[m.competitorSlug]?.trends || {};
-          return `${m.competitorSlug}: ${m.revenueUsd ? formatMetricWithTrend(m.revenueUsd, trends.revenue, '$M') + ' revenue, ' : ''}${m.valuationUsd ? formatMetricWithTrend(m.valuationUsd, trends.valuation, '$M') + ' valuation, ' : ''}${m.fundingTotalUsd ? formatMetricWithTrend(m.fundingTotalUsd, trends.fundingTotal, '$M') + ' funding, ' : ''}${m.employeeCount ? formatMetricWithTrend(m.employeeCount, trends.employeeCount) + ' employees, ' : ''}${m.customerCount ? formatMetricWithTrend(m.customerCount, trends.customerCount) + ' customers, ' : ''}${m.userBase ? formatMetricWithTrend(m.userBase, trends.userBase) + ' users, ' : ''}${m.churnRate ? formatMetricWithTrend(m.churnRate, trends.churnRate, '%') + ' churn, ' : ''}${m.retentionRate ? formatMetricWithTrend(m.retentionRate, trends.retentionRate, '%') + ' retention, ' : ''}${m.userGrowthRate ? formatMetricWithTrend(m.userGrowthRate, trends.userGrowthRate, '%') + ' user growth' : ''}`;
-        }).join('\n')
-      : 'No competitor metrics available (will be populated after first run)';
-    
-    // Calculate flexible timespan parameters for agent prompt (reusing dateEnd from metrics section)
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const currentMonth = `${monthNames[dateEnd.getMonth()]} ${dateEnd.getFullYear()}`;
-    const productUpdatesLookback = "1 month";
-    
-    // Validate data completeness and provide structured summaries
-    // Note: reviewsData is an object with { competitors: [...] }, not a plain array
-    const competitorCount = Array.isArray(sources.competitorData) ? sources.competitorData.length : 0;
-    const reviewsCount = (sources.reviewsData?.competitors && Array.isArray(sources.reviewsData.competitors)) 
-      ? sources.reviewsData.competitors.length 
-      : 0;
-    const industryCount = Array.isArray(sources.industryData) ? sources.industryData.length : 0;
-    
-    logger?.info('📊 [Step 3] Data completeness check:', {
-      competitorDataItems: competitorCount,
-      reviewsDataItems: reviewsCount,
-      industryDataItems: industryCount,
-      reviewsDataStructure: sources.reviewsData ? Object.keys(sources.reviewsData) : 'null',
-    });
-    
-    // Smart summarization with bounded size per category (prevents token overflow)
-    const createBoundedSummary = (data: any, maxChars: number = 10000): string => {
-      if (!data) return '_No data available_';
-      const jsonStr = JSON.stringify(data, null, 2);
-      if (jsonStr.length <= maxChars) return jsonStr;
-      
-      // Intelligently truncate while preserving structure
-      const truncated = jsonStr.substring(0, maxChars);
-      const lastCompleteObject = truncated.lastIndexOf('},');
-      return lastCompleteObject > 0 
-        ? truncated.substring(0, lastCompleteObject + 2) + '\n  ...[Additional items truncated - see full data above]\n]'
-        : truncated + '...[truncated]';
+    const formatTrend = (value: number | string | null | undefined, format: string = '') => {
+      if (value === null || value === undefined) return 'N/A';
+      if (typeof value === 'number') {
+        if (format === '%') return `${value.toFixed(1)}%`;
+        if (format === '$') return `$${(value / 1000000).toFixed(1)}M`;
+        return value.toLocaleString();
+      }
+      return String(value);
     };
     
-    // Ensure all competitors are represented with data summary
-    const allCompetitors = ['walkme', 'whatfix', 'pendo', 'appcues', 'apty'];
-    const competitorDataMap = new Map();
-    if (Array.isArray(sources.competitorData)) {
-      sources.competitorData.forEach((item: any) => {
-        const slug = item.competitorSlug || item.competitor;
-        if (slug && !competitorDataMap.has(slug)) {
-          competitorDataMap.set(slug, []);
-        }
-        if (slug) {
-          competitorDataMap.get(slug).push(item);
-        }
-      });
-    }
+    const metricsText = allMetrics.map(m => {
+      const trends = competitorTrends?.[m.competitorSlug]?.trends || {} as any;
+      const churnTrend = trends.churnRate?.formattedChange || '';
+      const growthTrend = trends.userGrowthRate?.formattedChange || '';
+      return `**${m.competitorSlug}**: Revenue: ${formatTrend(m.revenueUsd, '$')}, Valuation: ${formatTrend(m.valuationUsd, '$')}, Funding: ${formatTrend(m.fundingTotalUsd, '$')}, Employees: ${formatTrend(m.employeeCount)}, Customers: ${formatTrend(m.customerCount)}${churnTrend ? `, Churn: ${churnTrend}` : ''}${growthTrend ? `, User Growth: ${growthTrend}` : ''}`;
+    }).join('\n');
     
-    // Log which competitors have data
-    const competitorsWithData = Array.from(competitorDataMap.keys());
-    const competitorsWithoutData = allCompetitors.filter(c => !competitorsWithData.includes(c));
-    logger?.info('📊 [Step 3] Competitor coverage:', {
-      withData: competitorsWithData,
-      withoutData: competitorsWithoutData,
-    });
-    
-    const prompt = `
-You are conducting the weekly Digital Adoption Platform market research for the period: ${inputData.dateStart} to ${inputData.dateEnd}.
+    const prompt = `You are an expert market research analyst generating a comprehensive weekly market research report for the Digital Adoption Platform (DAP) industry.
 
-**FLEXIBLE TIMESPAN PARAMETERS FOR CONTENT FILTERING**:
-- Current Calendar Month: ${currentMonth} (use for press releases and user reviews)
-- Product Updates Lookback: ${productUpdatesLookback} (use for product updates/releases)
-- General News: 7 days (${inputData.dateStart} to ${inputData.dateEnd})
+**REPORT DATE RANGE:** ${inputData.generalNewsDateStart} to ${inputData.dateEnd}
+**CURRENT MONTH:** ${inputData.currentMonth}
 
-You have been provided with comprehensive market intelligence from BOTH curated sources AND web searches.
+## WEB SEARCH RESULTS (PRIMARY DATA SOURCE):
 
-## 🎯 STRUCTURED PER-COMPETITOR DATA (PRIORITY - USE THIS FIRST!):
+### General Market Intelligence:
+**Query**: ${webSearchResults.generalWebSearch?.query || 'Not performed'}
+**Answer**: ${webSearchResults.generalWebSearch?.answer || 'No data'}
+**Citations**: ${JSON.stringify(webSearchResults.generalWebSearch?.citations || [])}
 
-We have pre-parsed the web search results into structured data for each competitor. **USE THIS DATA DIRECTLY for populating Competitor Spotlights sections**:
-
+### Per-Competitor Intelligence (Claude-Parsed):
 ${JSON.stringify(perCompetitorData, null, 2)}
 
-**HOW TO USE THIS DATA:**
-- For each competitor (walkme, whatfix, pendo, appcues, apty):
-  - **Strategic Moves** section → Use items from perCompetitorData[competitor].strategicMoves
-  - **Product Updates** section → Use items from perCompetitorData[competitor].productUpdates
-  - **Partnerships & Integrations** section → Use items from perCompetitorData[competitor].partnerships
-  - **User Feedback** section → Use items from perCompetitorData[competitor].userFeedback
-- If an array is empty [], write "_No [section name] this week._"
-- Citation numbers [1], [2], etc. are already included in the items
+### Financial Search Results:
+${JSON.stringify(webSearchResults.financialWebSearch || {}, null, 2)}
 
-## WEB SEARCH RESULTS (Primary Intelligence):
+### Strategic Search Results:
+${JSON.stringify(webSearchResults.strategicWebSearch || {}, null, 2)}
 
-### Broad Market Pulse Search:
-**Query**: Carbon accounting software news this week
-**Answer**: ${webSearchResults.broadPulseSearch?.answer || 'No answer available'}
-**Citations**: ${JSON.stringify(webSearchResults.broadPulseSearch?.citations || [], null, 2)}
+## CURATED SOURCE DATA:
 
-### Targeted Market Data Search:
-**Query**: Carbon accounting software market size, growth, investment trends
-**Answer**: ${webSearchResults.targetedFollowUpSearch?.answer || 'No answer available'}
-**Citations**: ${JSON.stringify(webSearchResults.targetedFollowUpSearch?.citations || [], null, 2)}
+### Competitor Data (${competitorCount} items):
+${createBoundedSummary(sources.competitorData, 12000)}
 
-### Market Data Search Results:
-**Query**: ${webSearchResults.marketDataSearch?.query || 'Not performed'}
-**Answer**: ${webSearchResults.marketDataSearch?.answer || 'No market data available'}
-**Citations**: ${JSON.stringify(webSearchResults.marketDataSearch?.citations || [], null, 2)}
+### Industry Data (${industryCount} items):
+${createBoundedSummary(sources.industryData, 8000)}
 
-### Industry Reports Search Results:
-**Query**: ${webSearchResults.industryReportsSearch?.query || 'Not performed'}
-**Answer**: ${webSearchResults.industryReportsSearch?.answer || 'No industry reports available'}
-**Citations**: ${JSON.stringify(webSearchResults.industryReportsSearch?.citations || [], null, 2)}
+### User Reviews Data (${reviewsCount} items):
+${createBoundedSummary(sources.reviewsData, 8000)}
 
-### User Reviews Search Results:
-**Query**: ${webSearchResults.userFeedbackSearch?.query || 'Not performed'}
-**Answer**: ${webSearchResults.userFeedbackSearch?.answer || 'No user feedback available'}
-**Citations**: ${JSON.stringify(webSearchResults.userFeedbackSearch?.citations || [], null, 2)}
-
-## CURATED SOURCE DATA (Structured with Bounded Summaries):
-
-### Competitor News Data (${competitorCount} items covering ${competitorsWithData.length}/7 competitors):
-**Competitors with data**: ${competitorsWithData.join(', ') || 'None'}
-**Competitors without curated data** (use web search for these): ${competitorsWithoutData.join(', ') || 'None'}
-${createBoundedSummary(sources.competitorData, 15000)}
-
-### Industry Reports Data (${industryCount} items):
-${createBoundedSummary(sources.industryData, 10000)}
-
-### User Reviews Data (${reviewsCount} items - MUST analyze ALL):
-${createBoundedSummary(sources.reviewsData, 10000)}
-
-## COMPETITOR METRICS (From Database):
-
-${metricsText}
+## COMPETITOR METRICS:
+${metricsText || 'No metrics available'}
 
 **YOUR TASK:**
-1. **Prioritize web search results** - they provide the most comprehensive, recent market intelligence
-2. Use curated sources to supplement and validate findings from web searches
-3. **Apply flexible timespan filtering based on content type (DEFAULT TO INCLUSION FOR CURRENT MONTH)**:
-   - General news/announcements: 7 days (${inputData.dateStart} to ${inputData.dateEnd}), but include current month if no recent news
-   - Product updates/releases: ${productUpdatesLookback} lookback - INCLUDE ALL from ${currentMonth}
-   - Press releases: **ALL from ${currentMonth}** (November 1-21 if generated on Nov 21) - DO NOT exclude early-month press releases
-   - User reviews: **ALL from ${currentMonth}** (November 1-21 if generated on Nov 21) - DO NOT exclude early-month reviews
-   - Case studies: ${productUpdatesLookback} lookback - INCLUDE ALL from ${currentMonth}
-4. Filter out outdated information from 2020-2024 or earlier years only
-5. **ANTI-PATTERN**: Do NOT say "No new updates this week" if there are updates from earlier in ${currentMonth}
-6. Generate a comprehensive market research report following the exact structure in your instructions
-7. Create a brief 2-3 sentence executive summary highlighting the most important findings
+Generate a comprehensive market research report with the following structure:
 
-**MANDATORY CONTENT REQUIREMENTS (MUST BE POPULATED)**:
-You MUST include ALL of the following sections in your report. If data is missing for a section, write "_No updates found for [section name]._" instead of omitting the section entirely.
+1. **Executive Summary** (2-3 sentences highlighting key findings)
+2. **Recent Digital Adoption Platform Market News**
+3. **Competitor Spotlights** (for ALL 5 competitors: WalkMe, Whatfix, Pendo, Appcues, Apty)
+4. **User Sentiment & Reviews** (analyze all ${reviewsCount} review items)
+5. **Industry Trends & Emerging Themes**
+6. **Market Opportunities**
+7. **Potential Threats & Risks**
+8. **Sources & Citations** (include ALL citations from web searches)
 
-✅ **REQUIRED SECTIONS**:
-- Executive Summary (ALWAYS required)
-- Recent Digital Adoption Platform Market News (ALWAYS required - write "_No significant market news this week._" if empty)
-- Competitor Spotlights for ALL 5 competitors (WalkMe, Whatfix, Pendo, Appcues, Apty) - ALWAYS required, write "_No updates found for [competitor]._" if no data
-- User Sentiment & Reviews (ALWAYS required - ${reviewsCount} reviews provided, MUST summarize ALL)
-- Industry Trends & Emerging Themes (ALWAYS required)
-- Market Opportunities (ALWAYS required)
-- Potential Threats & Risks (ALWAYS required)
-- Sources & Citations (ALWAYS required - include ALL citations from web searches)
+**RULES:**
+- Include inline citations [1], [2] for claims
+- For each competitor, include: strategic moves, product updates, partnerships, user feedback
+- Say "_No updates found for ${inputData.currentMonth}_" (NOT "this week") if no data for a section
+- Filter out outdated information from 2024 or earlier
+- Be factual and cite sources
 
-**CRITICAL DATA VALIDATION**:
-- User Reviews: You have ${reviewsCount} review items in the curated data - YOU MUST analyze and summarize ALL of them
-- Competitor Data: You have ${competitorCount} competitor items - YOU MUST create spotlights for ALL 7 competitors using this data
-- Industry Data: You have ${industryCount} industry items - YOU MUST extract sustainability tech trends and market insights
-- If any competitor has no data in the curated sources, use web search results to find updates or write "_No updates found._"
-
-**CRITICAL INCLUSION RULES**: 
-- **When in doubt about current month content, INCLUDE IT** - Don't be overly restrictive
-- The web search results are COMPREHENSIVE - you have sufficient data to generate the full report
-- Additional tool calls are OPTIONAL and only needed for specific gaps (e.g., missing user sentiment)
-- You have a budget of up to 3 tool calls if needed, but the provided data should be sufficient
-- Include ALL citations from web searches in your Sources & Citations section
-- Focus on actionable insights for our product strategy
-- **Example**: If generating a report on Nov 21, include WalkMe's enterprise partnership announced on Nov 20, Pendo's AI features from earlier in November, etc.
-
-Generate the complete markdown report now using the web search results as your primary source and ensuring ALL ${competitorCount + reviewsCount + industryCount} curated data items are analyzed.
-`;
+Generate the complete markdown report now.`;
     
     const response = await dapMarketResearchAgent.generateLegacy(
       [{ role: "user", content: prompt }],
       {
         resourceId: "weekly-research",
-        threadId: `weekly-research-${inputData.runId}`, // Use unique runId instead of dateEnd to avoid memory conflicts
-        maxSteps: 1, // Limit tool calls - all data already provided in prompt (per-competitor intelligence, metrics, curated sources)
+        threadId: `weekly-research-${inputData.runId}`,
+        maxSteps: 1,
       }
     );
     
-    logger?.info('✅ [Step 3] Agent analysis and report compilation complete');
+    logger?.info('✅ [Step 11] Agent analysis and report compilation complete');
     
-    // Extract a summary from the report (first paragraph or executive summary)
     const reportText = response.text || '';
     
-    // Log response structure for debugging
-    logger?.info('📝 [Step 3] Agent response:', {
-      hasText: !!response.text,
-      textLength: reportText.length,
-      textPreview: reportText.substring(0, 200),
-      responseKeys: Object.keys(response),
-    });
-    
-    // Validate report content
     if (!reportText || reportText.trim().length === 0) {
-      logger?.error('❌ [Step 3] Agent returned empty report text!', {
-        response: JSON.stringify(response).substring(0, 500),
-      });
-      throw new Error('Agent returned empty report text - check agent configuration and prompt');
+      logger?.error('❌ [Step 11] Agent returned empty report text!');
+      throw new Error('Agent returned empty report text');
     }
     
     const summaryMatch = reportText.match(/##\s*Executive Summary\s*\n([\s\S]*?)(?=\n##|$)/i);
-    const summary = summaryMatch 
-      ? summaryMatch[1].trim().substring(0, 500) 
-      : reportText.substring(0, 500);
+    const summary = summaryMatch ? summaryMatch[1].trim().substring(0, 500) : reportText.substring(0, 500);
     
-    // Save report to database immediately to avoid Inngest step output size limit
-    logger?.info('💾 [Step 3] Saving report to database...');
     const title = `Digital Adoption Platform Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const savedReport = await db.saveReport({
-      runId: inputData.runId, // Idempotent writes using unique workflow run identifier
+      runId: inputData.runId,
       title,
       reportContent: reportText,
-      reportContentHtml: null, // HTML version will be generated later if needed
-      dateStart: inputData.dateStart,
+      reportContentHtml: null,
+      dateStart: inputData.generalNewsDateStart,
       dateEnd: inputData.dateEnd,
       googleDocsUrl: null,
       slackNotificationSent: false,
-      triggerType: 'manual', // Will be updated in later step with actual trigger type
+      triggerType: 'manual',
     });
     
-    const reportId = savedReport.id;
-    logger?.info('✅ [Step 3] Report saved to database:', { reportId });
-    
-    // Optional: Clean up curated data cache to save space
-    // await db.deleteReportSources(inputData.runId);
-    // logger?.info('🗑️ [Step 3] Curated data cache cleaned up');
+    logger?.info('✅ [Step 11] Report saved to database:', { reportId: savedReport.id });
     
     return {
-      reportId,
+      reportId: savedReport.id,
       runId: inputData.runId,
       summary,
       weekRangeLabel: inputData.weekRangeLabel,
-      dateStart: inputData.dateStart,
+      dateStart: inputData.generalNewsDateStart,
       dateEnd: inputData.dateEnd,
     };
   },
 });
 
+// ============================================================================
+// STEP 12: EXPORT TO GOOGLE DOCS
+// ============================================================================
 const exportToGoogleDocs = createStep({
   id: "export-to-google-docs",
   description: "Exports the market research report to Google Docs",
@@ -2035,13 +1407,12 @@ const exportToGoogleDocs = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('📄 [Step 4] Exporting report to Google Docs...');
+    logger?.info('📄 [Step 12] Exporting report to Google Docs...');
     
-    // Read report from database to avoid passing large content through Inngest steps
     const reportRecord = await db.getReportById(inputData.reportId);
     
     if (!reportRecord || !reportRecord.reportContent) {
-      logger?.error('❌ [Step 4] Report not found in database:', { reportId: inputData.reportId });
+      logger?.error('❌ [Step 12] Report not found in database');
       return {
         reportId: inputData.reportId,
         summary: inputData.summary,
@@ -2056,19 +1427,15 @@ const exportToGoogleDocs = createStep({
     const title = `Digital Adoption Platform Market Research Report - Week of ${inputData.weekRangeLabel}`;
     
     const result = await googleDocsExportTool.execute({
-      context: {
-        title,
-        content: reportRecord.reportContent,
-        reportId: inputData.reportId,
-      },
+      context: { title, content: reportRecord.reportContent, reportId: inputData.reportId },
       runtimeContext,
       mastra,
     });
     
     if (result.success) {
-      logger?.info('✅ [Step 4] Report exported to Google Docs:', { url: result.documentUrl });
+      logger?.info('✅ [Step 12] Report exported to Google Docs:', { url: result.documentUrl });
     } else {
-      logger?.warn('⚠️ [Step 4] Failed to export to Google Docs:', { error: result.error });
+      logger?.warn('⚠️ [Step 12] Failed to export to Google Docs:', { error: result.error });
     }
     
     return {
@@ -2083,6 +1450,9 @@ const exportToGoogleDocs = createStep({
   },
 });
 
+// ============================================================================
+// STEP 12B: UPDATE REPORT METADATA
+// ============================================================================
 const updateReportMetadata = createStep({
   id: "update-report-metadata",
   description: "Updates report metadata with Google Docs URL and trigger type",
@@ -2108,15 +1478,14 @@ const updateReportMetadata = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💾 [Step 5] Updating report metadata...');
+    logger?.info('💾 [Step 12b] Updating report metadata...');
     
-    // Update existing report with Google Docs URL and trigger type
     await db.updateReport(inputData.reportId, {
       googleDocsUrl: inputData.documentUrl || null,
       triggerType: (runtimeContext as any).triggerType || 'scheduled',
     });
     
-    logger?.info('✅ [Step 5] Report metadata updated:', { reportId: inputData.reportId });
+    logger?.info('✅ [Step 12b] Report metadata updated:', { reportId: inputData.reportId });
     
     return {
       reportId: inputData.reportId,
@@ -2129,9 +1498,12 @@ const updateReportMetadata = createStep({
   },
 });
 
+// ============================================================================
+// STEP 13: SEND SLACK NOTIFICATION
+// ============================================================================
 const sendSlackNotification = createStep({
   id: "send-slack-notification",
-  description: "Sends notification to Slack channel with report summary and web/Google Docs links",
+  description: "Sends notification to Slack channel with report summary and links",
   
   inputSchema: z.object({
     reportId: z.number(),
@@ -2150,11 +1522,10 @@ const sendSlackNotification = createStep({
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info('💬 [Step 5] Sending Slack notification...');
+    logger?.info('💬 [Step 13] Sending Slack notification...');
     
-    const channelId = await db.getSetting('slack_channel_id') || "C09SK3N27MH"; // Get from settings or use default
+    const channelId = await db.getSetting('slack_channel_id') || "C09SK3N27MH";
     
-    // Construct web version URL (assumes standard Replit deployment URL structure)
     const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${inputData.reportId}`;
     
     const message = `🔔 *Weekly Digital Adoption Platform Market Research Report*
@@ -2173,12 +1544,10 @@ ${inputData.summary}`;
     });
     
     if (result.success) {
-      logger?.info('✅ [Step 5] Slack notification sent successfully');
-      
-      // Mark Slack notification as sent in database
+      logger?.info('✅ [Step 13] Slack notification sent successfully');
       await db.updateReport(inputData.reportId, { slackNotificationSent: true });
     } else {
-      logger?.warn('⚠️ [Step 5] Failed to send Slack notification:', { error: result.error });
+      logger?.warn('⚠️ [Step 13] Failed to send Slack notification:', { error: result.error });
     }
     
     logger?.info('🎉 [Workflow Complete] Weekly market research workflow finished successfully');
@@ -2191,32 +1560,30 @@ ${inputData.summary}`;
   },
 });
 
+// ============================================================================
+// WORKFLOW DEFINITION - 13 STEPS
+// ============================================================================
 export const weeklyMarketResearchWorkflow = createWorkflow({
   id: "weekly-market-research",
-  
-  // Empty input schema for time-based triggers
   inputSchema: workflowInputSchema,
-  
   outputSchema: z.object({
     success: z.boolean(),
     reportGenerated: z.boolean(),
     documentUrl: z.string().optional(),
   }),
 })
-  .then(determineIntelligentTimespans as any) // Step 0: GPT-5 determines intelligent date ranges
-  .then(gatherMarketData as any)
-  .then(performWebSearches as any)
-  .then(searchFundingMetrics as any)
-  .then(searchRevenueMetrics as any)
-  .then(searchCustomerMetrics as any)
-  .then(searchPerCompetitorIntelligence as any) // Step 2.5.4a: Per-competitor Perplexity/SerpAPI searches
-  .then(searchUserFeedback as any) // Step 2.5.4b: Search for user feedback with intelligent timespans
-  .then(searchMarketDataAndReports as any) // Step 2.5.4c: Search for market data and industry reports
-  .then(persistCompetitorMetrics as any)
-  .then(calculateCompetitorTrends as any)
-  .then(parseCompetitorIntelligence as any) // Step 2.6: Parse Perplexity/SerpAPI results with Claude Sonnet 4.5
-  .then(analyzeAndCompileReport as any)
-  .then(exportToGoogleDocs as any)
-  .then(updateReportMetadata as any)
-  .then(sendSlackNotification as any)
+  .then(determineIntelligentTimespans as any)   // Step 1: GPT-5 determines intelligent date ranges
+  .then(gatherCompetitorsData as any)           // Step 2: Scrape competitor URLs (newsrooms, case studies, changelogs)
+  .then(gatherIndustryData as any)              // Step 3: Scrape industry source URLs
+  .then(gatherUserReviews as any)               // Step 4: Scrape G2/Gartner review URLs
+  .then(performGeneralWebSearch as any)         // Step 5: General market intelligence web search
+  .then(performFinancialWebSearch as any)       // Step 6: Financial metrics web search
+  .then(performStrategicWebSearch as any)       // Step 7: Strategic metrics web search
+  .then(mergeAllData as any)                    // Step 8: Merge all data and persist to database
+  .then(parseCompetitorIntelligence as any)     // Step 9: Parse with Claude Sonnet 4.5
+  .then(calculateCompetitorTrends as any)       // Step 10: Calculate competitor trends
+  .then(analyzeAndCompileReport as any)         // Step 11: Generate report with GPT-5
+  .then(exportToGoogleDocs as any)              // Step 12: Export to Google Docs
+  .then(updateReportMetadata as any)            // Step 12b: Update report metadata
+  .then(sendSlackNotification as any)           // Step 13: Send Slack notification
   .commit();
