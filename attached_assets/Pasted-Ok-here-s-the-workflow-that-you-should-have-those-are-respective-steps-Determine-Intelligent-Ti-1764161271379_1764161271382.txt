@@ -1,0 +1,41 @@
+Ok, here's the workflow that you should have (those are respective steps):
+
+Determine Intelligent Timespans: Uses GPT-5 to intelligently determine date ranges for different content types based on current date context
+Gather Competitors Data - Gathers data from competitor newsrooms, case studies, product updates, release notes, changelogs, press releases using GPT-5 determined date ranges. URLs:
+https://www.walkme.com/news/
+https://www.walkme.com/customer-stories/
+https://whatfix.com/newsroom/
+https://whatfix.com/resources/case-studies/
+https://www.pendo.io/new/
+https://www.pendo.io/customers/
+https://feedback.appcues.com/changelog
+Industry Reports/Articles Scraping using GPT-5 determined date ranges - Gathers the data from the esteblished URL's and look for relevant articles per DAP market, public reviews, agencies recenzies, etc. URL's: https://productled.com/blog Product-Led Alliance
+https://www.saastr.com/blog/ SaaS Industry News
+https://www.useronboard.com/blog/ UserOnboard
+https://www.productmanagementinsider.com/
+https://whatfix.com/resources/analyst-reports/
+Real User Reviews - Gathers real user reviews using GPT-5 determined date ranges. URL's: https://www.gartner.com/reviews/market/digital-adoption-platforms Gartner DAP Market
+https://www.g2.com/categories/digital-adoption-platforms G2 DAP Category
+https://www.g2.com/products/apty/reviews
+https://www.gartner.com/reviews/.../apty/.../reviews
+https://www.gartner.com/reviews/.../apty/.../likes-dislikes
+https://www.g2.com/products/appcues/reviews
+https://www.g2.com/products/pendo-io-pendo/reviews
+https://www.gartner.com/reviews/.../pendo/.../reviews
+https://www.gartner.com/reviews/.../pendo/.../likes-dislikes
+https://www.g2.com/products/whatfix/reviews
+https://www.gartner.com/reviews/.../whatfix/.../reviews
+https://www.gartner.com/reviews/.../whatfix/.../likes-dislikes
+https://www.g2.com/products/walkme/reviews
+https://www.gartner.com/reviews/.../walkme/.../reviews
+https://www.gartner.com/reviews/.../walkme/.../likes-dislikes
+General Web Search - Performs web searches for comprehensive market intelligence using GPT-5 intelligent timespans. Queries: "General/Big Digital adoption platform news {7-day range}: WalkMe Whatfix Pendo Appcues Apty investment rounds, acquisitions, big product launches, new partnerships, industry trends, market analysis", "{Competitor} latest news, investment rounds, product updates,product launches, release notes, press releases, new features, partnerships, user reviews, researche & case studies {date range}", "WalkMe OR Whatfix OR Pendo OR Appcues OR Apty recent real users/product feedback/reviews {reviews date range}",
+Financial Web Search - Performs web searches for comprehensive financial metrics per competitors intelligence using GPT-5 intelligent timespans. Queries: "WalkMe OR Whatfix OR Pendo OR Appcues OR Apty revenue/ARR/MRR, company valuation, financial churn as of {current month}"
+Strategic Web Search - Performs web searches for comprehensive strategic metrics per competitors intelligence using GPT-5 intelligent timespans. Queries: "WalkMe OR Whatfix OR Pendo OR Appcues OR Apty customer base count, user growth rate, churn rate, engagement level as of {current month}"
+Merge Data - Performs merging of all data found via all sources, whether it is URL's or queries.
+Parse Competitor Intelligence - Perform parsing of all gathered data from previous step. Uses Claude Sonnet 4.5 to parse. Check guardrails, eliminate duplicative data.
+Calculate Competitor Trends - Calculate any numbers (metrics, numbers, etc.) find trends by comparing current week's metrics vs previous week
+Analyze And Compile Report - Agent analyzes gathered data using GPT-5 model and compiles comprehensive weekly market research report for web version (with structure that earlier agreed - no changes on the structure)
+Update Report Metadata - Updates report metadata with Google Docs URL and trigger type
+Export To Google Docs - Exports the market research report to Google Docs
+Send Slack Notification - Sends notification to Slack channel with report summary and web/Google Docs links
