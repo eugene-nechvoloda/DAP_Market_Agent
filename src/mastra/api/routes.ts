@@ -1,6 +1,5 @@
 import { registerApiRoute } from '@mastra/core/server';
 import { db } from '../storage/db.js';
-import { inngest } from '../inngest/client.js';
 import { marked } from 'marked';
 
 // Embedded UI assets - loaded at module initialization to avoid runtime file system access
@@ -9,13 +8,13 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 
 // Helper function to convert markdown to styled HTML with navigation
-function convertMarkdownToHTML(
+async function convertMarkdownToHTML(
   markdown: string,
   title: string,
   currentReportId?: number,
   allReports?: any[]
-): string {
-  let htmlContent = marked.parse(markdown);
+): Promise<string> {
+  let htmlContent = await marked.parse(markdown);
   
   // Wrap tables in scrollable containers for horizontal scrolling
   htmlContent = htmlContent.replace(
@@ -249,21 +248,25 @@ export const apiRoutes = [
       logger?.info('🚀 [API] Manual report generation requested');
       
       try {
-        const result = await inngest.send({
-          name: 'workflow.weekly-market-research',
-          data: {
-            initialState: {},
-            inputData: {},
-            runId: `manual-${Date.now()}`,
-            triggerType: 'manual',
-          },
+        const workflow = mastra?.getWorkflow('weeklyMarketResearch');
+        if (!workflow) {
+          throw new Error('Workflow weeklyMarketResearch not found');
+        }
+        
+        const runId = `manual-${Date.now()}`;
+        logger?.info('📋 [API] Starting workflow with runId:', { runId });
+        
+        const run = await workflow.createRunAsync({ runId });
+        
+        run.start({ inputData: {} }).catch((error: any) => {
+          logger?.error('❌ [API] Workflow execution failed:', error);
         });
-
-        logger?.info('✅ [API] Manual report generation triggered:', result);
+        
+        logger?.info('✅ [API] Manual report generation started:', { runId });
         return c.json({ 
           success: true, 
           message: 'Report generation started',
-          eventId: result.ids[0],
+          runId,
         });
       } catch (error: any) {
         logger?.error('❌ [API] Failed to trigger manual report generation:', error);
@@ -367,7 +370,7 @@ export const apiRoutes = [
         }
         
         logger?.info('🔄 [API] Converting markdown to HTML with navigation');
-        const htmlContent = convertMarkdownToHTML(report.reportContent, report.title, report.id, allReports);
+        const htmlContent = await convertMarkdownToHTML(report.reportContent, report.title, report.id, allReports);
         
         logger?.info('✅ [API] Serving HTML report');
         return c.html(htmlContent);
