@@ -471,20 +471,46 @@ const performGeneralWebSearch = createStep({
     const endMonth = monthNames[dateEnd.getMonth()];
     const dateRange = `${startMonth} ${dateStart.getDate()}-${endMonth !== startMonth ? endMonth + ' ' : ''}${dateEnd.getDate()} ${dateEnd.getFullYear()}`;
     
-    const broadPulseQuery = `Digital adoption platform news ${dateRange}: WalkMe Whatfix Pendo Appcues Apty strategic moves acquisitions M&A partnerships industry trends market analysis`;
+    const executeSearch = async (query: string, label: string): Promise<any> => {
+      logger?.info(`📝 [Step 5] ${label} query:`, query);
+      try {
+        const result = await webSearchTool.execute({
+          context: { query, maxResults: 5 },
+          runtimeContext,
+          mastra,
+        });
+        logger?.info(`✅ [Step 5] ${label} completed:`, { success: result.success, citationsCount: result.citations?.length || 0 });
+        return {
+          success: result.success,
+          query: result.query,
+          answer: (result.answer || '').substring(0, 2000),
+          citations: (result.citations || []).slice(0, 5).map(c => ({
+            title: c.title?.substring(0, 150) || '',
+            url: c.url || '',
+          })),
+          error: result.error,
+        };
+      } catch (error) {
+        logger?.error(`❌ [Step 5] ${label} failed:`, error);
+        return { success: false, query, answer: '', citations: [], error: String(error) };
+      }
+    };
     
-    logger?.info('📝 [Step 5] Query:', broadPulseQuery);
+    const broadPulseQuery = `Digital adoption platform news ${dateRange}: WalkMe Whatfix Pendo Appcues Apty strategic moves announcements industry trends`;
+    const mnaQuery = `Digital adoption platform M&A acquisitions mergers ${dateRange}: WalkMe Whatfix Pendo Appcues Apty company acquired bought sold`;
+    const partnershipsQuery = `Digital adoption platform partnerships integrations alliances ${dateRange}: WalkMe Whatfix Pendo Appcues Apty partner integration technology alliance`;
+    const competitiveQuery = `Digital adoption platform comparison review analysis ${dateRange}: WalkMe vs Whatfix vs Pendo vs Appcues vs Apty competitive positioning`;
+    const productThemesQuery = `Digital adoption platform product updates features launches ${dateRange}: AI-powered onboarding in-app guidance analytics machine learning automation`;
     
-    const broadPulseSearch = await webSearchTool.execute({
-      context: { query: broadPulseQuery, maxResults: 5 },
-      runtimeContext,
-      mastra,
-    });
+    logger?.info('🔍 [Step 5] Executing 5 thematic searches in parallel...');
     
-    logger?.info('✅ [Step 5] Broad pulse search completed:', {
-      success: broadPulseSearch.success,
-      citationsCount: broadPulseSearch.citations?.length || 0,
-    });
+    const [broadPulseSearch, mnaSearch, partnershipsSearch, competitiveSearch, productThemesSearch] = await Promise.all([
+      executeSearch(broadPulseQuery, 'Broad Pulse'),
+      executeSearch(mnaQuery, 'M&A'),
+      executeSearch(partnershipsQuery, 'Partnerships'),
+      executeSearch(competitiveQuery, 'Competitive'),
+      executeSearch(productThemesQuery, 'Product Themes'),
+    ]);
     
     const competitors = [
       { name: "WalkMe", slug: "walkme" },
@@ -494,10 +520,10 @@ const performGeneralWebSearch = createStep({
       { name: "Apty", slug: "apty" },
     ];
     
+    logger?.info('🔍 [Step 5] Executing 5 per-competitor searches in parallel...');
+    
     const searchPromises = competitors.map(async (competitor) => {
-      const query = `${competitor.name} digital adoption platform latest news ${dateRange}, product updates, launches, press releases, new features, partnerships`;
-      
-      logger?.info(`🔍 [Step 5] Per-competitor search for ${competitor.name}...`);
+      const query = `${competitor.name} digital adoption platform latest news ${dateRange}, product updates, launches, press releases, new features, partnerships, customer wins`;
       
       try {
         const searchResult = await webSearchTool.execute({
@@ -505,6 +531,8 @@ const performGeneralWebSearch = createStep({
           runtimeContext,
           mastra,
         });
+        
+        logger?.info(`✅ [Step 5] Per-competitor search for ${competitor.name} completed`);
         
         return {
           slug: competitor.slug,
@@ -534,25 +562,23 @@ const performGeneralWebSearch = createStep({
       perCompetitorSearches[slug] = result;
     }
     
-    logger?.info('✅ [Step 5] All per-competitor searches completed:', {
-      total: Object.keys(perCompetitorSearches).length,
-      successful: Object.values(perCompetitorSearches).filter((s: any) => s.success).length,
+    logger?.info('✅ [Step 5] All web searches completed:', {
+      thematicSearches: 5,
+      perCompetitorSearches: Object.keys(perCompetitorSearches).length,
+      successfulCompetitorSearches: Object.values(perCompetitorSearches).filter((s: any) => s.success).length,
     });
     
-    const trimmedBroadPulse = {
-      success: broadPulseSearch.success,
-      query: broadPulseSearch.query,
-      answer: broadPulseSearch.answer || '',
-      citations: (broadPulseSearch.citations || []).slice(0, 5).map(c => ({
-        title: c.title?.substring(0, 150) || '',
-        url: c.url || '',
-      })),
-      error: broadPulseSearch.error,
+    const generalWebSearch = {
+      broadPulse: broadPulseSearch,
+      mna: mnaSearch,
+      partnerships: partnershipsSearch,
+      competitive: competitiveSearch,
+      productThemes: productThemesSearch,
     };
     
     return {
       ...inputData,
-      generalWebSearch: trimmedBroadPulse,
+      generalWebSearch,
       perCompetitorSearches,
     };
   },
