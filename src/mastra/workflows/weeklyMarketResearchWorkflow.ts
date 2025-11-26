@@ -24,6 +24,20 @@ const anthropicClient = new Anthropic({
 
 const workflowInputSchema = z.object({});
 
+const workflowContextSchema = z.object({
+  runId: z.string(),
+  generalNewsDateStart: z.string(),
+  productUpdatesDateStart: z.string(),
+  reviewsDateStart: z.string(),
+  pressReleasesDateStart: z.string(),
+  dateEnd: z.string(),
+  currentMonth: z.string(),
+  productUpdatesLookback: z.string(),
+  reasoning: z.string(),
+  weekRangeLabel: z.string().optional(),
+  reportingWeekStart: z.string().optional(),
+});
+
 const timespanOutputSchema = z.object({
   runId: z.string(),
   generalNewsDateStart: z.string(),
@@ -159,6 +173,7 @@ Return your decision as structured data with:
 
 // ============================================================================
 // STEP 2: GATHER COMPETITORS DATA (URL SCRAPING)
+// Saves data directly to DB, passes only lightweight context forward
 // ============================================================================
 const gatherCompetitorsData = createStep({
   id: "gather-competitors-data",
@@ -166,19 +181,7 @@ const gatherCompetitorsData = createStep({
   
   inputSchema: timespanOutputSchema,
   
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-  }),
+  outputSchema: workflowContextSchema,
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
@@ -193,13 +196,13 @@ const gatherCompetitorsData = createStep({
       ? `${startMonth} ${dateStart.getDate()}-${dateEnd.getDate()}, ${dateEnd.getFullYear()}`
       : `${startMonth} ${dateStart.getDate()}, ${dateStart.getFullYear()}-${endMonth} ${dateEnd.getDate()}, ${dateEnd.getFullYear()}`;
     
-    const competitorScrapedData: Record<string, any> = {};
+    const competitorScrapedData: any[] = [];
     
     const categoriesToScrape = ['news', 'case_studies', 'changelog', 'product_updates', 'analyst_reports'];
     
     for (const [slug, source] of Object.entries(COMPETITOR_SOURCES)) {
       logger?.info(`📰 [Step 2] Scraping ${source.name}...`);
-      competitorScrapedData[slug] = { name: source.name, items: [] };
+      let itemsScraped = 0;
       
       for (const urlConfig of source.urls) {
         if (!categoriesToScrape.includes(urlConfig.category)) continue;
@@ -221,7 +224,9 @@ const gatherCompetitorsData = createStep({
           });
           
           if (fetchResult.success && fetchResult.content) {
-            competitorScrapedData[slug].items.push({
+            competitorScrapedData.push({
+              competitorSlug: slug,
+              competitorName: source.name,
               category: urlConfig.category,
               sourceName: urlConfig.sourceName,
               url: urlConfig.url,
@@ -229,6 +234,7 @@ const gatherCompetitorsData = createStep({
               dateFilter,
               timeFilter: urlConfig.timeFilter,
             });
+            itemsScraped++;
             logger?.info(`✅ [Step 2] Scraped ${urlConfig.sourceName} for ${source.name}`);
           }
         } catch (error) {
@@ -236,8 +242,11 @@ const gatherCompetitorsData = createStep({
         }
       }
       
-      logger?.info(`📊 [Step 2] ${source.name}: ${competitorScrapedData[slug].items.length} sources scraped`);
+      logger?.info(`📊 [Step 2] ${source.name}: ${itemsScraped} sources scraped`);
     }
+    
+    logger?.info(`💾 [Step 2] Saving ${competitorScrapedData.length} competitor items to DB...`);
+    await db.updateCompetitorSources(inputData.runId, competitorScrapedData);
     
     logger?.info('✅ [Step 2] Competitor URL scraping complete');
     
@@ -252,46 +261,21 @@ const gatherCompetitorsData = createStep({
       pressReleasesDateStart: inputData.pressReleasesDateStart,
       reasoning: inputData.reasoning,
       weekRangeLabel,
-      competitorScrapedData,
     };
   },
 });
 
 // ============================================================================
 // STEP 3: INDUSTRY REPORTS/ARTICLES SCRAPING
+// Saves data directly to DB, passes only lightweight context forward
 // ============================================================================
 const gatherIndustryData = createStep({
   id: "gather-industry-data",
   description: "Scrapes 6 industry source URLs (Gartner, G2, ProductLed, SaaStr, etc.)",
   
-  inputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-  }),
+  inputSchema: workflowContextSchema,
   
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-  }),
+  outputSchema: workflowContextSchema,
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
@@ -324,63 +308,48 @@ const gatherIndustryData = createStep({
       }
     }
     
+    logger?.info(`💾 [Step 3] Saving ${industryScrapedData.length} industry items to DB...`);
+    await db.updateIndustrySources(inputData.runId, industryScrapedData);
+    
     logger?.info(`✅ [Step 3] Industry scraping complete: ${industryScrapedData.length} sources`);
     
     return {
-      ...inputData,
-      industryScrapedData,
+      runId: inputData.runId,
+      dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      reasoning: inputData.reasoning,
+      weekRangeLabel: inputData.weekRangeLabel,
     };
   },
 });
 
 // ============================================================================
 // STEP 4: REAL USER REVIEWS (G2/GARTNER SCRAPING)
+// Saves data directly to DB, passes only lightweight context forward
 // ============================================================================
 const gatherUserReviews = createStep({
   id: "gather-user-reviews",
   description: "Scrapes G2 and Gartner review URLs for all competitors",
   
-  inputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-  }),
+  inputSchema: workflowContextSchema,
   
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-  }),
+  outputSchema: workflowContextSchema,
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
     logger?.info('⭐ [Step 4] Scraping G2 and Gartner review URLs...');
     
-    const reviewsScrapedData: Record<string, any> = {};
+    const reviewsScrapedData: any[] = [];
     const reviewCategories = ['g2_reviews', 'gartner_reviews', 'gartner_likes_dislikes'];
     
     for (const [slug, source] of Object.entries(COMPETITOR_SOURCES)) {
       logger?.info(`⭐ [Step 4] Scraping reviews for ${source.name}...`);
-      reviewsScrapedData[slug] = { name: source.name, reviews: [] };
+      let reviewsScraped = 0;
       
       for (const urlConfig of source.urls) {
         if (!reviewCategories.includes(urlConfig.category)) continue;
@@ -393,13 +362,16 @@ const gatherUserReviews = createStep({
           });
           
           if (fetchResult.success && fetchResult.content) {
-            reviewsScrapedData[slug].reviews.push({
+            reviewsScrapedData.push({
+              competitorSlug: slug,
+              competitorName: source.name,
               category: urlConfig.category,
               sourceName: urlConfig.sourceName,
               url: urlConfig.url,
               content: fetchResult.content.substring(0, 6000),
               dateFilter: inputData.reviewsDateStart,
             });
+            reviewsScraped++;
             logger?.info(`✅ [Step 4] Scraped ${urlConfig.sourceName} for ${source.name}`);
           }
         } catch (error) {
@@ -407,58 +379,40 @@ const gatherUserReviews = createStep({
         }
       }
       
-      logger?.info(`📊 [Step 4] ${source.name}: ${reviewsScrapedData[slug].reviews.length} review sources scraped`);
+      logger?.info(`📊 [Step 4] ${source.name}: ${reviewsScraped} review sources scraped`);
     }
+    
+    logger?.info(`💾 [Step 4] Saving ${reviewsScrapedData.length} review items to DB...`);
+    await db.updateReviewsSources(inputData.runId, reviewsScrapedData);
     
     logger?.info('✅ [Step 4] Review URL scraping complete');
     
     return {
-      ...inputData,
-      reviewsScrapedData,
+      runId: inputData.runId,
+      dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      reasoning: inputData.reasoning,
+      weekRangeLabel: inputData.weekRangeLabel,
     };
   },
 });
 
 // ============================================================================
 // STEP 5: GENERAL WEB SEARCH (Market Intelligence)
+// Saves search results to DB, passes only lightweight context forward
 // ============================================================================
 const performGeneralWebSearch = createStep({
   id: "perform-general-web-search",
   description: "Performs general market intelligence web search (strategic moves, M&A, partnerships)",
   
-  inputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-  }),
+  inputSchema: workflowContextSchema,
   
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-    generalWebSearch: z.any(),
-    perCompetitorSearches: z.record(z.any()),
-  }),
+  outputSchema: workflowContextSchema,
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
@@ -576,60 +530,35 @@ const performGeneralWebSearch = createStep({
       productThemes: productThemesSearch,
     };
     
+    logger?.info('💾 [Step 5] Saving general web search results to DB...');
+    await db.updateWebSearchData(inputData.runId, { generalWebSearch, perCompetitorSearches }, undefined);
+    
     return {
-      ...inputData,
-      generalWebSearch,
-      perCompetitorSearches,
+      runId: inputData.runId,
+      dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      reasoning: inputData.reasoning,
+      weekRangeLabel: inputData.weekRangeLabel,
     };
   },
 });
 
 // ============================================================================
 // STEP 6: FINANCIAL WEB SEARCH (Revenue, ARR, Valuation, Funding)
+// Saves metrics to DB, passes only lightweight context forward
 // ============================================================================
 const performFinancialWebSearch = createStep({
   id: "perform-financial-web-search",
   description: "Performs financial metrics web search (revenue, ARR, valuation, funding)",
   
-  inputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-    generalWebSearch: z.any(),
-    perCompetitorSearches: z.record(z.any()),
-  }),
+  inputSchema: workflowContextSchema,
   
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-    generalWebSearch: z.any(),
-    perCompetitorSearches: z.record(z.any()),
-    financialWebSearch: z.any(),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
+  outputSchema: workflowContextSchema,
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
@@ -734,11 +663,59 @@ const performFinancialWebSearch = createStep({
       },
     };
     
+    logger?.info('💾 [Step 6] Saving financial web search results to DB...');
+    await db.updateWebSearchData(inputData.runId, { financialWebSearch }, undefined);
+    
+    for (const metric of [...fundingMetrics, ...revenueMetrics]) {
+      try {
+        await db.saveCompetitorMetrics({
+          competitorSlug: metric.competitorSlug,
+          reportingWeekStart,
+          revenueUsd: metric.revenueUsd,
+          revenueRange: metric.revenueRange,
+          valuationUsd: metric.valuationUsd,
+          employeeCount: metric.employeeCount,
+          owlerRawPayload: null,
+          owlerSuccess: false,
+          fundingTotalUsd: metric.fundingTotalUsd,
+          lastRoundAmountUsd: metric.lastRoundAmountUsd,
+          lastRoundType: metric.lastRoundType,
+          lastRoundDate: metric.lastRoundDate ? new Date(metric.lastRoundDate) : null,
+          investorCount: null,
+          fundingRounds: null,
+          crunchbaseRawPayload: null,
+          crunchbaseSuccess: false,
+          customerCount: metric.customerCount,
+          userBase: metric.userBase,
+          churnRate: metric.churnRate,
+          retentionRate: metric.retentionRate,
+          userGrowthRate: metric.userGrowthRate,
+          organicTraffic: null,
+          organicKeywords: null,
+          semrushRank: null,
+          semrushDatabase: null,
+          semrushRawPayload: null,
+          semrushSuccess: false,
+          dataSourceVersion: 'public-web-search-v1',
+          missingSources: [],
+          error: null,
+        });
+      } catch (error) {
+        logger?.warn(`⚠️ [Step 6] Failed to save metrics for ${metric.competitorSlug}:`, error);
+      }
+    }
+    
     return {
-      ...inputData,
-      financialWebSearch,
-      fundingMetrics,
-      revenueMetrics,
+      runId: inputData.runId,
+      dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      reasoning: inputData.reasoning,
+      weekRangeLabel: inputData.weekRangeLabel,
       reportingWeekStart: reportingWeekStart.toISOString().split('T')[0],
     };
   },
@@ -746,56 +723,15 @@ const performFinancialWebSearch = createStep({
 
 // ============================================================================
 // STEP 7: STRATEGIC WEB SEARCH (Customer Base, Churn, Engagement)
+// Saves metrics to DB, passes only lightweight context forward
 // ============================================================================
 const performStrategicWebSearch = createStep({
   id: "perform-strategic-web-search",
   description: "Performs strategic metrics web search (customer base, churn, user engagement)",
   
-  inputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-    generalWebSearch: z.any(),
-    perCompetitorSearches: z.record(z.any()),
-    financialWebSearch: z.any(),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
+  inputSchema: workflowContextSchema,
   
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-    generalWebSearch: z.any(),
-    perCompetitorSearches: z.record(z.any()),
-    financialWebSearch: z.any(),
-    strategicWebSearch: z.any(),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
+  outputSchema: workflowContextSchema,
   
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
@@ -866,161 +802,54 @@ const performStrategicWebSearch = createStep({
       },
     };
     
-    return {
-      ...inputData,
-      strategicWebSearch,
-      customerMetrics,
-    };
-  },
-});
-
-// ============================================================================
-// STEP 8: MERGE DATA
-// ============================================================================
-const mergeAllData = createStep({
-  id: "merge-all-data",
-  description: "Merges all scraped and searched data into unified structure and saves to database",
-  
-  inputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    productUpdatesDateStart: z.string(),
-    reviewsDateStart: z.string(),
-    pressReleasesDateStart: z.string(),
-    reasoning: z.string(),
-    weekRangeLabel: z.string(),
-    competitorScrapedData: z.record(z.any()),
-    industryScrapedData: z.array(z.any()),
-    reviewsScrapedData: z.record(z.any()),
-    generalWebSearch: z.any(),
-    perCompetitorSearches: z.record(z.any()),
-    financialWebSearch: z.any(),
-    strategicWebSearch: z.any(),
-    fundingMetrics: z.array(z.any()),
-    revenueMetrics: z.array(z.any()),
-    customerMetrics: z.array(z.any()),
-    reportingWeekStart: z.string(),
-  }),
-  
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    weekRangeLabel: z.string(),
-    reportingWeekStart: z.string(),
-    dataSaved: z.boolean(),
-  }),
-  
-  execute: async ({ inputData, mastra }) => {
-    const logger = mastra?.getLogger();
-    logger?.info('📦 [Step 8] Merging all scraped and searched data...');
+    logger?.info('💾 [Step 7] Saving strategic web search results to DB...');
+    await db.updateWebSearchData(inputData.runId, { strategicWebSearch }, undefined);
     
-    const competitorData = Object.entries(inputData.competitorScrapedData).flatMap(([slug, data]: [string, any]) =>
-      (data.items || []).map((item: any) => ({
-        competitorSlug: slug,
-        competitorName: data.name,
-        ...item,
-      }))
-    );
+    const dateEnd = new Date(inputData.dateEnd);
+    const dayOfWeek = dateEnd.getDay();
+    const daysToMonday = (dayOfWeek + 6) % 7;
+    const reportingWeekStart = new Date(dateEnd);
+    reportingWeekStart.setDate(reportingWeekStart.getDate() - daysToMonday);
+    reportingWeekStart.setHours(0, 0, 0, 0);
     
-    const reviewsData = Object.entries(inputData.reviewsScrapedData).flatMap(([slug, data]: [string, any]) =>
-      (data.reviews || []).map((item: any) => ({
-        competitorSlug: slug,
-        competitorName: data.name,
-        ...item,
-      }))
-    );
-    
-    const webSearchResults = {
-      generalWebSearch: inputData.generalWebSearch,
-      perCompetitorSearches: inputData.perCompetitorSearches,
-      financialWebSearch: inputData.financialWebSearch,
-      strategicWebSearch: inputData.strategicWebSearch,
-    };
-    
-    logger?.info('💾 [Step 8] Saving merged data to database:', {
-      competitorDataCount: competitorData.length,
-      industryDataCount: inputData.industryScrapedData.length,
-      reviewsDataCount: reviewsData.length,
-    });
-    
-    await db.saveReportSources(inputData.runId, competitorData, inputData.industryScrapedData, reviewsData);
-    
-    await db.updateWebSearchData(inputData.runId, webSearchResults, undefined);
-    
-    const metricsMap = new Map<string, any>();
-    
-    for (const metric of inputData.fundingMetrics) {
-      metricsMap.set(metric.competitorSlug, { ...metric });
-    }
-    
-    for (const metric of inputData.revenueMetrics) {
-      const existing = metricsMap.get(metric.competitorSlug);
-      if (existing) {
-        Object.assign(existing, metric);
-      } else {
-        metricsMap.set(metric.competitorSlug, { ...metric });
-      }
-    }
-    
-    for (const metric of inputData.customerMetrics) {
-      const existing = metricsMap.get(metric.competitorSlug);
-      if (existing) {
-        Object.assign(existing, metric);
-      } else {
-        metricsMap.set(metric.competitorSlug, { ...metric });
-      }
-    }
-    
-    const reportingWeekStart = new Date(inputData.reportingWeekStart);
-    let storedCount = 0;
-    
-    for (const [slug, metrics] of metricsMap.entries()) {
+    for (const metric of customerMetrics) {
       try {
         await db.saveCompetitorMetrics({
-          competitorSlug: slug,
+          competitorSlug: metric.competitorSlug,
           reportingWeekStart,
-          revenueUsd: metrics.revenueUsd,
-          revenueRange: metrics.revenueRange,
-          valuationUsd: metrics.valuationUsd,
-          employeeCount: metrics.employeeCount,
+          revenueUsd: null,
+          revenueRange: null,
+          valuationUsd: null,
+          employeeCount: null,
           owlerRawPayload: null,
           owlerSuccess: false,
-          fundingTotalUsd: metrics.fundingTotalUsd,
-          lastRoundAmountUsd: metrics.lastRoundAmountUsd,
-          lastRoundType: metrics.lastRoundType,
-          lastRoundDate: metrics.lastRoundDate ? new Date(metrics.lastRoundDate) : null,
+          fundingTotalUsd: null,
+          lastRoundAmountUsd: null,
+          lastRoundType: null,
+          lastRoundDate: null,
           investorCount: null,
           fundingRounds: null,
-          crunchbaseRawPayload: { sourceUrls: metrics.sourceUrls, rawContext: metrics.rawContext },
-          crunchbaseSuccess: true,
+          crunchbaseRawPayload: null,
+          crunchbaseSuccess: false,
+          customerCount: metric.customerCount,
+          userBase: metric.userBase,
+          churnRate: metric.churnRate,
+          retentionRate: metric.retentionRate,
+          userGrowthRate: metric.userGrowthRate,
           organicTraffic: null,
           organicKeywords: null,
           semrushRank: null,
           semrushDatabase: null,
           semrushRawPayload: null,
           semrushSuccess: false,
-          customerCount: metrics.customerCount,
-          churnRate: metrics.churnRate,
-          retentionRate: metrics.retentionRate,
-          userBase: metrics.userBase,
-          userGrowthRate: metrics.userGrowthRate,
           dataSourceVersion: 'public-web-search-v1',
           missingSources: [],
           error: null,
         });
-        storedCount++;
       } catch (error) {
-        logger?.error(`❌ [Step 8] Failed to store metrics for ${slug}:`, error);
+        logger?.warn(`⚠️ [Step 7] Failed to save customer metrics for ${metric.competitorSlug}:`, error);
       }
     }
-    
-    logger?.info(`✅ [Step 8] Data merge complete: ${storedCount} competitor metrics stored`);
     
     return {
       runId: inputData.runId,
@@ -1028,9 +857,54 @@ const mergeAllData = createStep({
       currentMonth: inputData.currentMonth,
       productUpdatesLookback: inputData.productUpdatesLookback,
       generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      reasoning: inputData.reasoning,
+      weekRangeLabel: inputData.weekRangeLabel,
+      reportingWeekStart: reportingWeekStart.toISOString().split('T')[0],
+    };
+  },
+});
+
+// ============================================================================
+// STEP 8: VERIFY DATA (No longer merges - data already saved by previous steps)
+// ============================================================================
+const verifyDataSaved = createStep({
+  id: "verify-data-saved",
+  description: "Verifies all data has been saved to database by previous steps",
+  
+  inputSchema: workflowContextSchema,
+  
+  outputSchema: workflowContextSchema,
+  
+  execute: async ({ inputData, mastra }) => {
+    const logger = mastra?.getLogger();
+    logger?.info('📦 [Step 8] Verifying all data has been saved to database...');
+    
+    const sources = await db.getReportSources(inputData.runId);
+    
+    logger?.info('📊 [Step 8] Data verification:', {
+      hasCompetitorData: sources?.competitorData?.length > 0,
+      hasIndustryData: sources?.industryData?.length > 0,
+      hasReviewsData: sources?.reviewsData?.length > 0,
+      hasWebSearchData: !!sources?.webSearchResults,
+    });
+    
+    logger?.info('✅ [Step 8] Data verification complete');
+    
+    return {
+      runId: inputData.runId,
+      dateEnd: inputData.dateEnd,
+      currentMonth: inputData.currentMonth,
+      productUpdatesLookback: inputData.productUpdatesLookback,
+      generalNewsDateStart: inputData.generalNewsDateStart,
+      productUpdatesDateStart: inputData.productUpdatesDateStart,
+      reviewsDateStart: inputData.reviewsDateStart,
+      pressReleasesDateStart: inputData.pressReleasesDateStart,
+      reasoning: inputData.reasoning,
       weekRangeLabel: inputData.weekRangeLabel,
       reportingWeekStart: inputData.reportingWeekStart,
-      dataSaved: true,
     };
   },
 });
@@ -1042,27 +916,9 @@ const parseCompetitorIntelligence = createStep({
   id: "parse-competitor-intelligence",
   description: "Uses Claude Sonnet 4.5 to parse search results into structured per-competitor information",
   
-  inputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    weekRangeLabel: z.string(),
-    reportingWeekStart: z.string(),
-    dataSaved: z.boolean(),
-  }),
+  inputSchema: workflowContextSchema,
   
-  outputSchema: z.object({
-    runId: z.string(),
-    dateEnd: z.string(),
-    currentMonth: z.string(),
-    productUpdatesLookback: z.string(),
-    generalNewsDateStart: z.string(),
-    weekRangeLabel: z.string(),
-    reportingWeekStart: z.string(),
-    intelligenceParsed: z.boolean(),
-  }),
+  outputSchema: workflowContextSchema,
   
   execute: async ({ inputData, mastra }) => {
     const logger = mastra?.getLogger();
@@ -1605,7 +1461,7 @@ export const weeklyMarketResearchWorkflow = createWorkflow({
   .then(performGeneralWebSearch as any)         // Step 5: General market intelligence web search
   .then(performFinancialWebSearch as any)       // Step 6: Financial metrics web search
   .then(performStrategicWebSearch as any)       // Step 7: Strategic metrics web search
-  .then(mergeAllData as any)                    // Step 8: Merge all data and persist to database
+  .then(verifyDataSaved as any)                  // Step 8: Verify all data saved to database
   .then(parseCompetitorIntelligence as any)     // Step 9: Parse with Claude Sonnet 4.5
   .then(calculateCompetitorTrends as any)       // Step 10: Calculate competitor trends
   .then(analyzeAndCompileReport as any)         // Step 11: Generate report with GPT-5

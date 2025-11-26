@@ -262,6 +262,36 @@ export class DatabaseService {
       ]
     );
   }
+
+  async updateCompetitorSources(runId: string, competitorData: any): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO report_sources (run_id, competitor_data, industry_data, reviews_data)
+       VALUES ($1, $2, '[]', '[]')
+       ON CONFLICT (run_id) DO UPDATE SET
+         competitor_data = EXCLUDED.competitor_data`,
+      [runId, JSON.stringify(competitorData)]
+    );
+  }
+
+  async updateIndustrySources(runId: string, industryData: any): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO report_sources (run_id, competitor_data, industry_data, reviews_data)
+       VALUES ($1, '[]', $2, '[]')
+       ON CONFLICT (run_id) DO UPDATE SET
+         industry_data = EXCLUDED.industry_data`,
+      [runId, JSON.stringify(industryData)]
+    );
+  }
+
+  async updateReviewsSources(runId: string, reviewsData: any): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO report_sources (run_id, competitor_data, industry_data, reviews_data)
+       VALUES ($1, '[]', '[]', $2)
+       ON CONFLICT (run_id) DO UPDATE SET
+         reviews_data = EXCLUDED.reviews_data`,
+      [runId, JSON.stringify(reviewsData)]
+    );
+  }
   
   /**
    * Update web search data with merge behavior to preserve accumulated research data
