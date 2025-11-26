@@ -192,6 +192,25 @@ export class DatabaseService {
     }));
   }
 
+  async hasRecentReport(dateEnd: string, withinMinutes: number = 5): Promise<{ exists: boolean; reportId?: number; googleDocsUrl?: string }> {
+    const result = await this.pool.query(
+      `SELECT id, google_docs_url FROM report_history 
+       WHERE date_end = $1 
+       AND generated_at > NOW() - INTERVAL '${withinMinutes} minutes'
+       ORDER BY generated_at DESC
+       LIMIT 1`,
+      [dateEnd]
+    );
+    if (result.rows.length > 0) {
+      return {
+        exists: true,
+        reportId: result.rows[0].id,
+        googleDocsUrl: result.rows[0].google_docs_url,
+      };
+    }
+    return { exists: false };
+  }
+
   async getSetting(key: string): Promise<string | null> {
     const result = await this.pool.query(
       'SELECT value FROM settings WHERE key = $1',
