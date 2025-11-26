@@ -68,12 +68,26 @@ const determineIntelligentTimespans = createStep({
     const now = new Date();
     const dateEnd = now.toISOString().split('T')[0];
     
-    const recentReport = await db.hasRecentReport(dateEnd, 5);
+    // Atomic lock acquisition to prevent duplicate simultaneous runs
+    const lockResult = await db.acquireWorkflowLock(dateEnd, runId, 30);
+    if (!lockResult.acquired) {
+      logger?.info('⏭️ [Step 1] Skipping: Another workflow run already has the lock for this date', {
+        existingRunId: lockResult.existingRunId,
+        ourRunId: runId,
+      });
+      throw new Error(`SKIP_DUPLICATE: Another workflow (${lockResult.existingRunId}) is already processing this date. Skipping duplicate run.`);
+    }
+    logger?.info('🔒 [Step 1] Acquired workflow lock for date', { dateEnd, runId });
+    
+    // Also check for recently completed reports (in case lock expired but report exists)
+    const recentReport = await db.hasRecentReport(dateEnd, 30);
     if (recentReport.exists) {
       logger?.info('⏭️ [Step 1] Skipping: A report for this date was already generated recently', {
         existingReportId: recentReport.reportId,
         googleDocsUrl: recentReport.googleDocsUrl,
       });
+      // Release the lock since we're not proceeding
+      await db.releaseWorkflowLock(dateEnd, runId);
       throw new Error(`SKIP_DUPLICATE: Report already exists (ID: ${recentReport.reportId}). Skipping duplicate workflow run.`);
     }
     
@@ -1289,6 +1303,7 @@ const exportToGoogleDocs = createStep({
   
   outputSchema: z.object({
     reportId: z.number(),
+    runId: z.string(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
@@ -1307,6 +1322,7 @@ const exportToGoogleDocs = createStep({
       logger?.error('❌ [Step 12] Report not found in database');
       return {
         reportId: inputData.reportId,
+        runId: inputData.runId,
         summary: inputData.summary,
         documentUrl: undefined,
         exportSuccess: false,
@@ -1332,6 +1348,7 @@ const exportToGoogleDocs = createStep({
     
     return {
       reportId: inputData.reportId,
+      runId: inputData.runId,
       summary: inputData.summary,
       documentUrl: result.documentUrl,
       exportSuccess: result.success,
@@ -1351,6 +1368,7 @@ const updateReportMetadata = createStep({
   
   inputSchema: z.object({
     reportId: z.number(),
+    runId: z.string(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
@@ -1361,6 +1379,7 @@ const updateReportMetadata = createStep({
   
   outputSchema: z.object({
     reportId: z.number(),
+    runId: z.string(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
@@ -1381,6 +1400,7 @@ const updateReportMetadata = createStep({
     
     return {
       reportId: inputData.reportId,
+      runId: inputData.runId,
       summary: inputData.summary,
       documentUrl: inputData.documentUrl,
       exportSuccess: inputData.exportSuccess,
@@ -1399,6 +1419,7 @@ const sendSlackNotification = createStep({
   
   inputSchema: z.object({
     reportId: z.number(),
+    runId: z.string(),
     summary: z.string(),
     documentUrl: z.string().optional(),
     exportSuccess: z.boolean(),
@@ -1416,39 +1437,49 @@ const sendSlackNotification = createStep({
     const logger = mastra?.getLogger();
     logger?.info('💬 [Step 13] Sending Slack notification...');
     
-    const channelId = await db.getSetting('slack_channel_id') || "C09SK3N27MH";
-    
-    const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${inputData.reportId}`;
-    
-    const message = `🔔 *Weekly Digital Adoption Platform Market Research Report*
+    try {
+      const channelId = await db.getSetting('slack_channel_id') || "C09SK3N27MH";
+      
+      const webVersionUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/reports/${inputData.reportId}`;
+      
+      const message = `🔔 *Weekly Digital Adoption Platform Market Research Report*
 
 ${inputData.summary}`;
-    
-    const result = await slackNotificationTool.execute({
-      context: {
-        channelId,
-        message,
-        webVersionUrl,
+      
+      const result = await slackNotificationTool.execute({
+        context: {
+          channelId,
+          message,
+          webVersionUrl,
+          documentUrl: inputData.documentUrl,
+        },
+        runtimeContext,
+        mastra,
+      });
+      
+      if (result.success) {
+        logger?.info('✅ [Step 13] Slack notification sent successfully');
+        await db.updateReport(inputData.reportId, { slackNotificationSent: true });
+      } else {
+        logger?.warn('⚠️ [Step 13] Failed to send Slack notification:', { error: result.error });
+      }
+      
+      logger?.info('🎉 [Workflow Complete] Weekly market research workflow finished successfully');
+      
+      return {
+        success: true,
+        reportGenerated: true,
         documentUrl: inputData.documentUrl,
-      },
-      runtimeContext,
-      mastra,
-    });
-    
-    if (result.success) {
-      logger?.info('✅ [Step 13] Slack notification sent successfully');
-      await db.updateReport(inputData.reportId, { slackNotificationSent: true });
-    } else {
-      logger?.warn('⚠️ [Step 13] Failed to send Slack notification:', { error: result.error });
+      };
+    } finally {
+      // ALWAYS release the workflow lock, regardless of success or failure
+      try {
+        await db.releaseWorkflowLock(inputData.dateEnd, inputData.runId);
+        logger?.info('🔓 [Step 13] Released workflow lock', { dateEnd: inputData.dateEnd, runId: inputData.runId });
+      } catch (lockError) {
+        logger?.warn('⚠️ [Step 13] Failed to release workflow lock:', { error: lockError });
+      }
     }
-    
-    logger?.info('🎉 [Workflow Complete] Weekly market research workflow finished successfully');
-    
-    return {
-      success: true,
-      reportGenerated: true,
-      documentUrl: inputData.documentUrl,
-    };
   },
 });
 

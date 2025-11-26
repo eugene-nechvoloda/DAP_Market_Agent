@@ -211,6 +211,75 @@ export class DatabaseService {
     return { exists: false };
   }
 
+  /**
+   * Atomically acquire a workflow lock for a specific date.
+   * Uses INSERT...ON CONFLICT to ensure only one workflow run can proceed per date.
+   * Returns whether this runId acquired the lock or if another run already has it.
+   */
+  async acquireWorkflowLock(dateEnd: string, runId: string, lockDurationMinutes: number = 30): Promise<{ acquired: boolean; existingRunId?: string }> {
+    const expiresAt = new Date(Date.now() + lockDurationMinutes * 60 * 1000);
+    
+    // First, clean up any expired locks
+    await this.pool.query(
+      `DELETE FROM workflow_locks WHERE expires_at < NOW()`
+    );
+    
+    // Try to insert a new lock - this will fail silently if one already exists
+    const insertResult = await this.pool.query(
+      `INSERT INTO workflow_locks (date_end, run_id, expires_at) 
+       VALUES ($1, $2, $3) 
+       ON CONFLICT (date_end) DO NOTHING
+       RETURNING run_id`,
+      [dateEnd, runId, expiresAt]
+    );
+    
+    // If we inserted a row, we acquired the lock
+    if (insertResult.rowCount && insertResult.rowCount > 0) {
+      return { acquired: true };
+    }
+    
+    // Otherwise, check who has the lock
+    const existingResult = await this.pool.query(
+      `SELECT run_id FROM workflow_locks WHERE date_end = $1`,
+      [dateEnd]
+    );
+    
+    if (existingResult.rows.length > 0) {
+      const existingRunId = existingResult.rows[0].run_id;
+      // If it's our own runId (from a retry), we already have the lock
+      if (existingRunId === runId) {
+        return { acquired: true };
+      }
+      return { acquired: false, existingRunId };
+    }
+    
+    // Edge case: lock was just deleted between our insert and select
+    // This shouldn't happen often, but retry the insert
+    const retryResult = await this.pool.query(
+      `INSERT INTO workflow_locks (date_end, run_id, expires_at) 
+       VALUES ($1, $2, $3) 
+       ON CONFLICT (date_end) DO NOTHING
+       RETURNING run_id`,
+      [dateEnd, runId, expiresAt]
+    );
+    
+    if (retryResult.rowCount && retryResult.rowCount > 0) {
+      return { acquired: true };
+    }
+    
+    return { acquired: false };
+  }
+
+  /**
+   * Release a workflow lock (called at the end of successful workflow runs)
+   */
+  async releaseWorkflowLock(dateEnd: string, runId: string): Promise<void> {
+    await this.pool.query(
+      `DELETE FROM workflow_locks WHERE date_end = $1 AND run_id = $2`,
+      [dateEnd, runId]
+    );
+  }
+
   async getSetting(key: string): Promise<string | null> {
     const result = await this.pool.query(
       'SELECT value FROM settings WHERE key = $1',

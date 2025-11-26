@@ -164,3 +164,12 @@ export const reportSources = pgTable('report_sources', {
 }, (table) => ({
   runIdIdx: uniqueIndex('idx_report_sources_run_id').on(table.runId),
 }));
+
+// Workflow locks table for idempotent execution - prevents duplicate simultaneous runs
+export const workflowLocks = pgTable('workflow_locks', {
+  id: serial('id').primaryKey(),
+  dateEnd: varchar('date_end', { length: 10 }).notNull().unique(), // YYYY-MM-DD format, unique to ensure only one run per date
+  runId: varchar('run_id', { length: 255 }).notNull(), // The run that acquired the lock
+  acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(), // Lock expiration for cleanup
+});
