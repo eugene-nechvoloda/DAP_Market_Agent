@@ -223,16 +223,11 @@ try {
 }
 
 export const apiRoutes = [
-  // Root redirect to dashboard (handles both dev and production)
+  // Root redirect to dashboard (for development only - production uses middleware)
   registerApiRoute('/', {
     method: 'GET',
     handler: async (c) => {
-      // In production (Replit deployed), routes are under /api
-      // In development, routes are at root level
-      const host = c.req.header('host') || '';
-      const isProduction = host.includes('.replit.app') || host.includes('.repl.co');
-      const dashboardPath = isProduction ? '/api/dashboard' : '/dashboard';
-      return c.redirect(dashboardPath, 302);
+      return c.redirect('/dashboard', 302);
     },
   }),
 
