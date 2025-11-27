@@ -90,6 +90,19 @@ export const mastra = new Mastra({
     port: 5000,
     middleware: [
       async (c, next) => {
+        const url = new URL(c.req.url);
+        const host = c.req.header("host") || "";
+        const isProduction =
+          host.includes(".replit.app") || host.includes(".repl.co");
+
+        // In production, redirect root path to /api/dashboard
+        if (isProduction && url.pathname === "/") {
+          return c.redirect("/api/dashboard", 302);
+        }
+
+        await next();
+      },
+      async (c, next) => {
         const mastra = c.get("mastra");
         const logger = mastra?.getLogger();
         logger?.debug("[Request]", { method: c.req.method, url: c.req.url });
