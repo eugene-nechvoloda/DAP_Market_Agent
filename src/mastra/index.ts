@@ -12,6 +12,7 @@ import { inngest, inngestServe, registerCronWorkflow } from "./inngest";
 import { weeklyMarketResearchWorkflow } from "./workflows/weeklyMarketResearchWorkflow";
 import { dapMarketResearchAgent } from "./agents/dapMarketResearchAgent";
 import { apiRoutes } from "./api/routes";
+import { reactRoutes } from "./api/reactRoutes";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -231,6 +232,14 @@ export const mastra = new Mastra({
       // Custom API Routes
       // ======================================================================
       ...apiRoutes,
+
+      // ======================================================================
+      // React UI Routes
+      // ======================================================================
+      // New React-based dashboard UI (separate from vanilla JS dashboard)
+      // Access at: /react-dashboard
+      // API endpoints at: /api/react/*
+      ...reactRoutes,
     ],
   },
   logger:
