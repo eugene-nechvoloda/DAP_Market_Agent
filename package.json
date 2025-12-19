@@ -8,7 +8,7 @@
     "build": "mastra build",
     "build:ui": "tsc --project tsconfig.ui.json && vite build",
     "build:all": "npm run build && npm run build:ui",
-    "start": "node .mastra/index.js",
+    "start": "node --import=./.mastra/output/instrumentation.mjs .mastra/output/index.mjs",
     "dev:ui": "vite",
     "preview:ui": "vite preview",
     "check": "tsc",
