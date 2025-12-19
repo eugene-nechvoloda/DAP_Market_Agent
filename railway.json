@@ -5,7 +5,7 @@
     "buildCommand": "npm install --ignore-scripts && npm run build:all"
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "npm run db:migrate && npm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
