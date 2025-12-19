@@ -134,7 +134,7 @@ Return your decision as structured data with:
 
     try {
       const response = await openaiClient.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
