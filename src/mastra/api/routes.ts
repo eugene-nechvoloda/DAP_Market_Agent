@@ -267,7 +267,12 @@ export const apiRoutes = [
         const run = await workflow.createRunAsync({ runId });
         
         run.start({ inputData: {} }).catch((error: any) => {
-          logger?.error('❌ [API] Workflow execution failed:', error);
+          logger?.error('❌ [API] Workflow execution failed:', {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+            error: String(error),
+          });
         });
         
         logger?.info('✅ [API] Manual report generation started:', { runId });
@@ -277,7 +282,12 @@ export const apiRoutes = [
           runId,
         });
       } catch (error: any) {
-        logger?.error('❌ [API] Failed to trigger manual report generation:', error);
+        logger?.error('❌ [API] Failed to trigger manual report generation:', {
+          message: error?.message,
+          stack: error?.stack,
+          name: error?.name,
+          error: String(error),
+        });
         return c.json({ success: false, error: error.message }, 500);
       }
     },
