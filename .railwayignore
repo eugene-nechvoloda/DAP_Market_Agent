@@ -34,3 +34,13 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Documentation (not needed in production)
+ACCESSING_API_KEYS.md
+RAILWAY_DEPLOYMENT.md
+REACT_UI_SETUP.md
+REFACTORING_ANALYSIS.md
+IMPLEMENTATION_SUMMARY.md
+
+# Temporary export secrets file (should be deleted after use)
+TEMP_export_secrets.ts

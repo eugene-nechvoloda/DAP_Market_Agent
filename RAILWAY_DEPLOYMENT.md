@@ -79,6 +79,8 @@ Your application needs a PostgreSQL database:
 
 ### 4. Configure Environment Variables
 
+⚡ **QUICK START**: See `ACCESSING_API_KEYS.md` for detailed instructions on copying your API keys from Replit to Railway.
+
 Add all required environment variables in Railway:
 
 1. **Go to your service** → **"Variables"** tab
