@@ -263,10 +263,17 @@ export const apiRoutes = [
         
         const runId = `manual-${Date.now()}`;
         logger?.info('📋 [API] Starting workflow with runId:', { runId });
-        
+        console.log('📋 [DEBUG] Starting workflow with runId:', runId);
+
         const run = await workflow.createRunAsync({ runId });
-        
+        console.log('📋 [DEBUG] Workflow run created, starting execution...');
+
         run.start({ inputData: {} }).catch((error: any) => {
+          console.error('❌ [DEBUG] Workflow execution failed - ERROR DETAILS:');
+          console.error('Message:', error?.message);
+          console.error('Name:', error?.name);
+          console.error('Stack:', error?.stack);
+          console.error('Full error:', error);
           logger?.error('❌ [API] Workflow execution failed:', {
             message: error?.message,
             stack: error?.stack,
