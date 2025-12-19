@@ -1,13 +1,6 @@
 import React from 'react';
 import '../styles/ProgressTracker.css';
 
-interface WorkflowStep {
-  name: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  startedAt?: Date;
-  completedAt?: Date;
-}
-
 interface ProgressTrackerProps {
   progress: {
     runId: string;
