@@ -1,0 +1,46 @@
+# Railway Ignore File
+# Files and directories to exclude from Railway deployments
+
+# Development files
+node_modules/
+.env.local
+.env.development
+*.log
+
+# Build artifacts (will be rebuilt on Railway)
+.mastra/
+dist/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git files
+.git/
+.gitignore
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Documentation (not needed in production)
+ACCESSING_API_KEYS.md
+RAILWAY_DEPLOYMENT.md
+REACT_UI_SETUP.md
+REFACTORING_ANALYSIS.md
+IMPLEMENTATION_SUMMARY.md
+
+# Temporary export secrets file (should be deleted after use)
+TEMP_export_secrets.ts

@@ -6,6 +6,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "mastra dev",
     "build": "mastra build",
+    "build:ui": "tsc --project tsconfig.ui.json && vite build",
+    "build:all": "npm run build && npm run build:ui",
+    "start": "node .mastra/index.js",
+    "dev:ui": "vite",
+    "preview:ui": "vite preview",
     "check": "tsc",
     "check:format": "prettier --check '**/*.ts'",
     "format": "prettier --write '**/*.ts'"
@@ -35,6 +40,7 @@
     "@types/marked": "^5.0.2",
     "@types/pg": "^8.15.5",
     "ai": "^4.3.16",
+    "cheerio": "^1.0.0",
     "dotenv": "^17.2.0",
     "drizzle-kit": "^0.31.6",
     "drizzle-orm": "^0.44.7",
@@ -46,15 +52,21 @@
     "openai": "^6.8.1",
     "pg": "^8.16.3",
     "pino": "^9.9.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "serpapi": "^2.2.1",
     "tsx": "^4.20.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "mastra": "^0.14.0",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^5.4.11"
   }
 }
